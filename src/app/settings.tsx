@@ -5,7 +5,6 @@ import {
   Text,
   ScrollView,
   Pressable,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -20,6 +19,7 @@ import { GlassSegmentedControl } from '../components/GlassSegmentedControl';
 import { FontPicker } from '../components/FontPicker';
 import { WordPreview } from '../components/WordPreview';
 import { StatCard } from '../components/StatCard';
+import { Paywall } from '../components/Paywall';
 import {
   BackgroundThemes,
   WordColors,
@@ -63,11 +63,13 @@ function LockedSettingRow({
   children,
   isPremium,
   noBorder = false,
+  onLockedPress,
 }: {
   label: string;
   children: React.ReactNode;
   isPremium: boolean;
   noBorder?: boolean;
+  onLockedPress?: () => void;
 }) {
   const { colors, glass, isDark } = useTheme();
 
@@ -80,7 +82,9 @@ function LockedSettingRow({
   }
 
   const handlePress = () => {
-    Alert.alert('Pro Feature', 'Upgrade to Pro to unlock this feature');
+    if (onLockedPress) {
+      onLockedPress();
+    }
   };
 
   return (
@@ -105,7 +109,6 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  // Use Zustand selectors to prevent unnecessary re-renders
   const {
     isPremium,
     themeMode, setThemeMode,
@@ -116,13 +119,13 @@ export default function SettingsScreen() {
     wordColor, setWordColor,
     readingLevel, setReadingLevel,
     sentenceRecap, setSentenceRecap,
-    voiceDetection, setVoiceDetection,
     hapticFeedback, setHapticFeedback,
     breathingAnimation, setBreathingAnimation,
     ttsSpeed, setTtsSpeed,
     autoPlay, setAutoPlay,
     autoPlayWPM, setAutoPlayWPM,
     totalWordsRead, textsCompleted, currentStreak,
+    showPaywall, setShowPaywall,
   } = useSettingsStore(useShallow((s) => ({
     isPremium: s.isPremium,
     themeMode: s.themeMode, setThemeMode: s.setThemeMode,
@@ -133,14 +136,18 @@ export default function SettingsScreen() {
     wordColor: s.wordColor, setWordColor: s.setWordColor,
     readingLevel: s.readingLevel, setReadingLevel: s.setReadingLevel,
     sentenceRecap: s.sentenceRecap, setSentenceRecap: s.setSentenceRecap,
-    voiceDetection: s.voiceDetection, setVoiceDetection: s.setVoiceDetection,
     hapticFeedback: s.hapticFeedback, setHapticFeedback: s.setHapticFeedback,
     breathingAnimation: s.breathingAnimation, setBreathingAnimation: s.setBreathingAnimation,
     ttsSpeed: s.ttsSpeed, setTtsSpeed: s.setTtsSpeed,
     autoPlay: s.autoPlay, setAutoPlay: s.setAutoPlay,
     autoPlayWPM: s.autoPlayWPM, setAutoPlayWPM: s.setAutoPlayWPM,
     totalWordsRead: s.totalWordsRead, textsCompleted: s.textsCompleted, currentStreak: s.currentStreak,
+    showPaywall: s.showPaywall, setShowPaywall: s.setShowPaywall,
   })));
+
+  const handleLockedPress = () => {
+    setShowPaywall(true);
+  };
 
   const themeModes = ['Light', 'Dark'];
   const themeIndex = themeMode === 'dark' ? 1 : 0;
@@ -155,7 +162,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* Header - removed close button since formSheet has native swipe-to-dismiss */}
+      {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.bg }]}>
         <Text style={[styles.headerTitle, { color: colors.primary }]}>
           Settings
@@ -170,6 +177,23 @@ export default function SettingsScreen() {
         scrollEnabled={true}
         keyboardShouldPersistTaps="handled"
       >
+          {/* Upgrade banner (non-premium only) */}
+          {!isPremium && (
+            <GlassCard onPress={() => setShowPaywall(true)} accentBorder>
+              <View style={styles.upgradeBanner}>
+                <View style={styles.upgradeBannerContent}>
+                  <Text style={[styles.upgradeBannerTitle, { color: colors.primary }]}>
+                    Upgrade to Pro
+                  </Text>
+                  <Text style={[styles.upgradeBannerSubtitle, { color: colors.secondary }]}>
+                    Unlock all fonts, colors, and features
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.muted} />
+              </View>
+            </GlassCard>
+          )}
+
           {/* Stats card */}
           <GlassCard>
             <View style={styles.statsRow}>
@@ -220,7 +244,7 @@ export default function SettingsScreen() {
                 </View>
               </View>
             ) : (
-              <LockedSettingRow label="Background" isPremium={isPremium} noBorder>
+              <LockedSettingRow label="Background" isPremium={isPremium} noBorder onLockedPress={handleLockedPress}>
                 <View />
               </LockedSettingRow>
             )}
@@ -247,7 +271,7 @@ export default function SettingsScreen() {
                 </View>
               </View>
             ) : (
-              <LockedSettingRow label="Font" isPremium={isPremium}>
+              <LockedSettingRow label="Font" isPremium={isPremium} onLockedPress={handleLockedPress}>
                 <View />
               </LockedSettingRow>
             )}
@@ -276,7 +300,7 @@ export default function SettingsScreen() {
                 />
               </View>
             ) : (
-              <LockedSettingRow label="Size" isPremium={isPremium}>
+              <LockedSettingRow label="Size" isPremium={isPremium} onLockedPress={handleLockedPress}>
                 <View />
               </LockedSettingRow>
             )}
@@ -284,7 +308,7 @@ export default function SettingsScreen() {
             <View style={[styles.separator, { backgroundColor: glass.border }]} />
 
             {/* Bold toggle - Pro only */}
-            <LockedSettingRow label="Bold" isPremium={isPremium}>
+            <LockedSettingRow label="Bold" isPremium={isPremium} onLockedPress={handleLockedPress}>
               <GlassToggle
                 value={wordBold}
                 onValueChange={setWordBold}
@@ -330,7 +354,7 @@ export default function SettingsScreen() {
                 </View>
               </View>
             ) : (
-              <LockedSettingRow label="Color" isPremium={isPremium} noBorder>
+              <LockedSettingRow label="Color" isPremium={isPremium} noBorder onLockedPress={handleLockedPress}>
                 <View />
               </LockedSettingRow>
             )}
@@ -358,19 +382,13 @@ export default function SettingsScreen() {
                 onValueChange={setSentenceRecap}
               />
             </SettingRow>
-            <LockedSettingRow label="Voice Detection" isPremium={isPremium}>
-              <GlassToggle
-                value={voiceDetection}
-                onValueChange={setVoiceDetection}
-              />
-            </LockedSettingRow>
             <SettingRow label="Haptic Feedback">
               <GlassToggle
                 value={hapticFeedback}
                 onValueChange={setHapticFeedback}
               />
             </SettingRow>
-            <LockedSettingRow label="Breathing Animation" isPremium={isPremium} noBorder>
+            <LockedSettingRow label="Breathing Animation" isPremium={isPremium} noBorder onLockedPress={handleLockedPress}>
               <GlassToggle
                 value={breathingAnimation}
                 onValueChange={setBreathingAnimation}
@@ -394,7 +412,7 @@ export default function SettingsScreen() {
               </View>
             </View>
             <View style={[styles.separator, { backgroundColor: glass.border }]} />
-            <LockedSettingRow label="Auto-Play" isPremium={isPremium} noBorder={!isPremium || !autoPlay}>
+            <LockedSettingRow label="Auto-Play" isPremium={isPremium} noBorder={!isPremium || !autoPlay} onLockedPress={handleLockedPress}>
               <GlassToggle
                 value={autoPlay}
                 onValueChange={setAutoPlay}
@@ -430,6 +448,15 @@ export default function SettingsScreen() {
           <SectionHeader title="About" />
           <GlassCard>
             <Pressable
+              onPress={() => router.push('/history')}
+              style={styles.settingRow}
+            >
+              <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                Reading History
+              </Text>
+              <Feather name="chevron-right" size={18} color={colors.muted} />
+            </Pressable>
+            <Pressable
               onPress={() => router.push('/privacy')}
               style={styles.settingRowNoBorder}
             >
@@ -440,8 +467,23 @@ export default function SettingsScreen() {
             </Pressable>
           </GlassCard>
 
+          {/* Restore purchases (non-premium only) */}
+          {!isPremium && (
+            <Pressable style={styles.restoreButton}>
+              <Text style={[styles.restoreText, { color: colors.muted }]}>
+                Restore Purchase
+              </Text>
+            </Pressable>
+          )}
+
           <View style={{ height: 40 + insets.bottom }} />
         </ScrollView>
+
+      {/* Paywall */}
+      <Paywall
+        visible={showPaywall}
+        onDismiss={() => setShowPaywall(false)}
+      />
     </View>
   );
 }
@@ -481,6 +523,24 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+  },
+  // Upgrade banner
+  upgradeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  upgradeBannerContent: {
+    flex: 1,
+    gap: 2,
+  },
+  upgradeBannerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  upgradeBannerSubtitle: {
+    fontSize: 13,
+    fontWeight: '400',
   },
   settingRow: {
     flexDirection: 'row',
@@ -565,5 +625,13 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  restoreButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  restoreText: {
+    fontSize: 14,
+    fontWeight: '400',
   },
 });

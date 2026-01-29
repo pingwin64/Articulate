@@ -64,6 +64,8 @@ export default function RootLayout() {
           <Stack.Screen name="index" />
           <Stack.Screen name="reading" />
           <Stack.Screen name="complete" />
+          <Stack.Screen name="paste" />
+          <Stack.Screen name="history" />
           <Stack.Screen
             name="settings"
             options={{

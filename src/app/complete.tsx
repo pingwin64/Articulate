@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, Pressable, ScrollView } from 'react-native';
+import React, { useEffect, useRef, useMemo } from 'react';
+import { StyleSheet, View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
@@ -8,56 +8,113 @@ import Animated, {
   withSpring,
   withTiming,
   withSequence,
+  Easing,
   FadeIn,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 import { categories } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { NumberRoll } from '../components/NumberRoll';
+import { Paywall } from '../components/Paywall';
+import { ShareCard } from '../components/ShareCard';
 import { Spacing } from '../design/theme';
 
+// Encouraging quotes for variable rewards
+const ENCOURAGEMENT_QUOTES = [
+  'A reader lives a thousand lives.',
+  'Reading is dreaming with open eyes.',
+  'Every word brings you closer to mastery.',
+  'The more you read, the more you know.',
+  'Consistency builds greatness.',
+  'You just invested in yourself.',
+  'Small steps, big progress.',
+  'Your mind thanks you.',
+];
+
 export default function CompleteScreen() {
-  const { colors, glass } = useTheme();
+  const { colors, glass, isDark } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{
-    categoryKey: string;
+    categoryKey?: string;
+    customTextId?: string;
     wordsRead: string;
     timeSpent: string;
+    title?: string;
   }>();
 
   const {
     hapticFeedback,
     incrementWordsRead,
     incrementTextsCompleted,
+    incrementTextsReadToday,
     updateStreak,
+    recordSessionWPM,
+    addTimeSpent,
+    addReadingSession,
     currentStreak,
     hasOnboarded,
     setHasOnboarded,
     setIsPremium,
-    setFontFamily,
-    setWordColor,
+    startTrial,
+    bestWPM: prevBestWPM,
+    firstSessionWPM,
+    totalTimeSpent,
+    textsCompleted: prevTextsCompleted,
+    dailyGoalSet,
+    dailyGoal,
+    textsReadToday,
+    showPaywall,
+    setShowPaywall,
   } = useSettingsStore();
 
   const wordsRead = parseInt(params.wordsRead ?? '0', 10);
   const timeSpent = parseInt(params.timeSpent ?? '0', 10);
   const wpm = timeSpent > 0 ? Math.round((wordsRead / timeSpent) * 60) : 0;
   const category = categories.find((c) => c.key === params.categoryKey);
+  const readingTitle = params.title || category?.name || 'Reading';
   const minutes = Math.floor(timeSpent / 60);
   const seconds = timeSpent % 60;
   const timeDisplay = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
 
-  // Checkmark animation
+  // Insights
+  const isPersonalBest = wpm > prevBestWPM && prevBestWPM > 0;
+  const speedImprovement = firstSessionWPM && firstSessionWPM > 0
+    ? Math.round(((wpm - firstSessionWPM) / firstSessionWPM) * 100)
+    : null;
+  const totalMinutesThisWeek = Math.round((totalTimeSpent + timeSpent) / 60);
+
+  // Texts completed milestone (every 10th)
+  const newTextsCompleted = prevTextsCompleted + 1;
+  const isTextsMilestone = newTextsCompleted % 10 === 0 && newTextsCompleted > 0;
+
+  // Daily goal progress
+  const newTextsToday = textsReadToday + 1;
+  const dailyGoalReached = dailyGoalSet && newTextsToday >= dailyGoal;
+  const textsUntilGoal = dailyGoalSet ? Math.max(0, dailyGoal - newTextsToday) : 0;
+
+  // Whether to show glow (personal best or milestone)
+  const showGlow = isPersonalBest || isTextsMilestone || dailyGoalReached;
+
+  // Encouragement quote (pseudo-random based on textsCompleted)
+  const quote = useMemo(
+    () => ENCOURAGEMENT_QUOTES[newTextsCompleted % ENCOURAGEMENT_QUOTES.length],
+    [newTextsCompleted]
+  );
+
+  // Animations
   const checkScale = useSharedValue(0);
   const checkOpacity = useSharedValue(0);
-
-  // CTA visibility
   const ctaOpacity = useSharedValue(0);
-
-  // Paywall visibility (for first reading)
   const paywallOpacity = useSharedValue(0);
+  const glowScale = useSharedValue(0.5);
+  const glowOpacity = useSharedValue(0);
 
   const didRun = useRef(false);
   useEffect(() => {
@@ -67,10 +124,24 @@ export default function CompleteScreen() {
     // Record stats
     incrementWordsRead(wordsRead);
     incrementTextsCompleted();
+    incrementTextsReadToday();
     updateStreak();
+    recordSessionWPM(wpm);
+    addTimeSpent(timeSpent);
+
+    // Add to reading history
+    addReadingSession({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+      categoryKey: params.categoryKey || undefined,
+      customTextId: params.customTextId || undefined,
+      title: readingTitle,
+      wordsRead,
+      timeSpentSeconds: timeSpent,
+      wpm,
+      readAt: new Date().toISOString(),
+    });
 
     // Animation sequence
-    // T+200ms: checkmark
     const t1 = setTimeout(() => {
       checkScale.value = withSequence(
         withSpring(1.1, { damping: 12, stiffness: 180 }),
@@ -79,21 +150,33 @@ export default function CompleteScreen() {
       checkOpacity.value = withTiming(1, { duration: 200 });
     }, 200);
 
-    // T+400ms: haptic
     const t2 = setTimeout(() => {
       if (hapticFeedback) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     }, 400);
 
-    // T+1800ms: Paywall (first reading only)
+    // Radial glow for personal best / milestone
+    const t5 = setTimeout(() => {
+      if (showGlow) {
+        glowOpacity.value = withSequence(
+          withTiming(0.6, { duration: 400, easing: Easing.out(Easing.ease) }),
+          withTiming(0, { duration: 1200, easing: Easing.in(Easing.ease) })
+        );
+        glowScale.value = withSequence(
+          withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) }),
+          withTiming(2.5, { duration: 1300, easing: Easing.out(Easing.ease) })
+        );
+      }
+    }, 500);
+
+    // Paywall for first reading
     const t3 = setTimeout(() => {
       if (!hasOnboarded) {
         paywallOpacity.value = withTiming(1, { duration: 400 });
       }
     }, 1800);
 
-    // T+2000ms: CTAs
     const t4 = setTimeout(() => {
       ctaOpacity.value = withTiming(1, { duration: 300 });
     }, 2000);
@@ -103,8 +186,9 @@ export default function CompleteScreen() {
       clearTimeout(t2);
       clearTimeout(t3);
       clearTimeout(t4);
+      clearTimeout(t5);
     };
-  }, [wordsRead, incrementWordsRead, incrementTextsCompleted, updateStreak, hapticFeedback, checkScale, checkOpacity, ctaOpacity, paywallOpacity, hasOnboarded]);
+  }, []);
 
   const checkAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: checkScale.value }],
@@ -119,15 +203,27 @@ export default function CompleteScreen() {
     opacity: paywallOpacity.value,
   }));
 
+  const glowAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: glowScale.value }],
+    opacity: glowOpacity.value,
+  }));
+
   const handleContinue = () => {
     router.replace('/');
   };
 
   const handleReadAgain = () => {
-    router.replace({
-      pathname: '/reading',
-      params: { categoryKey: params.categoryKey ?? '' },
-    });
+    if (params.customTextId) {
+      router.replace({
+        pathname: '/reading',
+        params: { customTextId: params.customTextId },
+      });
+    } else {
+      router.replace({
+        pathname: '/reading',
+        params: { categoryKey: params.categoryKey ?? '' },
+      });
+    }
   };
 
   const handleSubscribe = () => {
@@ -137,13 +233,54 @@ export default function CompleteScreen() {
   };
 
   const handleDismiss = () => {
-    setFontFamily('sourceSerif');
-    setWordColor('default');
+    // Keep customizations for 3-day trial (endowment effect)
+    startTrial();
     setHasOnboarded(true);
     router.replace('/');
   };
 
+  // Share functionality
+  const shareCardRef = useRef<View>(null);
+
+  const handleShare = async () => {
+    try {
+      if (hapticFeedback) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+
+      const uri = await captureRef(shareCardRef, {
+        format: 'png',
+        quality: 1,
+        result: 'tmpfile',
+      });
+
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'image/png',
+          dialogTitle: 'Share your reading stats',
+        });
+      } else {
+        Alert.alert('Sharing not available', 'Sharing is not supported on this device');
+      }
+    } catch (error: any) {
+      // Fallback: text-based sharing
+      const shareText = `I just read "${readingTitle}" - ${wordsRead} words at ${wpm} WPM! ${currentStreak > 0 ? `${currentStreak} day streak.` : ''} Read with Articulate.`;
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        const tmpPath = `${FileSystem.cacheDirectory}articulate-stats.txt`;
+        await FileSystem.writeAsStringAsync(tmpPath, shareText);
+        await Sharing.shareAsync(tmpPath);
+      }
+    }
+  };
+
   const isFirstReading = !hasOnboarded;
+
+  // Build next action text
+  const nextActionText = dailyGoalSet && textsUntilGoal > 0
+    ? `Read another? You're ${textsUntilGoal} away from your daily goal`
+    : null;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -154,6 +291,29 @@ export default function CompleteScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
+            {/* Radial glow pulse (behind checkmark) */}
+            {showGlow && (
+              <Animated.View
+                style={[
+                  styles.glowRing,
+                  glowAnimStyle,
+                  {
+                    borderColor: isPersonalBest
+                      ? colors.success
+                      : dailyGoalReached
+                        ? colors.warning
+                        : colors.info,
+                    shadowColor: isPersonalBest
+                      ? colors.success
+                      : dailyGoalReached
+                        ? colors.warning
+                        : colors.info,
+                  },
+                ]}
+                pointerEvents="none"
+              />
+            )}
+
             {/* Checkmark */}
             <Animated.View
               style={[
@@ -171,12 +331,12 @@ export default function CompleteScreen() {
               </Text>
             </Animated.View>
 
-            {/* Well Done */}
+            {/* Title */}
             <Animated.Text
               entering={FadeIn.delay(500).duration(300)}
               style={[styles.title, { color: colors.primary }]}
             >
-              Well Done
+              {isPersonalBest ? 'New Personal Best!' : dailyGoalReached ? 'Goal Reached!' : 'Well Done'}
             </Animated.Text>
 
             {/* Category */}
@@ -184,7 +344,7 @@ export default function CompleteScreen() {
               entering={FadeIn.delay(700).duration(300)}
               style={[styles.categoryLabel, { color: colors.secondary }]}
             >
-              {category?.name ?? 'Reading'}
+              {readingTitle}
             </Animated.Text>
 
             {/* Stats */}
@@ -220,6 +380,53 @@ export default function CompleteScreen() {
               </GlassCard>
             </Animated.View>
 
+            {/* Insights Section */}
+            <Animated.View
+              entering={FadeIn.delay(1300).duration(300)}
+              style={styles.insightsSection}
+            >
+              {/* Personal best badge */}
+              {isPersonalBest && (
+                <View style={[styles.insightBadge, { backgroundColor: isDark ? 'rgba(40,167,69,0.15)' : 'rgba(40,167,69,0.1)' }]}>
+                  <Text style={[styles.insightBadgeText, { color: colors.success }]}>
+                    {'\u2B50'} New personal best: {wpm} WPM
+                  </Text>
+                </View>
+              )}
+
+              {/* Speed comparison */}
+              {speedImprovement !== null && speedImprovement > 0 && !isPersonalBest && (
+                <Text style={[styles.insightText, { color: colors.secondary }]}>
+                  {speedImprovement}% faster than your first session
+                </Text>
+              )}
+
+              {/* Time milestone */}
+              {totalMinutesThisWeek > 0 && (
+                <Text style={[styles.insightText, { color: colors.secondary }]}>
+                  {totalMinutesThisWeek} minutes of reading this week
+                </Text>
+              )}
+
+              {/* Texts milestone */}
+              {isTextsMilestone && (
+                <View style={[styles.insightBadge, { backgroundColor: isDark ? 'rgba(10,132,255,0.15)' : 'rgba(10,132,255,0.1)' }]}>
+                  <Text style={[styles.insightBadgeText, { color: colors.info }]}>
+                    {newTextsCompleted} texts completed!
+                  </Text>
+                </View>
+              )}
+
+              {/* Daily goal reached */}
+              {dailyGoalReached && (
+                <View style={[styles.insightBadge, { backgroundColor: isDark ? 'rgba(255,149,0,0.15)' : 'rgba(255,149,0,0.1)' }]}>
+                  <Text style={[styles.insightBadgeText, { color: colors.warning }]}>
+                    Daily goal reached!
+                  </Text>
+                </View>
+              )}
+            </Animated.View>
+
             {/* Streak */}
             {currentStreak > 0 && (
               <Animated.View
@@ -231,6 +438,14 @@ export default function CompleteScreen() {
                 </Text>
               </Animated.View>
             )}
+
+            {/* Encouragement quote */}
+            <Animated.Text
+              entering={FadeIn.delay(1600).duration(300)}
+              style={[styles.quoteText, { color: colors.muted }]}
+            >
+              "{quote}"
+            </Animated.Text>
 
             {/* Paywall Section (first reading only) */}
             {isFirstReading && (
@@ -267,7 +482,7 @@ export default function CompleteScreen() {
         <Animated.View style={[styles.ctaContainer, ctaAnimStyle]}>
           {isFirstReading ? (
             <>
-              <GlassButton title="Unlock Premium" onPress={handleSubscribe} />
+              <GlassButton title="Start Free Trial" onPress={handleSubscribe} />
               <Pressable onPress={handleDismiss} style={styles.dismissButton}>
                 <Text style={[styles.dismissLink, { color: colors.muted }]}>
                   Maybe later
@@ -276,16 +491,41 @@ export default function CompleteScreen() {
             </>
           ) : (
             <>
+              {nextActionText && (
+                <Text style={[styles.nextActionText, { color: colors.secondary }]}>
+                  {nextActionText}
+                </Text>
+              )}
               <GlassButton title="Continue" onPress={handleContinue} />
-              <GlassButton
-                title="Read Again"
-                onPress={handleReadAgain}
-                variant="outline"
-              />
+              <View style={styles.secondaryActions}>
+                <GlassButton
+                  title="Read Again"
+                  onPress={handleReadAgain}
+                  variant="outline"
+                />
+                <Pressable onPress={handleShare} style={styles.shareButton}>
+                  <Feather name="share" size={18} color={colors.primary} />
+                  <Text style={[styles.shareText, { color: colors.primary }]}>
+                    Share
+                  </Text>
+                </Pressable>
+              </View>
             </>
           )}
         </Animated.View>
       </SafeAreaView>
+
+      {/* Off-screen Share Card for capture */}
+      <ShareCard
+        ref={shareCardRef}
+        wordsRead={wordsRead}
+        timeDisplay={timeDisplay}
+        wpm={wpm}
+        streak={currentStreak}
+        title={readingTitle}
+        isPersonalBest={isPersonalBest}
+        quoteIndex={newTextsCompleted}
+      />
     </View>
   );
 }
@@ -304,6 +544,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     gap: 16,
   },
+  // Radial glow
+  glowRing: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 30,
+    shadowOpacity: 0.8,
+    top: '50%',
+    marginTop: -146,
+  },
   checkCircle: {
     width: 80,
     height: 80,
@@ -314,6 +567,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
     marginBottom: 8,
+    zIndex: 1,
   },
   checkmark: {
     fontSize: 36,
@@ -355,12 +609,40 @@ const styles = StyleSheet.create({
     width: 0.5,
     height: 40,
   },
+  // Insights
+  insightsSection: {
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+  },
+  insightBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderCurve: 'continuous',
+  },
+  insightBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  insightText: {
+    fontSize: 14,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
   streakRow: {
-    marginTop: 8,
+    marginTop: 4,
   },
   streakText: {
     fontSize: 15,
     fontWeight: '500',
+  },
+  quoteText: {
+    fontSize: 13,
+    fontWeight: '400',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
   scrollContent: {
     flexGrow: 1,
@@ -369,6 +651,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.lg,
     gap: 12,
+  },
+  secondaryActions: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  shareText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  nextActionText: {
+    fontSize: 14,
+    fontWeight: '400',
+    textAlign: 'center',
+    marginBottom: 4,
   },
   paywallSection: {
     width: '100%',

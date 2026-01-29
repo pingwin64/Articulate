@@ -9,6 +9,7 @@ import Animated, {
 import { useTheme } from '../hooks/useTheme';
 import { GlassCard } from './GlassCard';
 import { categories } from '../lib/data/categories';
+import { useSettingsStore } from '../lib/store/settings';
 import type { ResumeData } from '../lib/store/settings';
 
 interface ResumeCardProps {
@@ -18,10 +19,19 @@ interface ResumeCardProps {
 
 export function ResumeCard({ data, onPress }: ResumeCardProps) {
   const { colors } = useTheme();
+  const { customTexts } = useSettingsStore();
   const translateY = useSharedValue(-20);
   const opacity = useSharedValue(0);
 
-  const category = categories.find((c) => c.key === data.categoryKey);
+  // Resolve name from category or custom text
+  const displayName = (() => {
+    if (data.customTextId) {
+      const ct = customTexts.find((t) => t.id === data.customTextId);
+      return ct?.title ?? 'My Text';
+    }
+    const category = categories.find((c) => c.key === data.categoryKey);
+    return category?.name ?? 'Reading';
+  })();
 
   useEffect(() => {
     translateY.value = withDelay(100, withSpring(0, { damping: 15, stiffness: 120 }));
@@ -38,13 +48,13 @@ export function ResumeCard({ data, onPress }: ResumeCardProps) {
       <GlassCard onPress={onPress} accentBorder>
         <View style={styles.content}>
           <Text style={[styles.category, { color: colors.primary }]}>
-            {category?.name ?? 'Reading'}
+            {displayName}
           </Text>
           <Text style={[styles.progress, { color: colors.secondary }]}>
             Word {data.wordIndex + 1} of {data.totalWords}
           </Text>
           <Text style={[styles.cta, { color: colors.muted }]}>
-            Pick up where you left off
+            You're almost there — pick up where you left off
           </Text>
           <View style={styles.progressBar}>
             <View
