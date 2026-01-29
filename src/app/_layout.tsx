@@ -73,6 +73,7 @@ export default function RootLayout() {
               sheetCornerRadius: 20,
             }}
           />
+          <Stack.Screen name="privacy" />
         </Stack>
       </View>
     </GestureHandlerRootView>

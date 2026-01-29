@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useShallow } from 'zustand/react/shallow';
 import { GlassSlider } from '../components/GlassSlider';
 import { Feather } from '@expo/vector-icons';
@@ -102,6 +103,7 @@ function LockedSettingRow({
 export default function SettingsScreen() {
   const { colors, glass, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   // Use Zustand selectors to prevent unnecessary re-renders
   const {
@@ -422,6 +424,20 @@ export default function SettingsScreen() {
                 </View>
               </>
             )}
+          </GlassCard>
+
+          {/* About */}
+          <SectionHeader title="About" />
+          <GlassCard>
+            <Pressable
+              onPress={() => router.push('/privacy')}
+              style={styles.settingRowNoBorder}
+            >
+              <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                Privacy Policy
+              </Text>
+              <Feather name="chevron-right" size={18} color={colors.muted} />
+            </Pressable>
           </GlassCard>
 
           <View style={{ height: 40 + insets.bottom }} />
