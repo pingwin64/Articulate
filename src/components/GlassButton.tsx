@@ -1,16 +1,17 @@
 import React from 'react';
-import { StyleSheet, Text, Pressable, type ViewStyle, type StyleProp } from 'react-native';
+import { StyleSheet, Text, type ViewStyle, type StyleProp } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  withTiming,
+  interpolate,
+  runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../hooks/useTheme';
-import { Radius, Springs } from '../design/theme';
+import { Radius } from '../design/theme';
 import { useSettingsStore } from '../lib/store/settings';
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface GlassButtonProps {
   title: string;
@@ -29,58 +30,64 @@ export function GlassButton({
 }: GlassButtonProps) {
   const { colors, glass, isDark } = useTheme();
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
-  const scale = useSharedValue(1);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const pressed = useSharedValue(0);
 
   const isSolid = variant === 'solid';
 
+  const handlePress = () => {
+    if (hapticEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    onPress();
+  };
+
+  const tap = Gesture.Tap()
+    .enabled(!disabled)
+    .onBegin(() => {
+      pressed.value = withTiming(1, { duration: 80 });
+    })
+    .onFinalize(() => {
+      pressed.value = withTiming(0, { duration: 150 });
+    })
+    .onEnd(() => {
+      runOnJS(handlePress)();
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(pressed.value, [0, 1], [1, 0.96]) }],
+  }));
+
   return (
-    <AnimatedPressable
-      onPress={() => {
-        if (hapticEnabled) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
-        onPress();
-      }}
-      onPressIn={() => {
-        scale.value = withSpring(0.96, Springs.snappy);
-      }}
-      onPressOut={() => {
-        scale.value = withSpring(1, Springs.default);
-      }}
-      disabled={disabled}
-      style={[
-        styles.button,
-        {
-          backgroundColor: isSolid
-            ? colors.primary
-            : 'transparent',
-          borderWidth: isSolid ? 0 : 1,
-          borderColor: glass.border,
-          opacity: disabled ? 0.5 : 1,
-        },
-        animatedStyle,
-        style,
-      ]}
-    >
-      <Text
+    <GestureDetector gesture={tap}>
+      <Animated.View
         style={[
-          styles.text,
+          styles.button,
           {
-            color: isSolid
-              ? isDark
-                ? '#000'
-                : '#FFF'
-              : colors.primary,
+            backgroundColor: isSolid ? colors.primary : 'transparent',
+            borderWidth: isSolid ? 0 : 1,
+            borderColor: glass.border,
+            opacity: disabled ? 0.5 : 1,
           },
+          animatedStyle,
+          style,
         ]}
       >
-        {title}
-      </Text>
-    </AnimatedPressable>
+        <Text
+          style={[
+            styles.text,
+            {
+              color: isSolid
+                ? isDark
+                  ? '#000'
+                  : '#FFF'
+                : colors.primary,
+            },
+          ]}
+        >
+          {title}
+        </Text>
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
@@ -88,13 +95,10 @@ const styles = StyleSheet.create({
   button: {
     height: 52,
     borderRadius: Radius.lg,
+    borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
   },
   text: {
     fontSize: 16,

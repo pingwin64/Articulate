@@ -14,7 +14,7 @@ export function TimeGreeting() {
   const greeting = useMemo(getGreeting, []);
 
   return (
-    <Text style={[styles.text, { color: colors.secondary }]}>
+    <Text style={[styles.text, { color: colors.primary }]}>
       {greeting}
     </Text>
   );
@@ -22,8 +22,8 @@ export function TimeGreeting() {
 
 const styles = StyleSheet.create({
   text: {
-    fontSize: 18,
-    fontWeight: '500',
-    letterSpacing: 0.2,
+    fontSize: 32,
+    fontWeight: '300',
+    letterSpacing: -0.5,
   },
 });

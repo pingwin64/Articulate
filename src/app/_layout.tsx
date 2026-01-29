@@ -67,8 +67,10 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings"
             options={{
-              presentation: 'modal',
-              animation: 'slide_from_bottom',
+              presentation: 'formSheet',
+              sheetAllowedDetents: [0.85, 1.0],
+              sheetGrabberVisible: true,
+              sheetCornerRadius: 20,
             }}
           />
         </Stack>

@@ -82,6 +82,7 @@ export function FontPicker({ selected, onSelect }: FontPickerProps) {
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.scrollContent}
+      nestedScrollEnabled={true}
     >
       {fontKeys.map((key) => (
         <FontItem

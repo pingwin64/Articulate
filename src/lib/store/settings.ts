@@ -62,6 +62,8 @@ export interface SettingsState {
   setVoiceDetection: (v: boolean) => void;
   hapticFeedback: boolean;
   setHapticFeedback: (v: boolean) => void;
+  breathingAnimation: boolean;
+  setBreathingAnimation: (v: boolean) => void;
 
   // Audio
   ttsSpeed: TTSSpeed;
@@ -118,12 +120,14 @@ export const useSettingsStore = create<SettingsState>()(
       // Reading
       readingLevel: 'intermediate',
       setReadingLevel: (v) => set({ readingLevel: v }),
-      sentenceRecap: true,
+      sentenceRecap: false,
       setSentenceRecap: (v) => set({ sentenceRecap: v }),
       voiceDetection: false,
       setVoiceDetection: (v) => set({ voiceDetection: v }),
       hapticFeedback: true,
       setHapticFeedback: (v) => set({ hapticFeedback: v }),
+      breathingAnimation: true,
+      setBreathingAnimation: (v) => set({ breathingAnimation: v }),
 
       // Audio
       ttsSpeed: 'normal',
@@ -143,18 +147,44 @@ export const useSettingsStore = create<SettingsState>()(
       incrementTextsCompleted: () =>
         set((s) => ({ textsCompleted: s.textsCompleted + 1 })),
       updateStreak: () => {
-        const today = new Date().toDateString();
+        const now = Date.now();
         const state = get();
-        if (state.lastReadDate === today) return;
 
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const wasYesterday = state.lastReadDate === yesterday.toDateString();
+        // Parse last read timestamp (backward-compatible with old toDateString format)
+        let lastReadMs = 0;
+        if (state.lastReadDate) {
+          const parsed = new Date(state.lastReadDate).getTime();
+          if (!isNaN(parsed)) lastReadMs = parsed;
+        }
 
-        set({
-          currentStreak: wasYesterday ? state.currentStreak + 1 : 1,
-          lastReadDate: today,
-        });
+        if (lastReadMs === 0) {
+          // First time reading
+          set({ currentStreak: 1, lastReadDate: new Date(now).toISOString() });
+          return;
+        }
+
+        const HOURS_24 = 24 * 60 * 60 * 1000;
+        const HOURS_48 = 48 * 60 * 60 * 1000;
+        const elapsed = now - lastReadMs;
+
+        if (elapsed < HOURS_24) {
+          // Within same 24h window — already counted, no change
+          return;
+        }
+
+        if (elapsed <= HOURS_48) {
+          // 24h–48h: consecutive day, increment streak
+          set({
+            currentStreak: state.currentStreak + 1,
+            lastReadDate: new Date(now).toISOString(),
+          });
+        } else {
+          // >48h: streak broken, reset
+          set({
+            currentStreak: 1,
+            lastReadDate: new Date(now).toISOString(),
+          });
+        }
       },
 
       // Resume
@@ -172,9 +202,10 @@ export const useSettingsStore = create<SettingsState>()(
         wordBold: false,
         wordColor: 'default',
         readingLevel: 'intermediate',
-        sentenceRecap: true,
+        sentenceRecap: false,
         voiceDetection: false,
         hapticFeedback: true,
+        breathingAnimation: true,
         ttsSpeed: 'normal',
         autoPlay: false,
         autoPlayWPM: 250,

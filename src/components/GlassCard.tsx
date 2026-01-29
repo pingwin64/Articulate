@@ -2,23 +2,22 @@ import React from 'react';
 import {
   StyleSheet,
   View,
-  Pressable,
   type ViewStyle,
   type StyleProp,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  withTiming,
+  interpolate,
+  runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../hooks/useTheme';
-import { Radius, Springs } from '../design/theme';
+import { Radius } from '../design/theme';
 import { useSettingsStore } from '../lib/store/settings';
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface GlassCardProps {
   children: React.ReactNode;
@@ -31,23 +30,7 @@ interface GlassCardProps {
 export function GlassCard({ children, style, onPress, disabled, accentBorder }: GlassCardProps) {
   const { colors, glass, isDark } = useTheme();
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
-  const scale = useSharedValue(1);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const handlePressIn = () => {
-    if (onPress) {
-      scale.value = withSpring(0.97, Springs.snappy);
-    }
-  };
-
-  const handlePressOut = () => {
-    if (onPress) {
-      scale.value = withSpring(1, Springs.default);
-    }
-  };
+  const pressed = useSharedValue(0);
 
   const handlePress = () => {
     if (hapticEnabled) {
@@ -55,6 +38,22 @@ export function GlassCard({ children, style, onPress, disabled, accentBorder }: 
     }
     onPress?.();
   };
+
+  const tap = Gesture.Tap()
+    .enabled(!disabled && !!onPress)
+    .onBegin(() => {
+      pressed.value = withTiming(1, { duration: 80 });
+    })
+    .onFinalize(() => {
+      pressed.value = withTiming(0, { duration: 150 });
+    })
+    .onEnd(() => {
+      runOnJS(handlePress)();
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(pressed.value, [0, 1], [1, 0.97]) }],
+  }));
 
   const cardContent = (
     <View style={styles.inner}>
@@ -69,15 +68,15 @@ export function GlassCard({ children, style, onPress, disabled, accentBorder }: 
           { backgroundColor: glass.fill },
         ]}
       />
-      <LinearGradient
-        colors={
-          isDark
-            ? ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0)']
-            : ['rgba(255,255,255,0.9)', 'rgba(255,255,255,0)']
-        }
-        style={styles.highlight}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
+      <View
+        style={[
+          styles.highlight,
+          {
+            experimental_backgroundImage: isDark
+              ? 'linear-gradient(to bottom, rgba(255,255,255,0.08), rgba(255,255,255,0))'
+              : 'linear-gradient(to bottom, rgba(255,255,255,0.9), rgba(255,255,255,0))',
+          },
+        ]}
       />
       <View style={styles.content}>{children}</View>
     </View>
@@ -85,31 +84,24 @@ export function GlassCard({ children, style, onPress, disabled, accentBorder }: 
 
   const containerStyle: ViewStyle = {
     borderRadius: Radius.lg,
+    borderCurve: 'continuous',
     borderWidth: 0.5,
     borderColor: accentBorder
       ? isDark
         ? 'rgba(255,255,255,0.25)'
         : 'rgba(0,0,0,0.15)'
       : glass.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: glass.shadowOpacity,
-    shadowRadius: 12,
-    elevation: 8,
+    boxShadow: `0 4px 12px rgba(0, 0, 0, ${glass.shadowOpacity})`,
     overflow: 'hidden',
   };
 
   if (onPress) {
     return (
-      <AnimatedPressable
-        onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        disabled={disabled}
-        style={[containerStyle, animatedStyle, style]}
-      >
-        {cardContent}
-      </AnimatedPressable>
+      <GestureDetector gesture={tap}>
+        <Animated.View style={[containerStyle, animatedStyle, style]}>
+          {cardContent}
+        </Animated.View>
+      </GestureDetector>
     );
   }
 
@@ -120,6 +112,7 @@ const styles = StyleSheet.create({
   inner: {
     overflow: 'hidden',
     borderRadius: Radius.lg,
+    borderCurve: 'continuous',
   },
   highlight: {
     position: 'absolute',

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { StyleSheet, View, Text, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -7,8 +7,10 @@ import Animated, {
   withSpring,
   runOnJS,
 } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../hooks/useTheme';
 import { Springs } from '../design/theme';
+import { useSettingsStore } from '../lib/store/settings';
 
 interface GlassSliderProps {
   value: number;
@@ -30,8 +32,10 @@ export function GlassSlider({
   rightLabel,
 }: GlassSliderProps) {
   const { colors, isDark } = useTheme();
+  const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
   const trackWidth = useSharedValue(0);
   const thumbX = useSharedValue(0);
+  const lastSteppedValue = useRef(value);
 
   const normalize = (v: number) =>
     Math.max(0, Math.min(1, (v - minimumValue) / (maximumValue - minimumValue)));
@@ -48,6 +52,18 @@ export function GlassSlider({
     thumbX.value = fraction * e.nativeEvent.layout.width;
   };
 
+  const triggerHapticIfNeeded = (newVal: number) => {
+    if (hapticEnabled && newVal !== lastSteppedValue.current) {
+      lastSteppedValue.current = newVal;
+      Haptics.selectionAsync();
+    }
+  };
+
+  const handleValueChange = (newVal: number) => {
+    triggerHapticIfNeeded(newVal);
+    onValueChange(newVal);
+  };
+
   const gesture = Gesture.Pan()
     .onStart(() => {})
     .onUpdate((e) => {
@@ -57,7 +73,7 @@ export function GlassSlider({
       thumbX.value = clampedX;
       const ratio = clampedX / w;
       const newVal = denormalize(ratio);
-      runOnJS(onValueChange)(newVal);
+      runOnJS(handleValueChange)(newVal);
     })
     .onEnd(() => {});
 
@@ -68,7 +84,7 @@ export function GlassSlider({
     thumbX.value = withSpring(clampedX, Springs.snappy);
     const ratio = clampedX / w;
     const newVal = denormalize(ratio);
-    runOnJS(onValueChange)(newVal);
+    runOnJS(handleValueChange)(newVal);
   });
 
   const composed = Gesture.Race(gesture, tapGesture);
@@ -142,21 +158,20 @@ const styles = StyleSheet.create({
   track: {
     height: 4,
     borderRadius: 2,
+    borderCurve: 'continuous',
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
     borderRadius: 2,
+    borderCurve: 'continuous',
   },
   thumb: {
     position: 'absolute',
     width: 20,
     height: 20,
     borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
+    borderCurve: 'continuous',
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
   },
 });

@@ -32,7 +32,7 @@ function getWordColor(colorKey: WordColorKey, primaryColor: string): string {
 
 export function WordDisplay({ word, wordKey }: WordDisplayProps) {
   const { colors } = useTheme();
-  const { fontFamily, wordSize, wordBold, wordColor } = useSettingsStore();
+  const { fontFamily, wordSize, wordBold, wordColor, breathingAnimation } = useSettingsStore();
 
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.85);
@@ -53,26 +53,31 @@ export function WordDisplay({ word, wordKey }: WordDisplayProps) {
       withSpring(1, { damping: 15, stiffness: 150 })
     );
 
-    // Start breathing after entry
-    const timer = setTimeout(() => {
-      breatheScale.value = withRepeat(
-        withSequence(
-          withTiming(1.015, {
-            duration: 1500,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          withTiming(1.0, {
-            duration: 1500,
-            easing: Easing.inOut(Easing.ease),
-          })
-        ),
-        -1,
-        true
-      );
-    }, 350);
+    // Start breathing after entry (only if enabled)
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    if (breathingAnimation) {
+      timer = setTimeout(() => {
+        breatheScale.value = withRepeat(
+          withSequence(
+            withTiming(1.008, {
+              duration: 1500,
+              easing: Easing.inOut(Easing.ease),
+            }),
+            withTiming(1.0, {
+              duration: 1500,
+              easing: Easing.inOut(Easing.ease),
+            })
+          ),
+          -1,
+          true
+        );
+      }, 350);
+    }
 
-    return () => clearTimeout(timer);
-  }, [wordKey, opacity, scale, breatheScale]);
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [wordKey, opacity, scale, breatheScale, breathingAnimation]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -87,6 +92,8 @@ export function WordDisplay({ word, wordKey }: WordDisplayProps) {
   return (
     <View style={styles.container}>
       <Animated.Text
+        numberOfLines={1}
+        adjustsFontSizeToFit={true}
         style={[
           styles.word,
           animatedStyle,

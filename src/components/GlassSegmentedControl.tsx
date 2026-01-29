@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { StyleSheet, View, Pressable, Text, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -23,26 +23,23 @@ export function GlassSegmentedControl({
 }: GlassSegmentedControlProps) {
   const { colors, glass, isDark } = useTheme();
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
-  const containerWidth = useSharedValue(0);
+  const translateX = useSharedValue(0);
+  const [pillWidth, setPillWidth] = useState(0);
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
-    containerWidth.value = e.nativeEvent.layout.width;
-  }, [containerWidth]);
+    const w = e.nativeEvent.layout.width;
+    const pw = options.length > 0 ? w / options.length : 0;
+    setPillWidth(pw);
+    translateX.value = selectedIndex * pw;
+  }, [options.length, selectedIndex, translateX]);
 
-  const segmentWidth = options.length > 0 ? 1 / options.length : 0;
-
-  const pillStyle = useAnimatedStyle(() => {
-    const w = containerWidth.value;
-    const pillW = w * segmentWidth;
-    return {
-      width: pillW,
-      transform: [
-        {
-          translateX: withSpring(selectedIndex * pillW, Springs.snappy),
-        },
-      ],
-    };
-  });
+  const pillStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateX: withSpring(selectedIndex * pillWidth, Springs.snappy),
+      },
+    ],
+  }));
 
   return (
     <View
@@ -59,6 +56,7 @@ export function GlassSegmentedControl({
         style={[
           styles.pill,
           {
+            width: pillWidth,
             backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
           },
           pillStyle,
@@ -96,6 +94,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     borderRadius: Radius.md,
+    borderCurve: 'continuous',
     borderWidth: 0.5,
     overflow: 'hidden',
     height: 36,
@@ -107,11 +106,8 @@ const styles = StyleSheet.create({
     bottom: 2,
     left: 0,
     borderRadius: Radius.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    borderCurve: 'continuous',
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
   },
   option: {
     justifyContent: 'center',
