@@ -82,6 +82,13 @@ export const FontFamilies = {
     semiBold: 'Literata_600SemiBold',
     bold: 'Literata_700Bold',
   },
+  openDyslexic: {
+    key: 'openDyslexic',
+    label: 'OpenDyslexic',
+    regular: 'OpenDyslexic_400Regular',
+    semiBold: 'OpenDyslexic_400Regular',
+    bold: 'OpenDyslexic_700Bold',
+  },
 } as const;
 
 export type FontFamilyKey = keyof typeof FontFamilies;
@@ -141,3 +148,33 @@ export const WordColors = [
 ] as const;
 
 export type WordColorKey = (typeof WordColors)[number]['key'];
+
+// High contrast color overrides
+export const HighContrastColors = {
+  light: {
+    bg: '#FFFFFF',
+    surface: 'rgba(0,0,0,0.06)',
+    stroke: 'rgba(0,0,0,0.2)',
+    primary: '#000000',
+    secondary: '#333333',
+    muted: '#666666',
+    glassHighlight: 'rgba(255,255,255,0.9)',
+    success: '#1A7A31',
+    warning: '#CC7700',
+    error: '#B02A37',
+    info: '#0066CC',
+  },
+  dark: {
+    bg: '#000000',
+    surface: 'rgba(255,255,255,0.1)',
+    stroke: 'rgba(255,255,255,0.25)',
+    primary: '#FFFFFF',
+    secondary: '#CCCCCC',
+    muted: '#888888',
+    glassHighlight: 'rgba(255,255,255,0.2)',
+    success: '#34D058',
+    warning: '#FFB340',
+    error: '#F85149',
+    info: '#58A6FF',
+  },
+} as const;

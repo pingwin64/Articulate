@@ -46,6 +46,9 @@ export interface ReadingSession {
   timeSpentSeconds: number;
   wpm: number;
   readAt: string;
+  comprehensionScore?: number;
+  comprehensionQuestions?: number;
+  chunkSize?: number;
 }
 
 export interface SettingsState {
@@ -132,14 +135,51 @@ export interface SettingsState {
   customTexts: CustomText[];
   addCustomText: (text: CustomText) => void;
   removeCustomText: (id: string) => void;
+  renameCustomText: (id: string, newTitle: string) => void;
+  updateCustomText: (id: string, updates: Partial<CustomText>) => void;
 
   // Reading History
   readingHistory: ReadingSession[];
   addReadingSession: (session: ReadingSession) => void;
 
-  // Resume
+  // Resume (single legacy)
   resumeData: ResumeData | null;
   setResumeData: (v: ResumeData | null) => void;
+
+  // Multiple Resume Points
+  resumePoints: Record<string, ResumeData>;
+  setResumePoint: (key: string, data: ResumeData | null) => void;
+  clearResumePoint: (key: string) => void;
+
+  // Baseline WPM
+  baselineWPM: number | null;
+  setBaselineWPM: (v: number) => void;
+
+  // Chunk Reading
+  chunkSize: 1 | 2 | 3;
+  setChunkSize: (v: 1 | 2 | 3) => void;
+
+  // Comprehension
+  avgComprehension: number;
+  totalQuizzesTaken: number;
+  updateComprehension: (score: number, totalQuestions: number) => void;
+
+  // Achievements
+  unlockedAchievements: string[];
+  unlockAchievement: (id: string) => void;
+
+  // Notifications
+  notificationsEnabled: boolean;
+  setNotificationsEnabled: (v: boolean) => void;
+  reminderHour: number;
+  reminderMinute: number;
+  setReminderTime: (hour: number, minute: number) => void;
+
+  // Accessibility
+  reduceMotion: boolean;
+  setReduceMotion: (v: boolean) => void;
+  highContrast: boolean;
+  setHighContrast: (v: boolean) => void;
 
   // Paywall
   showPaywall: boolean;
@@ -363,6 +403,18 @@ export const useSettingsStore = create<SettingsState>()(
       },
       removeCustomText: (id) =>
         set((s) => ({ customTexts: s.customTexts.filter((t) => t.id !== id) })),
+      renameCustomText: (id, newTitle) =>
+        set((s) => ({
+          customTexts: s.customTexts.map((t) =>
+            t.id === id ? { ...t, title: newTitle } : t
+          ),
+        })),
+      updateCustomText: (id, updates) =>
+        set((s) => ({
+          customTexts: s.customTexts.map((t) =>
+            t.id === id ? { ...t, ...updates } : t
+          ),
+        })),
 
       // Reading History
       readingHistory: [],
@@ -371,9 +423,74 @@ export const useSettingsStore = create<SettingsState>()(
           readingHistory: [session, ...s.readingHistory].slice(0, 500),
         })),
 
-      // Resume
+      // Resume (single legacy)
       resumeData: null,
       setResumeData: (v) => set({ resumeData: v }),
+
+      // Multiple Resume Points
+      resumePoints: {},
+      setResumePoint: (key, data) =>
+        set((s) => {
+          const updated = { ...s.resumePoints };
+          if (data === null) {
+            delete updated[key];
+          } else {
+            updated[key] = data;
+          }
+          return { resumePoints: updated };
+        }),
+      clearResumePoint: (key) =>
+        set((s) => {
+          const updated = { ...s.resumePoints };
+          delete updated[key];
+          return { resumePoints: updated };
+        }),
+
+      // Baseline WPM
+      baselineWPM: null,
+      setBaselineWPM: (v) => set({ baselineWPM: v }),
+
+      // Chunk Reading
+      chunkSize: 1,
+      setChunkSize: (v) => set({ chunkSize: v }),
+
+      // Comprehension
+      avgComprehension: 0,
+      totalQuizzesTaken: 0,
+      updateComprehension: (score, totalQuestions) => {
+        const state = get();
+        const pct = totalQuestions > 0 ? (score / totalQuestions) * 100 : 0;
+        const newTotal = state.totalQuizzesTaken + 1;
+        const newAvg =
+          (state.avgComprehension * state.totalQuizzesTaken + pct) / newTotal;
+        set({
+          avgComprehension: Math.round(newAvg),
+          totalQuizzesTaken: newTotal,
+        });
+      },
+
+      // Achievements
+      unlockedAchievements: [],
+      unlockAchievement: (id) =>
+        set((s) => ({
+          unlockedAchievements: s.unlockedAchievements.includes(id)
+            ? s.unlockedAchievements
+            : [...s.unlockedAchievements, id],
+        })),
+
+      // Notifications
+      notificationsEnabled: false,
+      setNotificationsEnabled: (v) => set({ notificationsEnabled: v }),
+      reminderHour: 20,
+      reminderMinute: 0,
+      setReminderTime: (hour, minute) =>
+        set({ reminderHour: hour, reminderMinute: minute }),
+
+      // Accessibility
+      reduceMotion: false,
+      setReduceMotion: (v) => set({ reduceMotion: v }),
+      highContrast: false,
+      setHighContrast: (v) => set({ highContrast: v }),
 
       // Paywall
       showPaywall: false,
@@ -416,6 +533,17 @@ export const useSettingsStore = create<SettingsState>()(
         customTexts: [],
         readingHistory: [],
         resumeData: null,
+        resumePoints: {},
+        baselineWPM: null,
+        chunkSize: 1 as 1 | 2 | 3,
+        avgComprehension: 0,
+        totalQuizzesTaken: 0,
+        unlockedAchievements: [],
+        notificationsEnabled: false,
+        reminderHour: 20,
+        reminderMinute: 0,
+        reduceMotion: false,
+        highContrast: false,
         showPaywall: false,
       }),
     }),

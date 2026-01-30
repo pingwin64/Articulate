@@ -32,7 +32,7 @@ function getWordColor(colorKey: WordColorKey, primaryColor: string): string {
 
 export function WordDisplay({ word, wordKey }: WordDisplayProps) {
   const { colors } = useTheme();
-  const { fontFamily, wordSize, wordBold, wordColor, breathingAnimation } = useSettingsStore();
+  const { fontFamily, wordSize, wordBold, wordColor, breathingAnimation, reduceMotion } = useSettingsStore();
 
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.85);
@@ -44,18 +44,24 @@ export function WordDisplay({ word, wordKey }: WordDisplayProps) {
     scale.value = 0.85;
     breatheScale.value = 1;
 
-    opacity.value = withDelay(
-      50,
-      withSpring(1, { damping: 15, stiffness: 150 })
-    );
-    scale.value = withDelay(
-      50,
-      withSpring(1, { damping: 15, stiffness: 150 })
-    );
+    if (reduceMotion) {
+      // Simple fade without spring for reduced motion
+      opacity.value = withTiming(1, { duration: 100 });
+      scale.value = 1;
+    } else {
+      opacity.value = withDelay(
+        50,
+        withSpring(1, { damping: 15, stiffness: 150 })
+      );
+      scale.value = withDelay(
+        50,
+        withSpring(1, { damping: 15, stiffness: 150 })
+      );
+    }
 
-    // Start breathing after entry (only if enabled)
+    // Start breathing after entry (only if enabled and not reduce motion)
     let timer: ReturnType<typeof setTimeout> | null = null;
-    if (breathingAnimation) {
+    if (breathingAnimation && !reduceMotion) {
       timer = setTimeout(() => {
         breatheScale.value = withRepeat(
           withSequence(
@@ -77,7 +83,7 @@ export function WordDisplay({ word, wordKey }: WordDisplayProps) {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [wordKey, opacity, scale, breatheScale, breathingAnimation]);
+  }, [wordKey, opacity, scale, breatheScale, breathingAnimation, reduceMotion]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -89,11 +95,15 @@ export function WordDisplay({ word, wordKey }: WordDisplayProps) {
   const displayColor = getWordColor(wordColor, colors.primary);
   const fontFam = getFontFamily(fontFamily, wordBold);
 
+  // Allow 2 lines for multi-word chunks (2+ words)
+  const isMultiWord = word.includes(' ');
+
   return (
-    <View style={styles.container}>
+    <View style={styles.container} accessible accessibilityRole="text">
       <Animated.Text
-        numberOfLines={1}
+        numberOfLines={isMultiWord ? 2 : 1}
         adjustsFontSizeToFit={true}
+        accessibilityLabel={word}
         style={[
           styles.word,
           animatedStyle,

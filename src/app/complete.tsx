@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { StyleSheet, View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +24,9 @@ import { GlassButton } from '../components/GlassButton';
 import { NumberRoll } from '../components/NumberRoll';
 import { Paywall } from '../components/Paywall';
 import { ShareCard } from '../components/ShareCard';
+import { AchievementToast } from '../components/AchievementToast';
+import { checkNewAchievements } from '../lib/data/achievements';
+import { getSpeedRecommendation } from '../lib/adaptiveEngine';
 import { Spacing } from '../design/theme';
 
 // Encouraging quotes for variable rewards
@@ -47,6 +50,8 @@ export default function CompleteScreen() {
     wordsRead: string;
     timeSpent: string;
     title?: string;
+    comprehensionScore?: string;
+    comprehensionTotal?: string;
   }>();
 
   const {
@@ -65,18 +70,26 @@ export default function CompleteScreen() {
     startTrial,
     bestWPM: prevBestWPM,
     firstSessionWPM,
+    baselineWPM,
     totalTimeSpent,
     textsCompleted: prevTextsCompleted,
     dailyGoalSet,
     dailyGoal,
     textsReadToday,
+    readingHistory,
+    autoPlayWPM,
     showPaywall,
     setShowPaywall,
+    unlockAchievement,
   } = useSettingsStore();
+
+  const [toastAchievementId, setToastAchievementId] = useState<string | null>(null);
 
   const wordsRead = parseInt(params.wordsRead ?? '0', 10);
   const timeSpent = parseInt(params.timeSpent ?? '0', 10);
   const wpm = timeSpent > 0 ? Math.round((wordsRead / timeSpent) * 60) : 0;
+  const comprehensionScore = params.comprehensionScore ? parseInt(params.comprehensionScore, 10) : undefined;
+  const comprehensionTotal = params.comprehensionTotal ? parseInt(params.comprehensionTotal, 10) : undefined;
   const category = categories.find((c) => c.key === params.categoryKey);
   const readingTitle = params.title || category?.name || 'Reading';
   const minutes = Math.floor(timeSpent / 60);
@@ -139,7 +152,20 @@ export default function CompleteScreen() {
       timeSpentSeconds: timeSpent,
       wpm,
       readAt: new Date().toISOString(),
+      comprehensionScore,
+      comprehensionQuestions: comprehensionTotal,
     });
+
+    // Check achievements after stats are recorded
+    const achievementTimer = setTimeout(() => {
+      const currentState = useSettingsStore.getState();
+      const newAchievements = checkNewAchievements(currentState);
+      if (newAchievements.length > 0) {
+        newAchievements.forEach((id) => unlockAchievement(id));
+        // Show toast for the first new achievement
+        setToastAchievementId(newAchievements[0]);
+      }
+    }, 500);
 
     // Animation sequence
     const t1 = setTimeout(() => {
@@ -182,6 +208,7 @@ export default function CompleteScreen() {
     }, 2000);
 
     return () => {
+      clearTimeout(achievementTimer);
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
@@ -284,6 +311,12 @@ export default function CompleteScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      {toastAchievementId && (
+        <AchievementToast
+          achievementId={toastAchievementId}
+          onDismiss={() => setToastAchievementId(null)}
+        />
+      )}
       <SafeAreaView style={styles.flex}>
         <ScrollView
           style={styles.flex}
@@ -380,6 +413,28 @@ export default function CompleteScreen() {
               </GlassCard>
             </Animated.View>
 
+            {/* Comprehension Score */}
+            {comprehensionScore !== undefined && comprehensionTotal !== undefined && (
+              <Animated.View
+                entering={FadeIn.delay(1100).duration(300)}
+                style={styles.statsContainer}
+              >
+                <GlassCard>
+                  <View style={styles.comprehensionRow}>
+                    <Text style={[styles.comprehensionLabel, { color: colors.secondary }]}>
+                      Comprehension
+                    </Text>
+                    <Text style={[styles.comprehensionScore, { color: colors.primary }]}>
+                      {comprehensionScore}/{comprehensionTotal}
+                    </Text>
+                    <Text style={[styles.comprehensionPct, { color: colors.muted }]}>
+                      {comprehensionTotal > 0 ? Math.round((comprehensionScore / comprehensionTotal) * 100) : 0}%
+                    </Text>
+                  </View>
+                </GlassCard>
+              </Animated.View>
+            )}
+
             {/* Insights Section */}
             <Animated.View
               entering={FadeIn.delay(1300).duration(300)}
@@ -394,8 +449,17 @@ export default function CompleteScreen() {
                 </View>
               )}
 
+              {/* Baseline comparison */}
+              {baselineWPM && baselineWPM > 0 && wpm > baselineWPM && (
+                <View style={[styles.insightBadge, { backgroundColor: isDark ? 'rgba(40,167,69,0.15)' : 'rgba(40,167,69,0.1)' }]}>
+                  <Text style={[styles.insightBadgeText, { color: colors.success }]}>
+                    {Math.round(((wpm - baselineWPM) / baselineWPM) * 100)}% faster than your baseline
+                  </Text>
+                </View>
+              )}
+
               {/* Speed comparison */}
-              {speedImprovement !== null && speedImprovement > 0 && !isPersonalBest && (
+              {speedImprovement !== null && speedImprovement > 0 && !isPersonalBest && !baselineWPM && (
                 <Text style={[styles.insightText, { color: colors.secondary }]}>
                   {speedImprovement}% faster than your first session
                 </Text>
@@ -439,9 +503,25 @@ export default function CompleteScreen() {
               </Animated.View>
             )}
 
+            {/* Adaptive speed insight */}
+            {(() => {
+              const rec = getSpeedRecommendation(readingHistory, autoPlayWPM);
+              if (!rec) return null;
+              return (
+                <Animated.View
+                  entering={FadeIn.delay(1600).duration(300)}
+                  style={[styles.insightBadge, { backgroundColor: isDark ? 'rgba(10,132,255,0.15)' : 'rgba(10,132,255,0.1)' }]}
+                >
+                  <Text style={[styles.insightBadgeText, { color: colors.info }]}>
+                    {rec.message}
+                  </Text>
+                </Animated.View>
+              );
+            })()}
+
             {/* Encouragement quote */}
             <Animated.Text
-              entering={FadeIn.delay(1600).duration(300)}
+              entering={FadeIn.delay(1700).duration(300)}
               style={[styles.quoteText, { color: colors.muted }]}
             >
               "{quote}"
@@ -608,6 +688,25 @@ const styles = StyleSheet.create({
   divider: {
     width: 0.5,
     height: 40,
+  },
+  // Comprehension
+  comprehensionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  comprehensionLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  comprehensionScore: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  comprehensionPct: {
+    fontSize: 14,
+    fontWeight: '400',
   },
   // Insights
   insightsSection: {

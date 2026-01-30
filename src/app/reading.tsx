@@ -2,7 +2,16 @@ import React, { useEffect, useCallback, useRef, useMemo, useState } from 'react'
 import { StyleSheet, View, Text, Pressable, Linking } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import * as Clipboard from 'expo-clipboard';
@@ -11,6 +20,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 import { categories } from '../lib/data/categories';
+import { getQuizForCategory } from '../lib/data/quizzes';
 import { WordDisplay } from '../components/WordDisplay';
 import { ArticulateProgress } from '../components/ArticulateProgress';
 import { SentenceTrail } from '../components/SentenceTrail';
@@ -38,9 +48,11 @@ export default function ReadingScreen() {
     autoPlay,
     autoPlayWPM,
     setResumeData,
+    setResumePoint,
     hasOnboarded,
     customTexts,
     lifetimeWordsRead,
+    chunkSize,
   } = useSettingsStore();
 
   // Resolve words from either category or custom text
@@ -62,9 +74,22 @@ export default function ReadingScreen() {
     };
   }, [params.categoryKey, params.customTextId, customTexts]);
 
-  const totalWords = words.length;
+  // Chunk words into groups based on chunkSize
+  const chunks = useMemo(() => {
+    const result: string[] = [];
+    for (let i = 0; i < words.length; i += chunkSize) {
+      result.push(words.slice(i, i + chunkSize).join(' '));
+    }
+    return result;
+  }, [words, chunkSize]);
 
-  const startIndex = params.resumeIndex ? parseInt(params.resumeIndex, 10) : 0;
+  const totalWords = words.length;
+  const totalChunks = chunks.length;
+
+  // Convert resumeIndex (word-level) to chunk-level
+  const startIndex = params.resumeIndex
+    ? Math.floor(parseInt(params.resumeIndex, 10) / chunkSize)
+    : 0;
   const [currentIndex, setCurrentIndex] = React.useState(startIndex);
   const startTimeRef = useRef(Date.now());
   const autoPlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -78,28 +103,34 @@ export default function ReadingScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  const currentWord = words[currentIndex] ?? '';
-  const progress = totalWords > 0 ? currentIndex / totalWords : 0;
+  const currentWord = chunks[currentIndex] ?? '';
+  const progress = totalChunks > 0 ? currentIndex / totalChunks : 0;
 
-  const completedWords = words.slice(0, currentIndex);
+  // For sentence trail, show actual words up to current chunk position
+  const wordsUpToCurrent = words.slice(0, currentIndex * chunkSize);
   const showHint = currentIndex < 3;
 
-  // Track words read in this session for milestone detection
-  const wordsReadThisSession = currentIndex - startIndex;
+  // Track words read in this session for milestone detection (word-level)
+  const wordsReadThisSession = (currentIndex - startIndex) * chunkSize;
   const lifetimeAtStart = useRef(lifetimeWordsRead);
 
-  // Save resume state
+  // Resume point key
+  const resumeKey = params.customTextId || params.categoryKey || '';
+
+  // Save resume state (store word-level index for compatibility)
   useEffect(() => {
-    if (currentIndex > 0 && currentIndex < totalWords) {
-      setResumeData({
+    if (currentIndex > 0 && currentIndex < totalChunks) {
+      const resumeData = {
         categoryKey: params.categoryKey ?? '',
         customTextId: params.customTextId,
-        wordIndex: currentIndex,
+        wordIndex: currentIndex * chunkSize,
         totalWords,
         startTime: startTimeRef.current,
-      });
+      };
+      setResumeData(resumeData);
+      setResumePoint(resumeKey, resumeData);
     }
-  }, [currentIndex, totalWords, params.categoryKey, params.customTextId, setResumeData]);
+  }, [currentIndex, totalChunks, totalWords, chunkSize, params.categoryKey, params.customTextId, setResumeData, setResumePoint, resumeKey]);
 
   // Milestone detection: every 100th lifetime word
   useEffect(() => {
@@ -115,11 +146,15 @@ export default function ReadingScreen() {
   }, [wordsReadThisSession, hapticFeedback]);
 
   const advanceWord = useCallback(() => {
-    if (currentIndex >= totalWords - 1) {
+    if (currentIndex >= totalChunks - 1) {
       setResumeData(null);
+      setResumePoint(resumeKey, null);
       const elapsedSec = Math.round((Date.now() - startTimeRef.current) / 1000);
+
+      // Route to quiz if available for curated texts, otherwise to complete
+      const hasQuiz = params.categoryKey && !params.customTextId && getQuizForCategory(params.categoryKey);
       router.replace({
-        pathname: '/complete',
+        pathname: hasQuiz ? '/quiz' : '/complete',
         params: {
           categoryKey: params.categoryKey ?? '',
           customTextId: params.customTextId ?? '',
@@ -136,7 +171,7 @@ export default function ReadingScreen() {
     }
 
     setCurrentIndex((prev) => prev + 1);
-  }, [currentIndex, totalWords, hapticFeedback, setResumeData, router, params.categoryKey, params.customTextId, title]);
+  }, [currentIndex, totalChunks, totalWords, hapticFeedback, setResumeData, router, params.categoryKey, params.customTextId, title]);
 
   const goBackWord = useCallback(() => {
     if (currentIndex <= 0) return;
@@ -148,9 +183,35 @@ export default function ReadingScreen() {
     setCurrentIndex((prev) => prev - 1);
   }, [currentIndex, hapticFeedback]);
 
+  // Swipe gesture
+  const swipeTranslateX = useSharedValue(0);
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-20, 20])
+    .onUpdate((event) => {
+      swipeTranslateX.value = event.translationX * 0.3;
+    })
+    .onEnd((event) => {
+      if (event.translationX < -50) {
+        // Swipe left = advance
+        runOnJS(advanceWord)();
+      } else if (event.translationX > 50) {
+        // Swipe right = go back
+        runOnJS(goBackWord)();
+      }
+      swipeTranslateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+    })
+    .onFinalize(() => {
+      swipeTranslateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+    });
+
+  const swipeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: swipeTranslateX.value }],
+  }));
+
   // Auto-play
   useEffect(() => {
-    if (autoPlay && hasOnboarded && currentIndex < totalWords) {
+    if (autoPlay && hasOnboarded && currentIndex < totalChunks) {
       const interval = 60000 / autoPlayWPM;
       autoPlayTimerRef.current = setTimeout(() => {
         advanceWord();
@@ -159,7 +220,7 @@ export default function ReadingScreen() {
         if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current);
       };
     }
-  }, [autoPlay, hasOnboarded, currentIndex, autoPlayWPM, totalWords, advanceWord]);
+  }, [autoPlay, hasOnboarded, currentIndex, autoPlayWPM, totalChunks, advanceWord]);
 
   const handleSpeak = () => {
     const rate = ttsSpeed === 'slow' ? 0.4 : ttsSpeed === 'fast' ? 0.7 : 0.5;
@@ -198,70 +259,72 @@ export default function ReadingScreen() {
           <ArticulateProgress progress={progress} />
 
           <Pressable onPress={() => router.push('/settings')} style={styles.headerButton}>
-            <Feather name="settings" size={20} color={colors.primary} />
+            <Feather name="edit-2" size={20} color={colors.primary} />
           </Pressable>
         </View>
 
         {/* Word counter and timer */}
         <View style={styles.counterRow}>
           <Text style={[styles.counter, { color: colors.muted }]}>
-            {currentIndex + 1} / {totalWords}
+            {Math.min((currentIndex + 1) * chunkSize, totalWords)} / {totalWords}
           </Text>
           <Text style={[styles.timer, { color: colors.muted }]}>
             {formatElapsed(elapsed)}
           </Text>
         </View>
 
-        {/* Main tap area with left/right zones */}
-        <View style={styles.tapArea}>
-          {/* Left zone: go back */}
-          <Pressable style={styles.backZone} onPress={goBackWord}>
-            {currentIndex > 0 && (
-              <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={styles.backIndicator}>
-                <Feather name="chevron-left" size={20} color={colors.muted} />
-              </Animated.View>
-            )}
-          </Pressable>
-
-          {/* Center + right zone: advance */}
-          <Pressable style={styles.forwardZone} onPress={advanceWord}>
-            <View style={styles.wordContainer}>
-              <ContextMenu.Root>
-                <ContextMenu.Trigger>
-                  <WordDisplay word={currentWord} wordKey={currentIndex} />
-                </ContextMenu.Trigger>
-                <ContextMenu.Content>
-                  <ContextMenu.Item key="speak" onSelect={handleSpeak}>
-                    <ContextMenu.ItemTitle>Speak Word</ContextMenu.ItemTitle>
-                    <ContextMenu.ItemIcon ios={{ name: 'speaker.wave.2' }} />
-                  </ContextMenu.Item>
-                  <ContextMenu.Item key="copy" onSelect={handleCopyWord}>
-                    <ContextMenu.ItemTitle>Copy Word</ContextMenu.ItemTitle>
-                    <ContextMenu.ItemIcon ios={{ name: 'doc.on.doc' }} />
-                  </ContextMenu.Item>
-                  <ContextMenu.Item key="define" onSelect={handleDefineWord}>
-                    <ContextMenu.ItemTitle>Define</ContextMenu.ItemTitle>
-                    <ContextMenu.ItemIcon ios={{ name: 'text.book.closed' }} />
-                  </ContextMenu.Item>
-                </ContextMenu.Content>
-              </ContextMenu.Root>
-            </View>
-
-            {/* Below-word content */}
-            <View style={styles.belowWord}>
-              <SentenceTrail words={completedWords} visible={hasOnboarded && sentenceRecap} />
-              {showHint && (
-                <Animated.Text
-                  entering={FadeIn.duration(300)}
-                  exiting={FadeOut.duration(300)}
-                  style={[styles.hint, { color: colors.muted }]}
-                >
-                  Tap to continue
-                </Animated.Text>
+        {/* Main tap area with swipe + tap */}
+        <GestureDetector gesture={panGesture}>
+          <Animated.View style={[styles.tapArea, swipeStyle]}>
+            {/* Left zone: go back */}
+            <Pressable style={styles.backZone} onPress={goBackWord}>
+              {currentIndex > 0 && (
+                <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)} style={styles.backIndicator}>
+                  <Feather name="chevron-left" size={20} color={colors.muted} />
+                </Animated.View>
               )}
-            </View>
-          </Pressable>
-        </View>
+            </Pressable>
+
+            {/* Center + right zone: advance */}
+            <Pressable style={styles.forwardZone} onPress={advanceWord}>
+              <View style={styles.wordContainer}>
+                <ContextMenu.Root>
+                  <ContextMenu.Trigger>
+                    <WordDisplay word={currentWord} wordKey={currentIndex} />
+                  </ContextMenu.Trigger>
+                  <ContextMenu.Content>
+                    <ContextMenu.Item key="speak" onSelect={handleSpeak}>
+                      <ContextMenu.ItemTitle>Speak Word</ContextMenu.ItemTitle>
+                      <ContextMenu.ItemIcon ios={{ name: 'speaker.wave.2' }} />
+                    </ContextMenu.Item>
+                    <ContextMenu.Item key="copy" onSelect={handleCopyWord}>
+                      <ContextMenu.ItemTitle>Copy Word</ContextMenu.ItemTitle>
+                      <ContextMenu.ItemIcon ios={{ name: 'doc.on.doc' }} />
+                    </ContextMenu.Item>
+                    <ContextMenu.Item key="define" onSelect={handleDefineWord}>
+                      <ContextMenu.ItemTitle>Define</ContextMenu.ItemTitle>
+                      <ContextMenu.ItemIcon ios={{ name: 'text.book.closed' }} />
+                    </ContextMenu.Item>
+                  </ContextMenu.Content>
+                </ContextMenu.Root>
+              </View>
+
+              {/* Below-word content */}
+              <View style={styles.belowWord}>
+                <SentenceTrail words={wordsUpToCurrent} visible={hasOnboarded && sentenceRecap} />
+                {showHint && (
+                  <Animated.Text
+                    entering={FadeIn.duration(300)}
+                    exiting={FadeOut.duration(300)}
+                    style={[styles.hint, { color: colors.muted }]}
+                  >
+                    Tap or swipe to continue
+                  </Animated.Text>
+                )}
+              </View>
+            </Pressable>
+          </Animated.View>
+        </GestureDetector>
       </SafeAreaView>
     </View>
   );

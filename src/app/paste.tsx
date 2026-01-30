@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -29,10 +29,15 @@ const URL_REGEX = /^https?:\/\/[^\s]+$/;
 export default function PasteScreen() {
   const { colors, glass, isDark } = useTheme();
   const router = useRouter();
-  const { addCustomText, hapticFeedback, isPremium, customTexts } = useSettingsStore();
+  const params = useLocalSearchParams<{ editTextId?: string }>();
+  const { addCustomText, hapticFeedback, isPremium, customTexts, updateCustomText } = useSettingsStore();
 
-  const [title, setTitle] = useState('');
-  const [text, setText] = useState('');
+  const editingText = params.editTextId
+    ? customTexts.find((t) => t.id === params.editTextId)
+    : undefined;
+
+  const [title, setTitle] = useState(editingText?.title ?? '');
+  const [text, setText] = useState(editingText?.text ?? '');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
 
@@ -48,22 +53,34 @@ export default function PasteScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
 
-    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-    const customText = {
-      id,
-      title: title.trim() || 'My Text',
-      text: text.trim(),
-      wordCount,
-      createdAt: new Date().toISOString(),
-    };
+    if (editingText) {
+      updateCustomText(editingText.id, {
+        title: title.trim() || 'My Text',
+        text: text.trim(),
+        wordCount,
+      });
+      router.replace({
+        pathname: '/reading',
+        params: { customTextId: editingText.id },
+      });
+    } else {
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      const customText = {
+        id,
+        title: title.trim() || 'My Text',
+        text: text.trim(),
+        wordCount,
+        createdAt: new Date().toISOString(),
+      };
 
-    addCustomText(customText);
+      addCustomText(customText);
 
-    router.replace({
-      pathname: '/reading',
-      params: { customTextId: id },
-    });
-  }, [wordCount, title, text, hapticFeedback, addCustomText, router]);
+      router.replace({
+        pathname: '/reading',
+        params: { customTextId: id },
+      });
+    }
+  }, [wordCount, title, text, hapticFeedback, addCustomText, updateCustomText, editingText, router]);
 
   const handleExtractUrl = useCallback(async () => {
     const url = text.trim();
@@ -171,7 +188,7 @@ export default function PasteScreen() {
               </Text>
             </Pressable>
             <Text style={[styles.headerTitle, { color: colors.primary }]}>
-              Paste Text
+              {editingText ? 'Edit Text' : 'Paste Text'}
             </Text>
             <View style={styles.headerButton} />
           </View>

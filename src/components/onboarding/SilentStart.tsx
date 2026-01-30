@@ -21,7 +21,8 @@ import { useSettingsStore } from '../../lib/store/settings';
 import { Spacing } from '../../design/theme';
 
 const ONBOARDING_WORDS = [
-  'One', 'word.', 'Nothing', 'else.', 'Pure', 'focus.', 'Articulate.',
+  'Reading', 'one', 'word', 'at', 'a', 'time', 'changes',
+  'the', 'way', 'your', 'mind', 'works.', 'This', 'is', 'Articulate.',
 ];
 
 function AnimatedCharacters({
@@ -55,6 +56,8 @@ export function SilentStart({ onNext }: { onNext: () => void }) {
   const [wordIndex, setWordIndex] = useState(-1);
   const [showHint, setShowHint] = useState(false);
 
+  const [showSubtitle, setShowSubtitle] = useState(false);
+
   const wordScale = useSharedValue(0.85);
   const wordOpacity = useSharedValue(0);
   const breatheScale = useSharedValue(1);
@@ -62,6 +65,7 @@ export function SilentStart({ onNext }: { onNext: () => void }) {
   const hintOpacity = useSharedValue(0);
   const glowScale = useSharedValue(0);
   const glowOpacity = useSharedValue(0);
+  const subtitleOpacity = useSharedValue(0);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -83,6 +87,12 @@ export function SilentStart({ onNext }: { onNext: () => void }) {
   }, [breatheScale]);
 
   const handleTap = useCallback(() => {
+    // If subtitle is showing, tapping again advances
+    if (showSubtitle) {
+      onNext();
+      return;
+    }
+
     const nextIndex = wordIndex + 1;
     if (nextIndex >= ONBOARDING_WORDS.length) {
       onNext();
@@ -118,6 +128,15 @@ export function SilentStart({ onNext }: { onNext: () => void }) {
         withSpring(0.8, { damping: 10, stiffness: 80 }),
         withTiming(0, { duration: 1000 })
       );
+
+      // Show subtitle after glow finishes, then auto-advance after 2s
+      setTimeout(() => {
+        setShowSubtitle(true);
+        subtitleOpacity.value = withTiming(1, { duration: 600 });
+      }, 800);
+      setTimeout(() => {
+        onNext();
+      }, 3000);
     } else {
       wordOpacity.value = 0;
       wordOpacity.value = withTiming(1, { duration: 200 });
@@ -129,7 +148,7 @@ export function SilentStart({ onNext }: { onNext: () => void }) {
       (nextIndex + 1) / ONBOARDING_WORDS.length,
       { duration: 300, easing: Easing.out(Easing.ease) }
     );
-  }, [wordIndex, showHint, hapticEnabled, onNext, wordScale, wordOpacity, progressFraction, hintOpacity, glowScale, glowOpacity]);
+  }, [wordIndex, showHint, showSubtitle, hapticEnabled, onNext, wordScale, wordOpacity, progressFraction, hintOpacity, glowScale, glowOpacity, subtitleOpacity]);
 
   const wordStyle = useAnimatedStyle(() => ({
     transform: [{ scale: wordScale.value * breatheScale.value }],
@@ -143,6 +162,10 @@ export function SilentStart({ onNext }: { onNext: () => void }) {
   const glowStyle = useAnimatedStyle(() => ({
     transform: [{ scale: glowScale.value }],
     opacity: glowOpacity.value,
+  }));
+
+  const subtitleStyle = useAnimatedStyle(() => ({
+    opacity: subtitleOpacity.value,
   }));
 
   const progressStyle = useAnimatedStyle(() => ({
@@ -177,6 +200,13 @@ export function SilentStart({ onNext }: { onNext: () => void }) {
             )}
           </>
         )}
+        {showSubtitle && (
+          <Animated.Text
+            style={[styles.subtitleText, { color: colors.secondary }, subtitleStyle]}
+          >
+            Read at your pace. Improve every day.
+          </Animated.Text>
+        )}
         <Animated.Text
           style={[styles.hintText, { color: colors.muted }, hintStyle]}
         >
@@ -210,6 +240,13 @@ const styles = StyleSheet.create({
     fontSize: 40,
     fontWeight: '400',
     letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  subtitleText: {
+    marginTop: 24,
+    fontSize: 17,
+    fontWeight: '300',
+    letterSpacing: 0.2,
     textAlign: 'center',
   },
   hintText: {

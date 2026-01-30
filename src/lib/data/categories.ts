@@ -31,35 +31,6 @@ const speechWords = [
   'Let', 'freedom', 'ring', 'from', 'every', 'mountainside.',
 ];
 
-const philosophyWords = [
-  'The', 'unexamined', 'life', 'is', 'not', 'worth', 'living.',
-  'We', 'are', 'what', 'we', 'repeatedly', 'do.',
-  'Excellence,', 'then,', 'is', 'not', 'an', 'act,', 'but', 'a', 'habit.',
-  'The', 'only', 'true', 'wisdom', 'is', 'in', 'knowing', 'you', 'know', 'nothing.',
-  'Happiness', 'depends', 'upon', 'ourselves.',
-  'It', 'is', 'the', 'mark', 'of', 'an', 'educated', 'mind', 'to', 'be', 'able',
-  'to', 'entertain', 'a', 'thought', 'without', 'accepting', 'it.',
-];
-
-const scienceWords = [
-  'The', 'cosmos', 'is', 'within', 'us.', 'We', 'are', 'made', 'of', 'star-stuff.',
-  'We', 'are', 'a', 'way', 'for', 'the', 'universe', 'to', 'know', 'itself.',
-  'Somewhere,', 'something', 'incredible', 'is', 'waiting', 'to', 'be', 'known.',
-  'The', 'good', 'thing', 'about', 'science', 'is', 'that',
-  'it\'s', 'true', 'whether', 'or', 'not', 'you', 'believe', 'in', 'it.',
-  'Nothing', 'in', 'life', 'is', 'to', 'be', 'feared,',
-  'it', 'is', 'only', 'to', 'be', 'understood.',
-];
-
-const literatureWords = [
-  'It', 'is', 'a', 'truth', 'universally', 'acknowledged,', 'that', 'a', 'single',
-  'man', 'in', 'possession', 'of', 'a', 'good', 'fortune,', 'must', 'be', 'in',
-  'want', 'of', 'a', 'wife.',
-  'All', 'happy', 'families', 'are', 'alike;', 'each', 'unhappy', 'family',
-  'is', 'unhappy', 'in', 'its', 'own', 'way.',
-  'It', 'was', 'the', 'best', 'of', 'times,', 'it', 'was', 'the', 'worst', 'of', 'times.',
-];
-
 const poetryWords = [
   'Two', 'roads', 'diverged', 'in', 'a', 'yellow', 'wood,',
   'and', 'sorry', 'I', 'could', 'not', 'travel', 'both',
@@ -108,27 +79,6 @@ export const categories: Category[] = [
     wordCount: speechWords.length,
     level: 'intermediate',
     words: speechWords,
-  },
-  {
-    key: 'philosophy',
-    name: 'Philosophy',
-    wordCount: philosophyWords.length,
-    level: 'advanced',
-    words: philosophyWords,
-  },
-  {
-    key: 'science',
-    name: 'Science',
-    wordCount: scienceWords.length,
-    level: 'intermediate',
-    words: scienceWords,
-  },
-  {
-    key: 'literature',
-    name: 'Literature',
-    wordCount: literatureWords.length,
-    level: 'intermediate',
-    words: literatureWords,
   },
   {
     key: 'poetry',

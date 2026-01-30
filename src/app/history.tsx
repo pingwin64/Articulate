@@ -13,6 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 import { GlassCard } from '../components/GlassCard';
+import { WPMChart } from '../components/WPMChart';
 import { Spacing } from '../design/theme';
 
 function getMonthDays(year: number, month: number): number {
@@ -174,6 +175,13 @@ export default function HistoryScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {/* WPM Chart */}
+          <Animated.View entering={FadeIn.delay(50).duration(400)}>
+            <GlassCard>
+              <WPMChart height={160} />
+            </GlassCard>
+          </Animated.View>
+
           {/* Calendar Heatmap */}
           <Animated.View entering={FadeIn.delay(100).duration(400)}>
             <GlassCard>
@@ -258,7 +266,14 @@ export default function HistoryScreen() {
                 key={session.id}
                 entering={FadeIn.delay(300 + i * 50).duration(300)}
               >
-                <GlassCard>
+                <GlassCard
+                  onPress={() =>
+                    router.push({
+                      pathname: '/session-detail',
+                      params: { sessionId: session.id },
+                    })
+                  }
+                >
                   <View style={styles.sessionRow}>
                     <View style={styles.sessionInfo}>
                       <Text style={[styles.sessionTitle, { color: colors.primary }]}>
@@ -275,6 +290,7 @@ export default function HistoryScreen() {
                       <Text style={[styles.sessionStat, { color: colors.muted }]}>
                         {session.wpm} WPM
                       </Text>
+                      <Feather name="chevron-right" size={14} color={colors.muted} />
                     </View>
                   </View>
                 </GlassCard>

@@ -19,6 +19,7 @@ import { GlassSegmentedControl } from '../components/GlassSegmentedControl';
 import { FontPicker } from '../components/FontPicker';
 import { WordPreview } from '../components/WordPreview';
 import { StatCard } from '../components/StatCard';
+import { WPMChart } from '../components/WPMChart';
 import { Paywall } from '../components/Paywall';
 import {
   BackgroundThemes,
@@ -26,6 +27,8 @@ import {
   WordSizeRange,
   Spacing,
 } from '../design/theme';
+import { getSpeedRecommendation } from '../lib/adaptiveEngine';
+import { requestNotificationPermissions, scheduleStreakReminder, cancelAllReminders } from '../lib/notifications';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
 import type { ReadingLevel, TTSSpeed } from '../lib/store/settings';
 
@@ -141,6 +144,13 @@ export default function SettingsScreen() {
     ttsSpeed: s.ttsSpeed, setTtsSpeed: s.setTtsSpeed,
     autoPlay: s.autoPlay, setAutoPlay: s.setAutoPlay,
     autoPlayWPM: s.autoPlayWPM, setAutoPlayWPM: s.setAutoPlayWPM,
+    chunkSize: s.chunkSize, setChunkSize: s.setChunkSize,
+    reduceMotion: s.reduceMotion, setReduceMotion: s.setReduceMotion,
+    highContrast: s.highContrast, setHighContrast: s.setHighContrast,
+    notificationsEnabled: s.notificationsEnabled, setNotificationsEnabled: s.setNotificationsEnabled,
+    reminderHour: s.reminderHour, reminderMinute: s.reminderMinute, setReminderTime: s.setReminderTime,
+    unlockedAchievements: s.unlockedAchievements,
+    readingHistory: s.readingHistory,
     totalWordsRead: s.totalWordsRead, textsCompleted: s.textsCompleted, currentStreak: s.currentStreak,
     showPaywall: s.showPaywall, setShowPaywall: s.setShowPaywall,
   })));
@@ -165,7 +175,7 @@ export default function SettingsScreen() {
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.bg }]}>
         <Text style={[styles.headerTitle, { color: colors.primary }]}>
-          Settings
+          Your Profile
         </Text>
       </View>
 
@@ -200,6 +210,37 @@ export default function SettingsScreen() {
               <StatCard label="Words" value={totalWordsRead} />
               <StatCard label="Texts" value={textsCompleted} />
               <StatCard label="Streak" value={currentStreak} />
+            </View>
+          </GlassCard>
+
+          {/* WPM Progress Chart */}
+          <GlassCard>
+            <WPMChart />
+          </GlassCard>
+
+          {/* Achievements Preview */}
+          <GlassCard onPress={() => router.push('/achievements')}>
+            <View style={styles.achievementPreview}>
+              <View style={styles.achievementPreviewInfo}>
+                <Text style={[styles.achievementPreviewTitle, { color: colors.primary }]}>
+                  Achievements
+                </Text>
+                <Text style={[styles.achievementPreviewCount, { color: colors.muted }]}>
+                  {unlockedAchievements.length}/20 unlocked
+                </Text>
+              </View>
+              <View style={styles.achievementProgressBar}>
+                <View
+                  style={[
+                    styles.achievementProgressFill,
+                    {
+                      backgroundColor: colors.primary,
+                      width: `${(unlockedAchievements.length / 20) * 100}%`,
+                    },
+                  ]}
+                />
+              </View>
+              <Feather name="chevron-right" size={16} color={colors.muted} />
             </View>
           </GlassCard>
 
@@ -365,6 +406,26 @@ export default function SettingsScreen() {
           <GlassCard>
             <View style={styles.settingBlock}>
               <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                Words at a Time
+              </Text>
+              <View style={styles.segmentedControlWrapper}>
+                <GlassSegmentedControl
+                  options={['1', '2', '3']}
+                  selectedIndex={chunkSize - 1}
+                  onSelect={(i) => {
+                    const size = (i + 1) as 1 | 2 | 3;
+                    if (size > 1 && !isPremium) {
+                      handleLockedPress();
+                      return;
+                    }
+                    setChunkSize(size);
+                  }}
+                />
+              </View>
+            </View>
+            <View style={[styles.separator, { backgroundColor: glass.border }]} />
+            <View style={styles.settingBlock}>
+              <Text style={[styles.settingLabel, { color: colors.primary }]}>
                 Reading Level
               </Text>
               <View style={styles.segmentedControlWrapper}>
@@ -439,9 +500,66 @@ export default function SettingsScreen() {
                     leftLabel="150"
                     rightLabel="400"
                   />
+                  {(() => {
+                    const rec = getSpeedRecommendation(readingHistory, autoPlayWPM);
+                    if (!rec) return null;
+                    return (
+                      <Pressable onPress={() => setAutoPlayWPM(rec.suggestedWPM)}>
+                        <Text style={[styles.suggestedSpeed, { color: colors.info }]}>
+                          Suggested: {rec.suggestedWPM} WPM
+                        </Text>
+                      </Pressable>
+                    );
+                  })()}
                 </View>
               </>
             )}
+          </GlassCard>
+
+          {/* Notifications */}
+          <SectionHeader title="Notifications" />
+          <GlassCard>
+            <SettingRow label="Daily Reminder" noBorder={!notificationsEnabled}>
+              <GlassToggle
+                value={notificationsEnabled}
+                onValueChange={async (enabled) => {
+                  if (enabled) {
+                    const granted = await requestNotificationPermissions();
+                    if (granted) {
+                      setNotificationsEnabled(true);
+                      await scheduleStreakReminder(reminderHour, reminderMinute, currentStreak);
+                    }
+                  } else {
+                    setNotificationsEnabled(false);
+                    await cancelAllReminders();
+                  }
+                }}
+              />
+            </SettingRow>
+            {notificationsEnabled && (
+              <SettingRow label="Reminder Time" noBorder>
+                <Text style={[styles.settingLabel, { color: colors.secondary }]}>
+                  {String(reminderHour).padStart(2, '0')}:{String(reminderMinute).padStart(2, '0')}
+                </Text>
+              </SettingRow>
+            )}
+          </GlassCard>
+
+          {/* Accessibility */}
+          <SectionHeader title="Accessibility" />
+          <GlassCard>
+            <SettingRow label="Reduce Motion">
+              <GlassToggle
+                value={reduceMotion}
+                onValueChange={setReduceMotion}
+              />
+            </SettingRow>
+            <SettingRow label="High Contrast" noBorder>
+              <GlassToggle
+                value={highContrast}
+                onValueChange={setHighContrast}
+              />
+            </SettingRow>
           </GlassCard>
 
           {/* About */}
@@ -608,6 +726,12 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     borderWidth: 2,
   },
+  suggestedSpeed: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 6,
+    textAlign: 'center',
+  },
   segmentedControlWrapper: {
     marginTop: 8,
   },
@@ -625,6 +749,34 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  // Achievement preview
+  achievementPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  achievementPreviewInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  achievementPreviewTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  achievementPreviewCount: {
+    fontSize: 13,
+  },
+  achievementProgressBar: {
+    width: 60,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(128,128,128,0.15)',
+    overflow: 'hidden',
+  },
+  achievementProgressFill: {
+    height: '100%',
+    borderRadius: 2,
   },
   restoreButton: {
     alignItems: 'center',

@@ -15,7 +15,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.articulate.app"
+      "bundleIdentifier": "com.articulate.app",
+      "deploymentTarget": "16.0"
     },
     "android": {
       "adaptiveIcon": {
@@ -32,7 +33,13 @@
     },
     "plugins": [
       ["expo-router", { "root": "./src/app" }],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "sounds": []
+        }
+      ]
     ]
   }
 }

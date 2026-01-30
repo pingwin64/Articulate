@@ -76,6 +76,9 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen name="privacy" />
+          <Stack.Screen name="achievements" />
+          <Stack.Screen name="quiz" />
+          <Stack.Screen name="session-detail" />
         </Stack>
       </View>
     </GestureHandlerRootView>

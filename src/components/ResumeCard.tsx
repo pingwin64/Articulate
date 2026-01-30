@@ -1,11 +1,15 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, Pressable } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withDelay,
+  withTiming,
+  runOnJS,
 } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { GlassCard } from './GlassCard';
 import { categories } from '../lib/data/categories';
@@ -15,13 +19,16 @@ import type { ResumeData } from '../lib/store/settings';
 interface ResumeCardProps {
   data: ResumeData;
   onPress: () => void;
+  onDismiss?: () => void;
 }
 
-export function ResumeCard({ data, onPress }: ResumeCardProps) {
+export function ResumeCard({ data, onPress, onDismiss }: ResumeCardProps) {
   const { colors } = useTheme();
   const { customTexts } = useSettingsStore();
   const translateY = useSharedValue(-20);
   const opacity = useSharedValue(0);
+  const dismissTranslateX = useSharedValue(0);
+  const dismissOpacity = useSharedValue(1);
 
   // Resolve name from category or custom text
   const displayName = (() => {
@@ -39,13 +46,35 @@ export function ResumeCard({ data, onPress }: ResumeCardProps) {
   }, [translateY, opacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-    opacity: opacity.value,
+    transform: [
+      { translateY: translateY.value },
+      { translateX: dismissTranslateX.value },
+    ],
+    opacity: opacity.value * dismissOpacity.value,
   }));
 
-  return (
-    <Animated.View style={animatedStyle}>
-      <GlassCard onPress={onPress} accentBorder>
+  // Swipe to dismiss gesture
+  const swipeDismiss = onDismiss
+    ? Gesture.Pan()
+        .activeOffsetX([-20, 20])
+        .onUpdate((event) => {
+          dismissTranslateX.value = event.translationX;
+        })
+        .onEnd((event) => {
+          if (Math.abs(event.translationX) > 100) {
+            // Dismiss
+            const direction = event.translationX > 0 ? 400 : -400;
+            dismissTranslateX.value = withTiming(direction, { duration: 200 });
+            dismissOpacity.value = withTiming(0, { duration: 200 });
+            setTimeout(() => runOnJS(onDismiss!)(), 250);
+          } else {
+            dismissTranslateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+          }
+        })
+    : undefined;
+
+  const cardContent = (
+    <GlassCard onPress={onPress} accentBorder>
         <View style={styles.content}>
           <Text style={[styles.category, { color: colors.primary }]}>
             {displayName}
@@ -69,6 +98,21 @@ export function ResumeCard({ data, onPress }: ResumeCardProps) {
           </View>
         </View>
       </GlassCard>
+  );
+
+  if (swipeDismiss) {
+    return (
+      <GestureDetector gesture={swipeDismiss}>
+        <Animated.View style={animatedStyle}>
+          {cardContent}
+        </Animated.View>
+      </GestureDetector>
+    );
+  }
+
+  return (
+    <Animated.View style={animatedStyle}>
+      {cardContent}
     </Animated.View>
   );
 }

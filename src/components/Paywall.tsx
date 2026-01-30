@@ -234,7 +234,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     gap: 24,
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 20,
+    paddingBottom: 24,
   },
   headlineSection: {
     alignItems: 'center',

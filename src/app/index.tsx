@@ -6,6 +6,8 @@ import {
   ScrollView,
   Pressable,
   Alert,
+  ActionSheetIOS,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,10 +25,13 @@ import { StreakDisplay } from '../components/StreakDisplay';
 import { ResumeCard } from '../components/ResumeCard';
 import { CategoryCard } from '../components/CategoryCard';
 import { DailyGoalRing } from '../components/DailyGoalRing';
+import { TodaysInsight } from '../components/home/TodaysInsight';
 import { Paywall } from '../components/Paywall';
 import { SilentStart } from '../components/onboarding/SilentStart';
 import { Personalize } from '../components/onboarding/Personalize';
+import { Assessment } from '../components/onboarding/Assessment';
 import { Launch } from '../components/onboarding/Launch';
+import { requestNotificationPermissions, scheduleStreakReminder } from '../lib/notifications';
 import { Spacing } from '../design/theme';
 
 // ─── Onboarding Container ────────────────────────────────────
@@ -44,6 +49,10 @@ function Onboarding() {
     setPage(2);
   }, []);
 
+  const handleAssessmentDone = useCallback(() => {
+    setPage(3);
+  }, []);
+
   const handleLaunch = useCallback((categoryKey: string) => {
     setReadingLevel('intermediate');
     router.replace({
@@ -56,8 +65,9 @@ function Onboarding() {
     <SafeAreaView style={styles.flex}>
       {page === 0 && <SilentStart onNext={handleSilentStartDone} />}
       {page === 1 && <Personalize onNext={handlePersonalizeDone} />}
-      {page === 2 && <Launch onNext={handleLaunch} />}
-      <PageDots total={3} current={page} />
+      {page === 2 && <Assessment onNext={handleAssessmentDone} />}
+      {page === 3 && <Launch onNext={handleLaunch} />}
+      <PageDots total={4} current={page} />
     </SafeAreaView>
   );
 }
@@ -141,6 +151,8 @@ function Home() {
   const router = useRouter();
   const {
     resumeData,
+    resumePoints,
+    clearResumePoint,
     currentStreak,
     isPremium,
     lastReadDate,
@@ -176,6 +188,18 @@ function Home() {
       return () => clearTimeout(timer);
     }
   }, [textsCompleted, dailyGoalSet]);
+
+  // Request notification permission on first home visit (soft ask)
+  const { notificationsEnabled, reminderHour, reminderMinute } = useSettingsStore();
+  useEffect(() => {
+    if (notificationsEnabled) {
+      requestNotificationPermissions().then((granted) => {
+        if (granted) {
+          scheduleStreakReminder(reminderHour, reminderMinute, currentStreak);
+        }
+      });
+    }
+  }, []);
 
   // Streak "at risk" detection
   const isStreakAtRisk = currentStreak > 0 && lastReadDate !== null && (() => {
@@ -227,20 +251,74 @@ function Home() {
     });
   };
 
-  const handleDeleteCustomText = (textId: string) => {
-    const { removeCustomText } = useSettingsStore.getState();
-    Alert.alert(
-      'Delete Text',
-      'Are you sure you want to delete this text?',
-      [
-        { text: 'Cancel', style: 'cancel' },
+  const handleCustomTextOptions = (textId: string) => {
+    const state = useSettingsStore.getState();
+    const ct = state.customTexts.find((t) => t.id === textId);
+    if (!ct) return;
+
+    const showRename = () => {
+      Alert.prompt(
+        'Rename Text',
+        'Enter a new title:',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Rename',
+            onPress: (newTitle?: string) => {
+              if (newTitle && newTitle.trim()) {
+                state.renameCustomText(textId, newTitle.trim());
+              }
+            },
+          },
+        ],
+        'plain-text',
+        ct.title
+      );
+    };
+
+    const showDelete = () => {
+      Alert.alert(
+        'Delete Text',
+        'Are you sure you want to delete this text?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => state.removeCustomText(textId),
+          },
+        ]
+      );
+    };
+
+    const showEdit = () => {
+      router.push({
+        pathname: '/paste',
+        params: { editTextId: textId },
+      });
+    };
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
         {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => removeCustomText(textId),
+          options: ['Cancel', 'Rename', 'Edit', 'Delete'],
+          destructiveButtonIndex: 3,
+          cancelButtonIndex: 0,
         },
-      ]
-    );
+        (buttonIndex) => {
+          if (buttonIndex === 1) showRename();
+          else if (buttonIndex === 2) showEdit();
+          else if (buttonIndex === 3) showDelete();
+        }
+      );
+    } else {
+      Alert.alert('Options', undefined, [
+        { text: 'Rename', onPress: showRename },
+        { text: 'Edit', onPress: showEdit },
+        { text: 'Delete', style: 'destructive', onPress: showDelete },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
   };
 
   return (
@@ -252,6 +330,9 @@ function Home() {
         </View>
         <View style={styles.headerIcons}>
           {currentStreak > 0 && <StreakDisplay compact />}
+          <Pressable onPress={() => router.push('/achievements')} style={styles.headerButton}>
+            <Feather name="award" size={20} color={colors.primary} />
+          </Pressable>
           <Pressable onPress={() => router.push('/settings')} style={styles.headerButton}>
             <Feather name="settings" size={20} color={colors.primary} />
           </Pressable>
@@ -267,6 +348,7 @@ function Home() {
         {/* Greeting */}
         <View style={styles.greetingSection}>
           <TimeGreeting />
+          <TodaysInsight />
         </View>
 
         {/* Trial expired banner */}
@@ -299,12 +381,56 @@ function Home() {
           </Animated.View>
         )}
 
-        {/* Resume card */}
-        {resumeData && (
-          <View style={styles.resumeSection}>
-            <ResumeCard data={resumeData} onPress={handleResume} />
-          </View>
-        )}
+        {/* Resume cards (up to 3 from resumePoints, fallback to legacy) */}
+        {(() => {
+          const entries = Object.entries(resumePoints)
+            .sort(([, a], [, b]) => b.startTime - a.startTime)
+            .slice(0, 3);
+
+          if (entries.length > 0) {
+            return (
+              <View style={styles.resumeSection}>
+                {entries.map(([key, data]) => (
+                  <ResumeCard
+                    key={key}
+                    data={data}
+                    onPress={() => {
+                      if (data.customTextId) {
+                        router.push({
+                          pathname: '/reading',
+                          params: {
+                            customTextId: data.customTextId,
+                            resumeIndex: String(data.wordIndex),
+                          },
+                        });
+                      } else {
+                        router.push({
+                          pathname: '/reading',
+                          params: {
+                            categoryKey: data.categoryKey,
+                            resumeIndex: String(data.wordIndex),
+                          },
+                        });
+                      }
+                    }}
+                    onDismiss={() => clearResumePoint(key)}
+                  />
+                ))}
+              </View>
+            );
+          }
+
+          // Legacy single resume fallback
+          if (resumeData) {
+            return (
+              <View style={styles.resumeSection}>
+                <ResumeCard data={resumeData} onPress={handleResume} />
+              </View>
+            );
+          }
+
+          return null;
+        })()}
 
         {/* Paste Text card */}
         <Animated.View entering={FadeIn.delay(100).duration(400)}>
@@ -351,11 +477,11 @@ function Home() {
                       </Text>
                     </View>
                     <Pressable
-                      onPress={() => handleDeleteCustomText(ct.id)}
-                      style={styles.deleteButton}
+                      onPress={() => handleCustomTextOptions(ct.id)}
+                      style={styles.moreButton}
                       hitSlop={8}
                     >
-                      <Feather name="trash-2" size={16} color={colors.muted} />
+                      <Feather name="more-vertical" size={18} color={colors.muted} />
                     </Pressable>
                   </View>
                 </GlassCard>
@@ -567,7 +693,7 @@ const styles = StyleSheet.create({
   customTextCount: {
     fontSize: 13,
   },
-  deleteButton: {
+  moreButton: {
     width: 32,
     height: 32,
     justifyContent: 'center',
