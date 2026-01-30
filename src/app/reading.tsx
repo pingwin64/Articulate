@@ -4,9 +4,6 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import * as Speech from 'expo-speech';
-import * as Clipboard from 'expo-clipboard';
-import * as ContextMenu from 'zeego/context-menu';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
@@ -26,7 +23,6 @@ export default function ReadingScreen() {
   const {
     sentenceRecap,
     hapticFeedback,
-    ttsSpeed,
     autoPlay,
     autoPlayWPM,
     setResumeData,
@@ -98,17 +94,7 @@ export default function ReadingScreen() {
     }
   }, [autoPlay, hasOnboarded, currentIndex, autoPlayWPM, totalWords, advanceWord]);
 
-  const handleSpeak = () => {
-    const rate = ttsSpeed === 'slow' ? 0.4 : ttsSpeed === 'fast' ? 0.7 : 0.5;
-    Speech.speak(currentWord, { rate });
-  };
-
-  const handleCopyWord = async () => {
-    await Clipboard.setStringAsync(currentWord);
-  };
-
   const handleClose = () => {
-    Speech.stop();
     if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current);
     router.back();
   };
@@ -141,21 +127,7 @@ export default function ReadingScreen() {
         {/* Main tap area */}
         <Pressable style={styles.tapArea} onPress={advanceWord}>
           <View style={styles.wordContainer}>
-            <ContextMenu.Root>
-              <ContextMenu.Trigger>
-                <WordDisplay word={currentWord} wordKey={currentIndex} />
-              </ContextMenu.Trigger>
-              <ContextMenu.Content>
-                <ContextMenu.Item key="speak" onSelect={handleSpeak}>
-                  <ContextMenu.ItemTitle>Speak Word</ContextMenu.ItemTitle>
-                  <ContextMenu.ItemIcon ios={{ name: 'speaker.wave.2' }} />
-                </ContextMenu.Item>
-                <ContextMenu.Item key="copy" onSelect={handleCopyWord}>
-                  <ContextMenu.ItemTitle>Copy Word</ContextMenu.ItemTitle>
-                  <ContextMenu.ItemIcon ios={{ name: 'doc.on.doc' }} />
-                </ContextMenu.Item>
-              </ContextMenu.Content>
-            </ContextMenu.Root>
+            <WordDisplay word={currentWord} wordKey={currentIndex} />
           </View>
 
           {/* Below-word content: absolutely positioned to prevent layout shift */}

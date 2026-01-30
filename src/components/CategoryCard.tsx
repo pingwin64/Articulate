@@ -1,6 +1,5 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import * as ContextMenu from 'zeego/context-menu';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { GlassCard } from './GlassCard';
@@ -16,48 +15,25 @@ export function CategoryCard({ category, onPress, locked }: CategoryCardProps) {
   const { colors } = useTheme();
 
   return (
-    <ContextMenu.Root>
-      <ContextMenu.Trigger>
-        <GlassCard onPress={onPress}>
-          <View style={[styles.content, locked && styles.lockedContent]}>
-            <View style={styles.textGroup}>
-              <Text style={[styles.name, { color: locked ? colors.muted : colors.primary }]}>
-                {category.name}
-              </Text>
-              <Text style={[styles.count, { color: colors.muted }]}>
-                ~{category.wordCount} words
-              </Text>
-            </View>
-            {locked ? (
-              <Feather name="lock" size={16} color={colors.muted} />
-            ) : (
-              <Text style={[styles.chevron, { color: colors.muted }]}>
-                {'\u203A'}
-              </Text>
-            )}
-          </View>
-        </GlassCard>
-      </ContextMenu.Trigger>
-      <ContextMenu.Content>
+    <GlassCard onPress={onPress}>
+      <View style={[styles.content, locked && styles.lockedContent]}>
+        <View style={styles.textGroup}>
+          <Text style={[styles.name, { color: locked ? colors.muted : colors.primary }]}>
+            {category.name}
+          </Text>
+          <Text style={[styles.count, { color: colors.muted }]}>
+            ~{category.wordCount} words
+          </Text>
+        </View>
         {locked ? (
-          <ContextMenu.Item key="unlock" onSelect={() => {}}>
-            <ContextMenu.ItemTitle>Unlock Premium</ContextMenu.ItemTitle>
-            <ContextMenu.ItemIcon ios={{ name: 'lock.open' }} />
-          </ContextMenu.Item>
+          <Feather name="lock" size={16} color={colors.muted} />
         ) : (
-          <>
-            <ContextMenu.Item key="start" onSelect={onPress}>
-              <ContextMenu.ItemTitle>Start Reading</ContextMenu.ItemTitle>
-              <ContextMenu.ItemIcon ios={{ name: 'book' }} />
-            </ContextMenu.Item>
-            <ContextMenu.Item key="info" disabled>
-              <ContextMenu.ItemTitle>~{category.wordCount} words</ContextMenu.ItemTitle>
-              <ContextMenu.ItemIcon ios={{ name: 'info.circle' }} />
-            </ContextMenu.Item>
-          </>
+          <Text style={[styles.chevron, { color: colors.muted }]}>
+            {'\u203A'}
+          </Text>
         )}
-      </ContextMenu.Content>
-    </ContextMenu.Root>
+      </View>
+    </GlassCard>
   );
 }
 
