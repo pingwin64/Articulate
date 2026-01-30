@@ -16,6 +16,7 @@ import Animated, {
   withSequence,
   withTiming,
   withSpring,
+  withDelay,
   Easing,
   FadeIn,
 } from 'react-native-reanimated';
@@ -53,6 +54,47 @@ const ONBOARDING_CATEGORIES = categories.filter((c) =>
 
 // ─── AnimatedCharacters Helper ───────────────────────────────
 
+function AnimatedLetter({
+  char,
+  index,
+  totalChars,
+  style,
+  delayOffset,
+}: {
+  char: string;
+  index: number;
+  totalChars: number;
+  style: any;
+  delayOffset: number;
+}) {
+  const letterOpacity = useSharedValue(0);
+  const letterTracking = useSharedValue(20); // Start with wide spacing
+
+  useEffect(() => {
+    const delay = delayOffset + index * 80; // 80ms stagger between letters
+
+    // Fade in quickly
+    letterOpacity.value = withDelay(delay, withTiming(1, { duration: 150 }));
+
+    // Tracking contracts from wide to tight
+    letterTracking.value = withDelay(
+      delay,
+      withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) })
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: letterOpacity.value,
+    marginRight: letterTracking.value,
+  }));
+
+  return (
+    <Animated.Text style={[style, animatedStyle]}>
+      {char}
+    </Animated.Text>
+  );
+}
+
 function AnimatedCharacters({
   text,
   style,
@@ -62,16 +104,19 @@ function AnimatedCharacters({
   style: any;
   delayOffset?: number;
 }) {
+  const chars = text.split('');
+
   return (
     <View style={styles.characterRow}>
-      {text.split('').map((char, i) => (
-        <Animated.Text
+      {chars.map((char, i) => (
+        <AnimatedLetter
           key={`${char}-${i}`}
-          entering={FadeIn.delay(delayOffset + i * 70).duration(1)}
+          char={char}
+          index={i}
+          totalChars={chars.length}
           style={style}
-        >
-          {char}
-        </Animated.Text>
+          delayOffset={delayOffset}
+        />
       ))}
     </View>
   );
@@ -205,29 +250,18 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
     <Pressable style={styles.onboardingPage} onPress={handleTap}>
       <View style={styles.silentCenter}>
         {wordIndex >= 0 && (
-          <>
-            {wordIndex === ONBOARDING_WORDS.length - 1 && (
-              <Animated.View
-                style={[
-                  styles.shimmerGlow,
-                  { backgroundColor: colors.primary },
-                  glowStyle,
-                ]}
-              />
-            )}
-            {wordIndex === ONBOARDING_WORDS.length - 1 ? (
-              <AnimatedCharacters
-                text="Articulate."
-                style={[styles.silentWord, { color: colors.primary }]}
-              />
-            ) : (
-              <Animated.Text
-                style={[styles.silentWord, { color: colors.primary }, wordStyle]}
-              >
-                {ONBOARDING_WORDS[wordIndex]}
-              </Animated.Text>
-            )}
-          </>
+          wordIndex === ONBOARDING_WORDS.length - 1 ? (
+            <AnimatedCharacters
+              text="Articulate."
+              style={[styles.silentWord, { color: colors.primary }]}
+            />
+          ) : (
+            <Animated.Text
+              style={[styles.silentWord, { color: colors.primary }, wordStyle]}
+            >
+              {ONBOARDING_WORDS[wordIndex]}
+            </Animated.Text>
+          )
         )}
         <Animated.Text
           style={[styles.hintText, { color: colors.muted }, hintStyle]}
