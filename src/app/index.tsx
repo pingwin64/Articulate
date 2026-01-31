@@ -5,6 +5,7 @@ import {
   Text,
   ScrollView,
   Pressable,
+  Modal,
   useWindowDimensions,
   Alert,
 } from 'react-native';
@@ -38,8 +39,10 @@ import {
   Springs,
   FontFamilies,
   WordColors,
+  Radius,
 } from '../design/theme';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
+import type { Category, TextEntry } from '../lib/data/categories';
 
 // ─── Onboarding Constants ────────────────────────────────────
 
@@ -615,9 +618,10 @@ function Onboarding() {
 
   const handleLaunch = useCallback((categoryKey: string) => {
     setReadingLevel('intermediate');
+    const cat = categories.find((c) => c.key === categoryKey);
     router.replace({
       pathname: '/reading',
-      params: { categoryKey },
+      params: { categoryKey, textId: cat?.texts[0]?.id ?? '' },
     });
   }, [setReadingLevel, router]);
 
@@ -663,6 +667,7 @@ function Home() {
   } = useSettingsStore();
 
   const [moreExpanded, setMoreExpanded] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const chevronRotation = useSharedValue(0);
 
   const toggleMore = useCallback(() => {
@@ -747,10 +752,25 @@ function Home() {
       setPaywallContext('locked_category');
       return;
     }
-    router.push({
-      pathname: '/reading',
-      params: { categoryKey },
-    });
+    const cat = categories.find((c) => c.key === categoryKey);
+    if (cat && cat.texts.length > 1) {
+      setSelectedCategory(cat);
+    } else if (cat) {
+      router.push({
+        pathname: '/reading',
+        params: { categoryKey, textId: cat.texts[0]?.id ?? '' },
+      });
+    }
+  };
+
+  const handleTextSelect = (textId: string) => {
+    if (selectedCategory) {
+      router.push({
+        pathname: '/reading',
+        params: { categoryKey: selectedCategory.key, textId },
+      });
+      setSelectedCategory(null);
+    }
   };
 
   const handleResume = () => {
@@ -760,6 +780,7 @@ function Home() {
         params: {
           categoryKey: resumeData.categoryKey,
           resumeIndex: String(resumeData.wordIndex),
+          ...(resumeData.textId ? { textId: resumeData.textId } : {}),
           ...(resumeData.customTextId ? { customTextId: resumeData.customTextId } : {}),
         },
       });
@@ -1032,6 +1053,63 @@ function Home() {
         {/* 9. Bottom spacer */}
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Text selection modal */}
+      <Modal
+        visible={selectedCategory !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSelectedCategory(null)}
+      >
+        <View style={[styles.flex, { backgroundColor: colors.bg }]}>
+          <SafeAreaView style={styles.flex}>
+            <View style={styles.textSelectHeader}>
+              <Pressable onPress={() => setSelectedCategory(null)} style={styles.headerButton}>
+                <Feather name="x" size={22} color={colors.secondary} />
+              </Pressable>
+            </View>
+            <ScrollView
+              style={styles.flex}
+              contentContainerStyle={styles.textSelectContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={[styles.textSelectTitle, { color: colors.primary }]}>
+                {selectedCategory?.name}
+              </Text>
+              <Text style={[styles.textSelectSubtitle, { color: colors.secondary }]}>
+                Choose a text to read
+              </Text>
+              <View style={styles.textSelectList}>
+                {selectedCategory?.texts.map((entry, i) => (
+                  <Animated.View
+                    key={entry.id}
+                    entering={FadeIn.delay(i * 60).duration(300)}
+                  >
+                    <GlassCard onPress={() => handleTextSelect(entry.id)}>
+                      <View style={styles.textSelectRow}>
+                        <View style={styles.textSelectInfo}>
+                          <Text style={[styles.textSelectName, { color: colors.primary }]}>
+                            {entry.title}
+                          </Text>
+                          {entry.author && (
+                            <Text style={[styles.textSelectAuthor, { color: colors.secondary }]}>
+                              {entry.author}
+                            </Text>
+                          )}
+                          <Text style={[styles.textSelectWords, { color: colors.muted }]}>
+                            ~{entry.words.length} words
+                          </Text>
+                        </View>
+                        <Feather name="chevron-right" size={18} color={colors.muted} />
+                      </View>
+                    </GlassCard>
+                  </Animated.View>
+                ))}
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        </View>
+      </Modal>
 
       {/* Paywall modal */}
       <Paywall
@@ -1403,5 +1481,53 @@ const styles = StyleSheet.create({
     height: 32,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // Text selection modal
+  textSelectHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+  },
+  textSelectContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: 40,
+  },
+  textSelectTitle: {
+    fontSize: 28,
+    fontWeight: '300',
+    letterSpacing: -0.3,
+    marginBottom: 4,
+  },
+  textSelectSubtitle: {
+    fontSize: 15,
+    fontWeight: '400',
+    marginBottom: Spacing.lg,
+  },
+  textSelectList: {
+    gap: 10,
+  },
+  textSelectRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  textSelectInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  textSelectName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  textSelectAuthor: {
+    fontSize: 13,
+    fontWeight: '400',
+    fontStyle: 'italic',
+  },
+  textSelectWords: {
+    fontSize: 12,
+    fontWeight: '400',
   },
 });

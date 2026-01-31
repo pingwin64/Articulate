@@ -17,6 +17,8 @@ export function CategoryCard({ category, onPress, locked, index = 0 }: CategoryC
   const { colors, glass, isDark } = useTheme();
 
   const iconName = locked ? 'lock' : (category.icon as any);
+  const totalWords = category.texts.reduce((sum, t) => sum + t.words.length, 0);
+  const textCount = category.texts.length;
 
   return (
     <Animated.View entering={FadeIn.delay(index * 80).duration(400)}>
@@ -42,7 +44,7 @@ export function CategoryCard({ category, onPress, locked, index = 0 }: CategoryC
               {category.name}
             </Text>
             <Text style={[styles.count, { color: colors.muted }]}>
-              ~{category.wordCount} words
+              {textCount} {textCount === 1 ? 'text' : 'texts'} · ~{totalWords} words
             </Text>
           </View>
           {locked ? (

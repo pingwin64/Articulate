@@ -98,7 +98,8 @@ export function FontPicker({ selected, onSelect }: FontPickerProps) {
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingHorizontal: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
     gap: 10,
   },
   fontItem: {

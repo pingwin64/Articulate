@@ -1,6 +1,22 @@
 // Articulate - Liquid Glass Minimalism Design System
 
-export const Colors = {
+export interface ColorPalette {
+  bg: string;
+  surface: string;
+  stroke: string;
+  primary: string;
+  secondary: string;
+  muted: string;
+  glassHighlight: string;
+  success: string;
+  warning: string;
+  error: string;
+  info: string;
+}
+
+export type ThemeMode = 'light' | 'dark';
+
+export const Colors: Record<ThemeMode, ColorPalette> = {
   light: {
     bg: '#FFFFFF',
     surface: 'rgba(0,0,0,0.03)',
@@ -27,9 +43,7 @@ export const Colors = {
     error: '#FF453A',
     info: '#0A84FF',
   },
-} as const;
-
-export type ThemeMode = 'light' | 'dark';
+};
 
 export interface BackgroundTheme {
   key: string;

@@ -91,14 +91,13 @@ export default function RootLayout() {
           <Stack.Screen
             name="settings"
             options={{
-              presentation: 'formSheet',
-              sheetAllowedDetents: [0.85, 1.0],
-              sheetGrabberVisible: true,
-              sheetCornerRadius: 20,
+              animation: 'slide_from_right',
             }}
           />
           <Stack.Screen name="paste" />
           <Stack.Screen name="privacy" />
+          <Stack.Screen name="tos" />
+          <Stack.Screen name="quiz" />
         </Stack>
         </ErrorBoundary>
       </View>

@@ -124,7 +124,7 @@ export default function PasteScreen() {
   const handleImportFile = useCallback(async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['text/plain', 'application/epub+zip'],
+        type: ['text/plain', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
         copyToCacheDirectory: true,
       });
 
@@ -132,7 +132,7 @@ export default function PasteScreen() {
 
       const file = result.assets[0];
       setIsLoading(true);
-      setLoadingMessage('Reading file...');
+      setLoadingMessage(file.mimeType === 'application/pdf' ? 'Extracting text...' : 'Reading file...');
 
       if (hapticFeedback) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -220,7 +220,7 @@ export default function PasteScreen() {
                     Import File
                   </Text>
                   <Text style={[styles.importCardSubtitle, { color: colors.muted }]}>
-                    .txt or .epub
+                    .txt, .pdf, or .docx
                   </Text>
                 </View>
                 <Feather name="upload" size={18} color={colors.muted} />

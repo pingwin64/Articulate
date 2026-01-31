@@ -1,25 +1,29 @@
-import Purchases, {
-  LOG_LEVEL,
-  type PurchasesPackage,
-  type CustomerInfo,
-} from 'react-native-purchases';
-import { Platform } from 'react-native';
+import type { PurchasesPackage } from 'react-native-purchases';
 import { useSettingsStore } from './store/settings';
 
-const API_KEY = 'test_ytkjVCdVydzdJOcBDhNqDIcpIqt';
+const API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
 const ENTITLEMENT_ID = 'Articulate Pro';
 
 let isInitialized = false;
+let Purchases: any = null;
+let LOG_LEVEL: any = null;
+
+try {
+  const mod = require('react-native-purchases');
+  Purchases = mod.default;
+  LOG_LEVEL = mod.LOG_LEVEL;
+} catch {
+  // Native module not available — purchases disabled
+}
 
 export async function initPurchases(): Promise<void> {
-  if (isInitialized) return;
+  if (!Purchases || isInitialized) return;
 
   Purchases.setLogLevel(LOG_LEVEL.DEBUG);
   await Purchases.configure({ apiKey: API_KEY });
   isInitialized = true;
 
-  // Listen for customer info changes (e.g. renewal, expiration)
-  Purchases.addCustomerInfoUpdateListener((info: CustomerInfo) => {
+  Purchases.addCustomerInfoUpdateListener((info: any) => {
     const isPremium = !!info.entitlements.active[ENTITLEMENT_ID];
     const store = useSettingsStore.getState();
     if (store.isPremium !== isPremium) {
@@ -27,11 +31,11 @@ export async function initPurchases(): Promise<void> {
     }
   });
 
-  // Check entitlement on init
   await checkEntitlement();
 }
 
 export async function checkEntitlement(): Promise<boolean> {
+  if (!Purchases) return false;
   try {
     const info = await Purchases.getCustomerInfo();
     const isPremium = !!info.entitlements.active[ENTITLEMENT_ID];
@@ -43,6 +47,7 @@ export async function checkEntitlement(): Promise<boolean> {
 }
 
 export async function purchasePackage(pkg: PurchasesPackage): Promise<boolean> {
+  if (!Purchases) return false;
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     const isPremium = !!customerInfo.entitlements.active[ENTITLEMENT_ID];
@@ -57,6 +62,7 @@ export async function purchasePackage(pkg: PurchasesPackage): Promise<boolean> {
 }
 
 export async function restorePurchases(): Promise<boolean> {
+  if (!Purchases) return false;
   try {
     const info = await Purchases.restorePurchases();
     const isPremium = !!info.entitlements.active[ENTITLEMENT_ID];
@@ -68,6 +74,7 @@ export async function restorePurchases(): Promise<boolean> {
 }
 
 export async function getOfferings(): Promise<PurchasesPackage[]> {
+  if (!Purchases) return [];
   try {
     const offerings = await Purchases.getOfferings();
     if (offerings.current?.availablePackages) {

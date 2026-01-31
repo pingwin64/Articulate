@@ -81,13 +81,13 @@ export function GlassSlider({
     const w = trackWidth.value;
     if (w <= 0) return;
     const clampedX = Math.max(0, Math.min(w, e.x));
-    thumbX.value = withSpring(clampedX, Springs.snappy);
+    thumbX.value = clampedX;
     const ratio = clampedX / w;
     const newVal = denormalize(ratio);
     runOnJS(handleValueChange)(newVal);
   });
 
-  const composed = Gesture.Race(gesture, tapGesture);
+  const composed = Gesture.Exclusive(tapGesture, gesture);
 
   const fillStyle = useAnimatedStyle(() => ({
     width: thumbX.value,

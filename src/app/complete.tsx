@@ -15,6 +15,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 import { categories } from '../lib/data/categories';
+import { getQuizForText } from '../lib/data/quizzes';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { NumberRoll } from '../components/NumberRoll';
@@ -26,6 +27,7 @@ export default function CompleteScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     categoryKey: string;
+    textId?: string;
     customTextId?: string;
     wordsRead: string;
     timeSpent: string;
@@ -64,8 +66,18 @@ export default function CompleteScreen() {
   const timeSpent = parseInt(params.timeSpent ?? '0', 10);
   const wpm = timeSpent > 0 ? Math.round((wordsRead / timeSpent) * 60) : 0;
   const category = categories.find((c) => c.key === params.categoryKey);
-  const displayName = customText?.title ?? category?.name ?? 'Reading';
+  const textEntry = params.textId
+    ? category?.texts.find((t) => t.id === params.textId)
+    : undefined;
+  const displayName = customText?.title ?? textEntry?.title ?? category?.name ?? 'Reading';
   const displayIcon = customText ? 'clipboard' : category?.icon;
+
+  // Quiz availability
+  const hasBuiltInQuiz = params.categoryKey && params.textId
+    ? getQuizForText(params.categoryKey, params.textId).length > 0
+    : false;
+  const hasCustomQuiz = !!params.customTextId;
+  const quizAvailable = isPremium && (hasBuiltInQuiz || hasCustomQuiz);
   const minutes = Math.floor(timeSpent / 60);
   const seconds = timeSpent % 60;
   const timeDisplay = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
@@ -171,11 +183,23 @@ export default function CompleteScreen() {
     router.replace('/');
   };
 
+  const handleTakeQuiz = () => {
+    router.push({
+      pathname: '/quiz',
+      params: {
+        ...(params.categoryKey ? { categoryKey: params.categoryKey } : {}),
+        ...(params.textId ? { textId: params.textId } : {}),
+        ...(params.customTextId ? { customTextId: params.customTextId } : {}),
+      },
+    });
+  };
+
   const handleReadAgain = () => {
     router.replace({
       pathname: '/reading',
       params: {
         categoryKey: params.categoryKey ?? '',
+        ...(params.textId ? { textId: params.textId } : {}),
         ...(params.customTextId ? { customTextId: params.customTextId } : {}),
       },
     });
@@ -377,6 +401,20 @@ export default function CompleteScreen() {
           ) : (
             <>
               <GlassButton title="Continue" onPress={handleContinue} />
+              {quizAvailable && (
+                <GlassButton
+                  title="Take Quiz"
+                  onPress={handleTakeQuiz}
+                  variant="outline"
+                />
+              )}
+              {!isPremium && (hasBuiltInQuiz || !!params.customTextId) && (
+                <GlassButton
+                  title="Take Quiz"
+                  onPress={() => setPaywallContext('locked_quiz')}
+                  variant="outline"
+                />
+              )}
               <GlassButton
                 title="Read Again"
                 onPress={handleReadAgain}

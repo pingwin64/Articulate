@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 import type { PaywallContext } from '../lib/store/settings';
@@ -39,8 +40,8 @@ const FEATURES = [
   { icon: 'droplet' as const, text: 'Every theme, background, font, and color' },
   { icon: 'book-open' as const, text: 'Full reading library — all categories, current and future' },
   { icon: 'zap' as const, text: 'Auto-play, breathing mode, and chunk reading' },
-  { icon: 'bar-chart-2' as const, text: 'Advanced reading stats and full history' },
-  { icon: 'shield' as const, text: 'Weekly streak freeze to protect your progress' },
+  { icon: 'volume-2' as const, text: 'Text-to-speech narration as you read' },
+  { icon: 'help-circle' as const, text: 'Comprehension quizzes after every reading' },
 ];
 
 const DEFAULT_ORDER = [0, 1, 2, 3, 4, 5];
@@ -113,6 +114,18 @@ function getContextualCopy(context: PaywallContext | null): ContextualCopy {
         subheadline: 'Breathing animation syncs your reading with your breath.',
         featureOrder: [3, 0, 1, 2, 4, 5],
       };
+    case 'locked_tts':
+      return {
+        headline: 'Hear every word',
+        subheadline: 'Text-to-speech narration speaks each word as you read.',
+        featureOrder: [4, 0, 1, 2, 3, 5],
+      };
+    case 'locked_quiz':
+      return {
+        headline: 'Test your comprehension',
+        subheadline: 'Take a quiz after each reading to deepen understanding.',
+        featureOrder: [5, 0, 1, 2, 3, 4],
+      };
     case 'trial_expired':
       return {
         headline: 'Your customizations are waiting',
@@ -143,6 +156,7 @@ interface PaywallProps {
 
 export function Paywall({ visible, onDismiss, onSubscribe, context: propContext }: PaywallProps) {
   const { colors, glass, isDark } = useTheme();
+  const router = useRouter();
   const {
     setIsPremium,
     hapticFeedback,
@@ -512,6 +526,19 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext 
                 </Text>
               </Pressable>
             </View>
+            <View style={styles.legalRow}>
+              <Pressable onPress={() => { handleClose(); router.push('/privacy'); }}>
+                <Text style={[styles.legalLink, { color: colors.muted }]}>
+                  Privacy
+                </Text>
+              </Pressable>
+              <Text style={[styles.dot, { color: colors.muted }]}>{'\u00B7'}</Text>
+              <Pressable onPress={() => { handleClose(); router.push('/tos'); }}>
+                <Text style={[styles.legalLink, { color: colors.muted }]}>
+                  Terms
+                </Text>
+              </Pressable>
+            </View>
           </Animated.View>
         </SafeAreaView>
       </View>
@@ -707,5 +734,15 @@ const styles = StyleSheet.create({
     height: 48,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  legalRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legalLink: {
+    fontSize: 12,
+    fontWeight: '400',
   },
 });

@@ -25,7 +25,8 @@ export type PaywallContext =
   | 'post_onboarding' | 'locked_category' | 'custom_text_limit'
   | 'locked_font' | 'locked_color' | 'locked_size' | 'locked_bold'
   | 'locked_background' | 'locked_autoplay' | 'locked_chunk'
-  | 'locked_breathing' | 'trial_expired' | 'settings_upgrade' | 'generic';
+  | 'locked_breathing' | 'locked_tts' | 'locked_quiz'
+  | 'trial_expired' | 'settings_upgrade' | 'generic';
 
 export interface SavedPremiumSettings {
   fontFamily: FontFamilyKey;
@@ -45,6 +46,7 @@ export interface CustomText {
 
 export interface ResumeData {
   categoryKey: string;
+  textId?: string;
   customTextId?: string;
   wordIndex: number;
   totalWords: number;
@@ -87,8 +89,6 @@ export interface SettingsState {
   setReadingLevel: (v: ReadingLevel) => void;
   sentenceRecap: boolean;
   setSentenceRecap: (v: boolean) => void;
-  voiceDetection: boolean;
-  setVoiceDetection: (v: boolean) => void;
   hapticFeedback: boolean;
   setHapticFeedback: (v: boolean) => void;
   breathingAnimation: boolean;
@@ -271,8 +271,6 @@ export const useSettingsStore = create<SettingsState>()(
       setReadingLevel: (v) => set({ readingLevel: v }),
       sentenceRecap: false,
       setSentenceRecap: (v) => set({ sentenceRecap: v }),
-      voiceDetection: false,
-      setVoiceDetection: (v) => set({ voiceDetection: v }),
       hapticFeedback: true,
       setHapticFeedback: (v) => set({ hapticFeedback: v }),
       breathingAnimation: true,
@@ -487,7 +485,6 @@ export const useSettingsStore = create<SettingsState>()(
         wordColor: 'default',
         readingLevel: 'intermediate',
         sentenceRecap: false,
-        voiceDetection: false,
         hapticFeedback: true,
         breathingAnimation: true,
         ttsSpeed: 'normal',

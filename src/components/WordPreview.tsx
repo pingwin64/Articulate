@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 24,
+    paddingVertical: 12,
   },
   word: {
     textAlign: 'center',

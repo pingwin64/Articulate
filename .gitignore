@@ -31,6 +31,7 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript
@@ -39,3 +40,29 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Supabase CLI temp
+supabase/.temp/
+
+# AI tool configs
+.agent/
+.agents/
+.claude/
+.cline/
+.codex/
+.commandcode/
+.cursor/
+.factory/
+.gemini/
+.goose/
+.kilocode/
+.kiro/
+.neovate/
+.opencode/
+.openhands/
+.pi/
+.qoder/
+.roo/
+.trae/
+.windsurf/
+.zencoder/

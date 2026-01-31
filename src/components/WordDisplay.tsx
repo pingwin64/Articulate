@@ -12,7 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
-import { FontFamilies, WordColors } from '../design/theme';
+import { FontFamilies, WordColors, Springs } from '../design/theme';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
 
 interface WordDisplayProps {
@@ -46,11 +46,11 @@ export function WordDisplay({ word, wordKey }: WordDisplayProps) {
 
     opacity.value = withDelay(
       50,
-      withSpring(1, { damping: 15, stiffness: 150 })
+      withSpring(1, Springs.gentle)
     );
     scale.value = withDelay(
       50,
-      withSpring(1, { damping: 15, stiffness: 150 })
+      withSpring(1, Springs.gentle)
     );
 
     // Start breathing after entry (only if enabled)

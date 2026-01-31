@@ -11,12 +11,15 @@ import { categories } from '../lib/data/categories';
 import { WordDisplay } from '../components/WordDisplay';
 import { ArticulateProgress } from '../components/ArticulateProgress';
 import { SentenceTrail } from '../components/SentenceTrail';
+import { Paywall } from '../components/Paywall';
+import { speakWord, stopSpeaking } from '../lib/tts';
 
 export default function ReadingScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{
     categoryKey?: string;
+    textId?: string;
     customTextId?: string;
     resumeIndex?: string;
   }>();
@@ -26,10 +29,18 @@ export default function ReadingScreen() {
     hapticFeedback,
     autoPlay,
     autoPlayWPM,
+    ttsSpeed,
+    chunkSize,
+    isPremium,
     setResumeData,
     hasOnboarded,
     customTexts,
+    showPaywall,
+    setPaywallContext,
+    paywallContext,
   } = useSettingsStore();
+
+  const [ttsEnabled, setTtsEnabled] = useState(false);
 
   const customText = params.customTextId
     ? customTexts.find((t) => t.id === params.customTextId)
@@ -37,9 +48,12 @@ export default function ReadingScreen() {
   const category = params.categoryKey
     ? categories.find((c) => c.key === params.categoryKey)
     : undefined;
+  const text = params.textId
+    ? category?.texts.find((t) => t.id === params.textId)
+    : category?.texts[0];
   const words = customText
     ? customText.text.trim().split(/\s+/).filter(Boolean)
-    : category?.words ?? [];
+    : text?.words ?? [];
   const totalWords = words.length;
 
   const startIndex = params.resumeIndex ? parseInt(params.resumeIndex, 10) : 0;
@@ -47,7 +61,7 @@ export default function ReadingScreen() {
   const startTimeRef = useRef(Date.now());
   const autoPlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const currentWord = words[currentIndex] ?? '';
+  const currentWord = words.slice(currentIndex, currentIndex + chunkSize).join(' ');
   const progress = totalWords > 0 ? currentIndex / totalWords : 0;
 
   // Derived state: completedWords from currentIndex
@@ -61,22 +75,24 @@ export default function ReadingScreen() {
     if (currentIndex > 0 && currentIndex < totalWords) {
       setResumeData({
         categoryKey: params.categoryKey ?? '',
+        textId: params.textId,
         customTextId: params.customTextId,
         wordIndex: currentIndex,
         totalWords,
         startTime: startTimeRef.current,
       });
     }
-  }, [currentIndex, totalWords, params.categoryKey, params.customTextId, setResumeData]);
+  }, [currentIndex, totalWords, params.categoryKey, params.textId, params.customTextId, setResumeData]);
 
   const advanceWord = useCallback(() => {
-    if (currentIndex >= totalWords - 1) {
+    if (currentIndex + chunkSize >= totalWords) {
       setResumeData(null);
       const elapsed = Math.round((Date.now() - startTimeRef.current) / 1000);
       router.replace({
         pathname: '/complete',
         params: {
           categoryKey: params.categoryKey ?? '',
+          textId: params.textId ?? '',
           customTextId: params.customTextId ?? '',
           wordsRead: String(totalWords),
           timeSpent: String(elapsed),
@@ -89,8 +105,8 @@ export default function ReadingScreen() {
       Haptics.selectionAsync();
     }
 
-    setCurrentIndex((prev) => prev + 1);
-  }, [currentIndex, totalWords, hapticFeedback, setResumeData, router, params.categoryKey, params.customTextId]);
+    setCurrentIndex((prev) => Math.min(prev + chunkSize, totalWords - 1));
+  }, [currentIndex, totalWords, chunkSize, hapticFeedback, setResumeData, router, params.categoryKey, params.customTextId]);
 
   // Auto-play (only enable after user has completed onboarding)
   useEffect(() => {
@@ -105,8 +121,32 @@ export default function ReadingScreen() {
     }
   }, [autoPlay, hasOnboarded, currentIndex, autoPlayWPM, totalWords, advanceWord]);
 
+  // TTS: speak current word when enabled
+  useEffect(() => {
+    if (ttsEnabled && currentWord) {
+      speakWord(currentWord, ttsSpeed);
+    }
+  }, [ttsEnabled, currentIndex, currentWord, ttsSpeed]);
+
+  // TTS: cleanup on unmount
+  useEffect(() => {
+    return () => stopSpeaking();
+  }, []);
+
+  const handleTtsToggle = () => {
+    if (!isPremium) {
+      setPaywallContext('locked_tts' as any);
+      return;
+    }
+    if (ttsEnabled) {
+      stopSpeaking();
+    }
+    setTtsEnabled(!ttsEnabled);
+  };
+
   const handleClose = () => {
     if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current);
+    stopSpeaking();
     if (router.canGoBack()) {
       router.back();
     } else {
@@ -153,15 +193,20 @@ export default function ReadingScreen() {
 
           <ArticulateProgress progress={progress} />
 
-          <Pressable onPress={() => router.push('/settings')} style={styles.headerButton} accessibilityLabel="Open settings" accessibilityRole="button">
-            <Feather name="settings" size={20} color={colors.primary} />
-          </Pressable>
+          <View style={styles.headerRight}>
+            <Pressable onPress={handleTtsToggle} style={styles.headerButton} accessibilityLabel={ttsEnabled ? 'Disable text-to-speech' : 'Enable text-to-speech'} accessibilityRole="button">
+              <Feather name={ttsEnabled ? 'volume-2' : 'volume-x'} size={20} color={ttsEnabled ? colors.primary : colors.muted} />
+            </Pressable>
+            <Pressable onPress={() => router.push('/settings')} style={styles.headerButton} accessibilityLabel="Open settings" accessibilityRole="button">
+              <Feather name="settings" size={20} color={colors.primary} />
+            </Pressable>
+          </View>
         </View>
 
         {/* Word counter */}
         <View style={styles.counterRow}>
           <Text style={[styles.counter, { color: colors.muted }]}>
-            {currentIndex + 1} / {totalWords}
+            {Math.min(currentIndex + chunkSize, totalWords)} / {totalWords}
           </Text>
           {progress > 0.75 && (totalWords - currentIndex) <= 20 && (
             <Text style={[styles.goalGradient, { color: colors.success ?? colors.primary }]}>
@@ -196,6 +241,12 @@ export default function ReadingScreen() {
           </View>
         </Pressable>
       </SafeAreaView>
+
+      <Paywall
+        visible={showPaywall}
+        onDismiss={() => setPaywallContext(null)}
+        context={paywallContext}
+      />
     </View>
   );
 }
@@ -218,6 +269,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerRight: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
   counterRow: {

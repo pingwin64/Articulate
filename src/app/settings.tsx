@@ -154,7 +154,6 @@ export default function SettingsScreen() {
     wordColor, setWordColor,
     readingLevel, setReadingLevel,
     sentenceRecap, setSentenceRecap,
-    voiceDetection, setVoiceDetection,
     hapticFeedback, setHapticFeedback,
     breathingAnimation, setBreathingAnimation,
     ttsSpeed, setTtsSpeed,
@@ -182,7 +181,6 @@ export default function SettingsScreen() {
     wordColor: s.wordColor, setWordColor: s.setWordColor,
     readingLevel: s.readingLevel, setReadingLevel: s.setReadingLevel,
     sentenceRecap: s.sentenceRecap, setSentenceRecap: s.setSentenceRecap,
-    voiceDetection: s.voiceDetection, setVoiceDetection: s.setVoiceDetection,
     hapticFeedback: s.hapticFeedback, setHapticFeedback: s.setHapticFeedback,
     breathingAnimation: s.breathingAnimation, setBreathingAnimation: s.setBreathingAnimation,
     ttsSpeed: s.ttsSpeed, setTtsSpeed: s.setTtsSpeed,
@@ -325,6 +323,13 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.sm }]}>
+        <Pressable onPress={() => router.back()} hitSlop={16} style={styles.headerBackButton}>
+          <Feather name="chevron-left" size={24} color={colors.primary} />
+        </Pressable>
+        <Text style={[styles.headerTitle, { color: colors.primary }]}>Profile</Text>
+        <View style={styles.headerBackButton} />
+      </View>
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.scrollContent}
@@ -342,11 +347,22 @@ export default function SettingsScreen() {
             <Text style={[styles.identitySubtitle, { color: colors.muted }]}>
               {formatNumber(totalWordsRead)} words{currentStreak > 0 ? ` \u00B7 ${currentStreak} day streak` : ''}
             </Text>
-            <View style={[styles.membershipBadge, { backgroundColor: membershipBadgeBg }]}>
-              <Text style={[styles.membershipBadgeText, { color: membershipBadgeColor }]}>
-                {membershipLabel}
-              </Text>
-            </View>
+            {!isPremium ? (
+              <Pressable
+                onPress={() => setPaywallContext('settings_upgrade')}
+                style={[styles.upgradeBadge, { backgroundColor: membershipBadgeBg, borderColor: membershipBadgeColor + '40' }]}
+              >
+                <Text style={[styles.membershipBadgeText, { color: membershipBadgeColor }]}>
+                  {membershipLabel}
+                </Text>
+                <Feather name="chevron-right" size={12} color={membershipBadgeColor} />
+              </Pressable>
+            ) : (
+              <View style={[styles.proBadgeTop, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' }]}>
+                <Feather name="award" size={12} color={colors.primary} />
+                <Text style={[styles.proBadgeTopText, { color: colors.primary }]}>PRO</Text>
+              </View>
+            )}
           </View>
 
           {/* Hero: Live Word Preview */}
@@ -355,7 +371,7 @@ export default function SettingsScreen() {
           </GlassCard>
 
           {/* Section 1: Appearance */}
-          <SectionHeader title="Appearance" icon="palette" />
+          <SectionHeader title="Appearance" icon="eye" />
           <GlassCard>
             <SettingRow label="Theme">
               <GlassSegmentedControl
@@ -593,18 +609,24 @@ export default function SettingsScreen() {
           {/* Section 3: Audio */}
           <SectionHeader title="Audio" icon="volume-2" />
           <GlassCard>
-            <View style={styles.settingBlock}>
-              <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                TTS Speed
-              </Text>
-              <View style={styles.segmentedControlWrapper}>
-                <GlassSegmentedControl
-                  options={ttsLabels}
-                  selectedIndex={ttsIndex}
-                  onSelect={(i) => setTtsSpeed(ttsSpeeds[i])}
-                />
+            {isPremium || trialActive ? (
+              <View style={styles.settingBlock}>
+                <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                  TTS Speed
+                </Text>
+                <View style={styles.segmentedControlWrapper}>
+                  <GlassSegmentedControl
+                    options={ttsLabels}
+                    selectedIndex={ttsIndex}
+                    onSelect={(i) => setTtsSpeed(ttsSpeeds[i])}
+                  />
+                </View>
               </View>
-            </View>
+            ) : (
+              <LockedSettingRow label="TTS Speed" isPremium={false} onLockedPress={() => handleLockedPress('locked_tts')}>
+                <View />
+              </LockedSettingRow>
+            )}
             <View style={[styles.separator, { backgroundColor: glass.border }]} />
             <LockedSettingRow label="Auto-Play" isPremium={isPremium || trialActive} noBorder={(!isPremium && !trialActive) || !autoPlay} onLockedPress={() => handleLockedPress('locked_autoplay')}>
               <GlassToggle
@@ -641,12 +663,6 @@ export default function SettingsScreen() {
           {/* Section 4: Advanced */}
           <SectionHeader title="Advanced" icon="sliders" />
           <GlassCard>
-            <LockedSettingRow label="Voice Detection" isPremium={isPremium}>
-              <GlassToggle
-                value={voiceDetection}
-                onValueChange={setVoiceDetection}
-              />
-            </LockedSettingRow>
             <LockedSettingRow label="Breathing Animation" isPremium={isPremium || trialActive} onLockedPress={() => handleLockedPress('locked_breathing')}>
               <GlassToggle
                 value={breathingAnimation}
@@ -701,6 +717,15 @@ export default function SettingsScreen() {
               </Text>
               <Feather name="chevron-right" size={18} color={colors.muted} />
             </Pressable>
+            <Pressable
+              onPress={() => router.push('/tos')}
+              style={styles.settingRow}
+            >
+              <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                Terms of Service
+              </Text>
+              <Feather name="chevron-right" size={18} color={colors.muted} />
+            </Pressable>
             {isPremium && (
               <Pressable
                 onPress={() => Linking.openURL('https://apps.apple.com/account/subscriptions')}
@@ -721,24 +746,13 @@ export default function SettingsScreen() {
                   Alert.alert('No Purchases Found', 'No previous purchases were found.');
                 }
               }}
-              style={isPremium ? styles.settingRowNoBorder : styles.settingRow}
+              style={styles.settingRowNoBorder}
             >
               <Text style={[styles.settingLabel, { color: colors.primary }]}>
                 Restore Purchases
               </Text>
               <Feather name="chevron-right" size={18} color={colors.muted} />
             </Pressable>
-            {!isPremium && (
-              <Pressable
-                onPress={() => setPaywallContext('settings_upgrade')}
-                style={styles.settingRowNoBorder}
-              >
-                <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                  Upgrade to Pro
-                </Text>
-                <Feather name="chevron-right" size={18} color={colors.muted} />
-              </Pressable>
-            )}
           </GlassCard>
 
           <View style={{ height: 40 + insets.bottom }} />
@@ -791,20 +805,38 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     letterSpacing: 0.2,
   },
-  membershipBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: Radius.full,
-    marginTop: Spacing.xs,
-  },
   membershipBadgeText: {
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.8,
   },
+  upgradeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    marginTop: Spacing.xs,
+  },
+  proBadgeTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    marginTop: Spacing.xs,
+  },
+  proBadgeTopText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xxl,
+    paddingTop: Spacing.md,
     gap: 12,
   },
   sectionHeaderRow: {
@@ -858,6 +890,7 @@ const styles = StyleSheet.create({
   },
   fontPickerContainer: {
     marginTop: 10,
+    marginHorizontal: -16,
   },
   sliderHeader: {
     flexDirection: 'row',
@@ -918,5 +951,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     fontVariant: ['tabular-nums'],
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
+  },
+  headerBackButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: -0.3,
   },
 });
