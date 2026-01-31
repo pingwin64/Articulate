@@ -9,6 +9,10 @@ export const Colors = {
     secondary: '#666666',
     muted: '#AAAAAA',
     glassHighlight: 'rgba(255,255,255,0.8)',
+    success: '#28A745',
+    warning: '#FF9500',
+    error: '#DC3545',
+    info: '#0A84FF',
   },
   dark: {
     bg: '#000000',
@@ -18,6 +22,10 @@ export const Colors = {
     secondary: '#999999',
     muted: '#555555',
     glassHighlight: 'rgba(255,255,255,0.15)',
+    success: '#34C759',
+    warning: '#FFD60A',
+    error: '#FF453A',
+    info: '#0A84FF',
   },
 } as const;
 

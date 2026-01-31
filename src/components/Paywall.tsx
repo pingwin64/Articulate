@@ -1,0 +1,711 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  Pressable,
+  Modal,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { Feather } from '@expo/vector-icons';
+import { useTheme } from '../hooks/useTheme';
+import { useSettingsStore } from '../lib/store/settings';
+import type { PaywallContext } from '../lib/store/settings';
+import { GlassButton } from './GlassButton';
+import { GlassCard } from './GlassCard';
+import { FontFamilies, WordColors, Spacing } from '../design/theme';
+import {
+  getOfferings,
+  purchasePackage,
+  restorePurchases,
+} from '../lib/purchases';
+import type { PurchasesPackage } from 'react-native-purchases';
+
+// ─── Contextual Copy ────────────────────────────────────────
+
+interface ContextualCopy {
+  headline: string;
+  subheadline: string;
+  featureOrder: number[];
+}
+
+const FEATURES = [
+  { icon: 'clipboard' as const, text: 'Unlimited texts — paste and save anything you want' },
+  { icon: 'droplet' as const, text: 'Every theme, background, font, and color' },
+  { icon: 'book-open' as const, text: 'Full reading library — all categories, current and future' },
+  { icon: 'zap' as const, text: 'Auto-play, breathing mode, and chunk reading' },
+  { icon: 'bar-chart-2' as const, text: 'Advanced reading stats and full history' },
+  { icon: 'shield' as const, text: 'Weekly streak freeze to protect your progress' },
+];
+
+const DEFAULT_ORDER = [0, 1, 2, 3, 4, 5];
+
+function getContextualCopy(context: PaywallContext | null): ContextualCopy {
+  switch (context) {
+    case 'post_onboarding':
+      return {
+        headline: 'You just read your first text',
+        subheadline: 'Unlock everything to keep improving.',
+        featureOrder: DEFAULT_ORDER,
+      };
+    case 'locked_category':
+      return {
+        headline: "There's more to explore",
+        subheadline: 'Unlock poetry, history, mindfulness, and every future category.',
+        featureOrder: [2, 0, 1, 3, 4, 5],
+      };
+    case 'custom_text_limit':
+      return {
+        headline: 'Save unlimited texts',
+        subheadline: 'Read anything you want, anytime you want.',
+        featureOrder: [0, 2, 1, 3, 4, 5],
+      };
+    case 'locked_font':
+      return {
+        headline: 'Make it yours',
+        subheadline: 'Choose from 6 fonts designed for comfortable reading.',
+        featureOrder: [1, 0, 2, 3, 4, 5],
+      };
+    case 'locked_color':
+      return {
+        headline: 'Make it yours',
+        subheadline: 'Pick your perfect reading color from 6 curated options.',
+        featureOrder: [1, 0, 2, 3, 4, 5],
+      };
+    case 'locked_size':
+      return {
+        headline: 'Make it yours',
+        subheadline: 'Adjust word size for your most comfortable reading experience.',
+        featureOrder: [1, 0, 2, 3, 4, 5],
+      };
+    case 'locked_bold':
+      return {
+        headline: 'Make it yours',
+        subheadline: 'Toggle bold text for sharper, easier reading.',
+        featureOrder: [1, 0, 2, 3, 4, 5],
+      };
+    case 'locked_background':
+      return {
+        headline: 'Make it yours',
+        subheadline: 'Set the perfect background for your reading environment.',
+        featureOrder: [1, 0, 2, 3, 4, 5],
+      };
+    case 'locked_autoplay':
+      return {
+        headline: 'Hands-free reading',
+        subheadline: 'Let Articulate pace your reading automatically.',
+        featureOrder: [3, 0, 1, 2, 4, 5],
+      };
+    case 'locked_chunk':
+      return {
+        headline: 'Read faster with chunk reading',
+        subheadline: 'See 2-3 words at a time for a natural reading flow.',
+        featureOrder: [3, 0, 1, 2, 4, 5],
+      };
+    case 'locked_breathing':
+      return {
+        headline: 'Read with calm focus',
+        subheadline: 'Breathing animation syncs your reading with your breath.',
+        featureOrder: [3, 0, 1, 2, 4, 5],
+      };
+    case 'trial_expired':
+      return {
+        headline: 'Your customizations are waiting',
+        subheadline: 'Your fonts, colors, and settings are saved. Unlock them again.',
+        featureOrder: [1, 0, 2, 3, 4, 5],
+      };
+    case 'settings_upgrade':
+    case 'generic':
+    default:
+      return {
+        headline: 'Unlock the full\nexperience',
+        subheadline: 'Get unlimited access to everything Articulate has to offer.',
+        featureOrder: DEFAULT_ORDER,
+      };
+  }
+}
+
+// ─── Component ──────────────────────────────────────────────
+
+type Plan = 'weekly' | 'monthly' | 'lifetime';
+
+interface PaywallProps {
+  visible: boolean;
+  onDismiss: () => void;
+  onSubscribe?: () => void;
+  context?: PaywallContext | null;
+}
+
+export function Paywall({ visible, onDismiss, onSubscribe, context: propContext }: PaywallProps) {
+  const { colors, glass, isDark } = useTheme();
+  const {
+    setIsPremium,
+    hapticFeedback,
+    currentStreak,
+    trialFeaturesUsed,
+    savedPremiumSettings,
+    paywallContext: storeContext,
+    setPaywallContext,
+    incrementPaywallDismiss,
+  } = useSettingsStore();
+  const [selectedPlan, setSelectedPlan] = useState<Plan>('lifetime');
+  const [packages, setPackages] = useState<PurchasesPackage[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch offerings when paywall opens
+  useEffect(() => {
+    if (visible) {
+      getOfferings().then(setPackages).catch(() => {});
+    }
+  }, [visible]);
+
+  const context = propContext ?? storeContext;
+  const copy = useMemo(() => getContextualCopy(context), [context]);
+  const orderedFeatures = useMemo(
+    () => copy.featureOrder.map((i) => FEATURES[i]),
+    [copy.featureOrder]
+  );
+
+  // Build trial-expired personalization items
+  const trialExpiredItems = useMemo(() => {
+    if (context !== 'trial_expired') return [];
+    const items: string[] = [];
+    for (const feat of trialFeaturesUsed) {
+      if (feat.startsWith('font:')) {
+        const key = feat.replace('font:', '');
+        const fontInfo = FontFamilies[key as keyof typeof FontFamilies];
+        if (fontInfo) items.push(`Your ${fontInfo.label} font`);
+      } else if (feat.startsWith('color:')) {
+        const key = feat.replace('color:', '');
+        const colorInfo = WordColors.find((c) => c.key === key);
+        if (colorInfo) items.push(`Your ${colorInfo.label} color`);
+      } else if (feat === 'bold') {
+        items.push('Your bold text style');
+      } else if (feat.startsWith('size:')) {
+        items.push('Your custom word size');
+      } else if (feat.startsWith('background:')) {
+        items.push('Your custom background');
+      } else if (feat === 'autoplay') {
+        items.push('Your auto-play setup');
+      } else if (feat === 'breathing') {
+        items.push('Your breathing animation');
+      } else if (feat === 'chunk') {
+        items.push('Your chunk reading settings');
+      }
+    }
+    // Also add from savedPremiumSettings
+    if (items.length === 0 && savedPremiumSettings) {
+      const fontInfo = FontFamilies[savedPremiumSettings.fontFamily as keyof typeof FontFamilies];
+      if (fontInfo && savedPremiumSettings.fontFamily !== 'sourceSerif') {
+        items.push(`Your ${fontInfo.label} font`);
+      }
+      const colorInfo = WordColors.find((c) => c.key === savedPremiumSettings.wordColor);
+      if (colorInfo && savedPremiumSettings.wordColor !== 'default') {
+        items.push(`Your ${colorInfo.label} color`);
+      }
+      if (savedPremiumSettings.wordBold) {
+        items.push('Your bold text style');
+      }
+      if (savedPremiumSettings.wordSize !== 48) {
+        items.push('Your custom word size');
+      }
+      if (savedPremiumSettings.backgroundTheme !== 'default') {
+        items.push('Your custom background');
+      }
+    }
+    return items;
+  }, [context, trialFeaturesUsed, savedPremiumSettings]);
+
+  const showStreakLine = currentStreak >= 3;
+
+  const handleSubscribe = async () => {
+    // Find the matching package
+    const pkg = packages.find((p) => {
+      const id = p.packageType;
+      if (selectedPlan === 'weekly') return id === 'WEEKLY';
+      if (selectedPlan === 'monthly') return id === 'MONTHLY';
+      if (selectedPlan === 'lifetime') return id === 'LIFETIME';
+      return false;
+    }) ?? packages[0];
+
+    if (pkg) {
+      setIsLoading(true);
+      try {
+        const success = await purchasePackage(pkg);
+        if (success) {
+          if (hapticFeedback) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+          onSubscribe?.();
+          setPaywallContext(null);
+          onDismiss();
+        }
+      } catch {
+        Alert.alert('Purchase Failed', 'Something went wrong. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Fallback: no packages loaded (dev/simulator)
+      if (hapticFeedback) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      setIsPremium(true);
+      onSubscribe?.();
+      setPaywallContext(null);
+      onDismiss();
+    }
+  };
+
+  const handleRestore = async () => {
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setIsLoading(true);
+    try {
+      const success = await restorePurchases();
+      if (success) {
+        Alert.alert('Restored', 'Your purchases have been restored.');
+        setPaywallContext(null);
+        onDismiss();
+      } else {
+        Alert.alert('No Purchases Found', 'No previous purchases were found for this account.');
+      }
+    } catch {
+      Alert.alert('Restore Failed', 'Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSelectPlan = (plan: Plan) => {
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setSelectedPlan(plan);
+  };
+
+  const handleClose = () => {
+    incrementPaywallDismiss();
+    setPaywallContext(null);
+    onDismiss();
+  };
+
+  const ctaText = selectedPlan === 'lifetime'
+    ? 'Get Lifetime Access'
+    : selectedPlan === 'weekly'
+      ? 'Subscribe Weekly'
+      : 'Subscribe Monthly';
+
+  // Helper to get price string from packages or fallback
+  const getPriceString = (type: string, fallback: string): string => {
+    const pkg = packages.find((p) => p.packageType === type);
+    return pkg?.product?.priceString ?? fallback;
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={handleClose}
+    >
+      <View style={[styles.container, { backgroundColor: colors.bg }]}>
+        <SafeAreaView style={styles.flex}>
+          {/* Close */}
+          <View style={styles.header}>
+            <Pressable onPress={handleClose} style={styles.closeButton}>
+              <Feather name="x" size={22} color={colors.secondary} />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Hero */}
+            <Animated.View entering={FadeIn.delay(100).duration(400)} style={styles.headlineSection}>
+              <Text style={[styles.headline, { color: colors.primary }]}>
+                {copy.headline}
+              </Text>
+              <Text style={[styles.subheadline, { color: colors.secondary }]}>
+                {copy.subheadline}
+              </Text>
+              {showStreakLine && (
+                <Text style={[styles.streakLine, { color: colors.warning }]}>
+                  Keep your {currentStreak}-day streak going strong
+                </Text>
+              )}
+            </Animated.View>
+
+            {/* Social Proof Pill */}
+            <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.socialProofContainer}>
+              <View style={[
+                styles.socialProofPill,
+                { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)' }
+              ]}>
+                <Feather name="star" size={14} color={colors.secondary} />
+                <Text style={[styles.socialProofText, { color: colors.secondary }]}>
+                  Join 10,000+ readers improving every day
+                </Text>
+              </View>
+            </Animated.View>
+
+            {/* Feature Highlights */}
+            <Animated.View entering={FadeIn.delay(300).duration(400)}>
+              <GlassCard>
+                <View style={styles.featureList}>
+                  {orderedFeatures.map((feature) => (
+                    <View key={feature.text} style={styles.featureRow}>
+                      <View style={[styles.featureIconBg, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)' }]}>
+                        <Feather name={feature.icon} size={16} color={colors.primary} />
+                      </View>
+                      <Text style={[styles.featureText, { color: colors.primary }]}>
+                        {feature.text}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </GlassCard>
+            </Animated.View>
+
+            {/* Trial-Expired Personalization */}
+            {context === 'trial_expired' && trialExpiredItems.length > 0 && (
+              <Animated.View entering={FadeIn.delay(400).duration(400)}>
+                <GlassCard>
+                  <Text style={[styles.trialExpiredTitle, { color: colors.primary }]}>
+                    What you'll get back
+                  </Text>
+                  <View style={styles.trialExpiredList}>
+                    {trialExpiredItems.map((item) => (
+                      <View key={item} style={styles.trialExpiredRow}>
+                        <Feather name="check" size={14} color={colors.success} />
+                        <Text style={[styles.trialExpiredItem, { color: colors.secondary }]}>
+                          {item}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </GlassCard>
+              </Animated.View>
+            )}
+
+            {/* Plan Selection */}
+            <Animated.View entering={FadeIn.delay(500).duration(400)} style={styles.planSection}>
+              <View style={styles.planRow}>
+                {/* Weekly */}
+                <Pressable
+                  style={[
+                    styles.planCard,
+                    {
+                      backgroundColor: glass.fill,
+                      borderColor: selectedPlan === 'weekly' ? colors.primary : glass.border,
+                      borderWidth: selectedPlan === 'weekly' ? 1.5 : 0.5,
+                    },
+                  ]}
+                  onPress={() => handleSelectPlan('weekly')}
+                >
+                  <Text style={[styles.planName, { color: colors.primary }]}>
+                    Weekly
+                  </Text>
+                  <Text style={[styles.planPrice, { color: colors.primary }]}>
+                    {getPriceString('WEEKLY', '$2.99')}
+                  </Text>
+                  <Text style={[styles.planPeriod, { color: colors.secondary }]}>
+                    per week
+                  </Text>
+                </Pressable>
+
+                {/* Monthly */}
+                <Pressable
+                  style={[
+                    styles.planCard,
+                    {
+                      backgroundColor: glass.fill,
+                      borderColor: selectedPlan === 'monthly' ? colors.primary : glass.border,
+                      borderWidth: selectedPlan === 'monthly' ? 1.5 : 0.5,
+                    },
+                  ]}
+                  onPress={() => handleSelectPlan('monthly')}
+                >
+                  <Text style={[styles.planName, { color: colors.primary }]}>
+                    Monthly
+                  </Text>
+                  <Text style={[styles.planPrice, { color: colors.primary }]}>
+                    {getPriceString('MONTHLY', '$9.99')}
+                  </Text>
+                  <Text style={[styles.planPeriod, { color: colors.secondary }]}>
+                    per month
+                  </Text>
+                </Pressable>
+
+                {/* Lifetime */}
+                <Pressable
+                  style={[
+                    styles.planCard,
+                    {
+                      backgroundColor: glass.fill,
+                      borderColor: selectedPlan === 'lifetime' ? colors.primary : glass.border,
+                      borderWidth: selectedPlan === 'lifetime' ? 1.5 : 0.5,
+                    },
+                  ]}
+                  onPress={() => handleSelectPlan('lifetime')}
+                >
+                  <View style={[styles.bestValueBadge, { backgroundColor: colors.primary }]}>
+                    <Text style={[styles.bestValueText, { color: colors.bg }]}>
+                      BEST VALUE
+                    </Text>
+                  </View>
+                  <Text style={[styles.planName, { color: colors.primary }]}>
+                    Lifetime
+                  </Text>
+                  <Text style={[styles.planPrice, { color: colors.primary }]}>
+                    {getPriceString('LIFETIME', '$19.99')}
+                  </Text>
+                  <Text style={[styles.planPeriod, { color: colors.secondary }]}>
+                    one-time
+                  </Text>
+                </Pressable>
+              </View>
+
+              {/* Savings callout */}
+              {selectedPlan === 'lifetime' && (
+                <Text style={[styles.savingsText, { color: colors.success }]}>
+                  Pay once, own forever
+                </Text>
+              )}
+            </Animated.View>
+
+            {/* Credibility */}
+            <Animated.View entering={FadeIn.delay(600).duration(400)}>
+              <Text style={[styles.credibilityText, { color: colors.muted }]}>
+                Grounded in cognitive reading science
+              </Text>
+            </Animated.View>
+          </ScrollView>
+
+          {/* CTAs */}
+          <Animated.View entering={FadeIn.delay(700).duration(300)} style={styles.ctaContainer}>
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : (
+              <GlassButton title={ctaText} onPress={handleSubscribe} />
+            )}
+            <View style={styles.secondaryRow}>
+              <Pressable onPress={handleRestore} disabled={isLoading}>
+                <Text style={[styles.secondaryLink, { color: colors.muted }]}>
+                  Restore Purchase
+                </Text>
+              </Pressable>
+              <Text style={[styles.dot, { color: colors.muted }]}>{'\u00B7'}</Text>
+              <Pressable onPress={handleClose} disabled={isLoading}>
+                <Text style={[styles.secondaryLink, { color: colors.muted }]}>
+                  Not now
+                </Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+        </SafeAreaView>
+      </View>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  flex: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.lg,
+    gap: 24,
+    flexGrow: 1,
+    justifyContent: 'flex-start',
+    paddingTop: 20,
+    paddingBottom: 24,
+  },
+  headlineSection: {
+    alignItems: 'center',
+    gap: 10,
+  },
+  headline: {
+    fontSize: 32,
+    fontWeight: '300',
+    letterSpacing: -0.5,
+    textAlign: 'center',
+  },
+  subheadline: {
+    fontSize: 16,
+    fontWeight: '400',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  streakLine: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  // Social proof
+  socialProofContainer: {
+    alignItems: 'center',
+  },
+  socialProofPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  socialProofText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  // Features
+  featureList: {
+    gap: 14,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  featureIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderCurve: 'continuous',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  featureText: {
+    fontSize: 15,
+    fontWeight: '400',
+    flex: 1,
+  },
+  // Trial expired personalization
+  trialExpiredTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  trialExpiredList: {
+    gap: 10,
+  },
+  trialExpiredRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  trialExpiredItem: {
+    fontSize: 15,
+    fontWeight: '400',
+    flex: 1,
+  },
+  // Plans
+  planSection: {
+    gap: 10,
+  },
+  planRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  planCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    gap: 4,
+  },
+  bestValueBadge: {
+    position: 'absolute',
+    top: -10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderCurve: 'continuous',
+  },
+  bestValueText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  planName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  planPrice: {
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  planPeriod: {
+    fontSize: 13,
+    fontWeight: '400',
+  },
+  planNote: {
+    fontSize: 12,
+    fontWeight: '400',
+    marginTop: 2,
+  },
+  savingsText: {
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  credibilityText: {
+    fontSize: 13,
+    fontWeight: '400',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  ctaContainer: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.lg,
+    gap: 12,
+  },
+  secondaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  secondaryLink: {
+    fontSize: 14,
+    fontWeight: '400',
+  },
+  dot: {
+    fontSize: 14,
+  },
+  loadingContainer: {
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});

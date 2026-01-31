@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,10 +6,13 @@ import {
   ScrollView,
   Pressable,
   Alert,
+  Linking,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useShallow } from 'zustand/react/shallow';
+import { LinearGradient } from 'expo-linear-gradient';
 import { GlassSlider } from '../components/GlassSlider';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
@@ -19,22 +22,32 @@ import { GlassToggle } from '../components/GlassToggle';
 import { GlassSegmentedControl } from '../components/GlassSegmentedControl';
 import { FontPicker } from '../components/FontPicker';
 import { WordPreview } from '../components/WordPreview';
-import { StatCard } from '../components/StatCard';
+import { Paywall } from '../components/Paywall';
 import {
   BackgroundThemes,
   WordColors,
   WordSizeRange,
   Spacing,
+  Radius,
 } from '../design/theme';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
-import type { ReadingLevel, TTSSpeed } from '../lib/store/settings';
+import type { ReadingLevel, TTSSpeed, PaywallContext } from '../lib/store/settings';
+import {
+  requestNotificationPermissions,
+  scheduleStreakReminder,
+  cancelAllReminders,
+} from '../lib/notifications';
+import { restorePurchases } from '../lib/purchases';
 
-function SectionHeader({ title }: { title: string }) {
+function SectionHeader({ title, icon }: { title: string; icon?: string }) {
   const { colors } = useTheme();
   return (
-    <Text style={[styles.sectionHeader, { color: colors.secondary }]}>
-      {title}
-    </Text>
+    <View style={styles.sectionHeaderRow}>
+      {icon && <Feather name={icon as any} size={14} color={colors.secondary} />}
+      <Text style={[styles.sectionHeader, { color: colors.secondary }]}>
+        {title}
+      </Text>
+    </View>
   );
 }
 
@@ -63,11 +76,13 @@ function LockedSettingRow({
   children,
   isPremium,
   noBorder = false,
+  onLockedPress,
 }: {
   label: string;
   children: React.ReactNode;
   isPremium: boolean;
   noBorder?: boolean;
+  onLockedPress?: () => void;
 }) {
   const { colors, glass, isDark } = useTheme();
 
@@ -80,7 +95,11 @@ function LockedSettingRow({
   }
 
   const handlePress = () => {
-    Alert.alert('Pro Feature', 'Upgrade to Pro to unlock this feature');
+    if (onLockedPress) {
+      onLockedPress();
+    } else {
+      Alert.alert('Pro Feature', 'Upgrade to Pro to unlock this feature');
+    }
   };
 
   return (
@@ -100,14 +119,33 @@ function LockedSettingRow({
   );
 }
 
+function GradientOrb() {
+  const { colors, glass, isDark } = useTheme();
+  const wordColor = useSettingsStore((s) => s.wordColor);
+  const resolved = WordColors.find((c) => c.key === wordColor);
+  const accentColor = resolved?.color ?? colors.primary;
+  const accentColor44 = accentColor + '44';
+
+  return (
+    <View style={styles.orbContainer}>
+      <LinearGradient
+        colors={[accentColor, accentColor44]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.orb, { borderColor: glass.border }]}
+      />
+    </View>
+  );
+}
+
 export default function SettingsScreen() {
   const { colors, glass, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  // Use Zustand selectors to prevent unnecessary re-renders
   const {
     isPremium,
+    trialActive,
     themeMode, setThemeMode,
     backgroundTheme, setBackgroundTheme,
     fontFamily, setFontFamily,
@@ -122,9 +160,20 @@ export default function SettingsScreen() {
     ttsSpeed, setTtsSpeed,
     autoPlay, setAutoPlay,
     autoPlayWPM, setAutoPlayWPM,
-    totalWordsRead, textsCompleted, currentStreak,
+    chunkSize, setChunkSize,
+    showPaywall,
+    setPaywallContext,
+    paywallContext,
+    addTrialFeatureUsed,
+    totalWordsRead,
+    currentStreak,
+    trialDaysRemaining,
+    notificationsEnabled, setNotificationsEnabled,
+    reminderHour, reminderMinute, setReminderTime,
+    reduceMotion, setReduceMotion,
   } = useSettingsStore(useShallow((s) => ({
     isPremium: s.isPremium,
+    trialActive: s.trialActive,
     themeMode: s.themeMode, setThemeMode: s.setThemeMode,
     backgroundTheme: s.backgroundTheme, setBackgroundTheme: s.setBackgroundTheme,
     fontFamily: s.fontFamily, setFontFamily: s.setFontFamily,
@@ -139,8 +188,129 @@ export default function SettingsScreen() {
     ttsSpeed: s.ttsSpeed, setTtsSpeed: s.setTtsSpeed,
     autoPlay: s.autoPlay, setAutoPlay: s.setAutoPlay,
     autoPlayWPM: s.autoPlayWPM, setAutoPlayWPM: s.setAutoPlayWPM,
-    totalWordsRead: s.totalWordsRead, textsCompleted: s.textsCompleted, currentStreak: s.currentStreak,
+    chunkSize: s.chunkSize, setChunkSize: s.setChunkSize,
+    showPaywall: s.showPaywall,
+    setPaywallContext: s.setPaywallContext,
+    paywallContext: s.paywallContext,
+    addTrialFeatureUsed: s.addTrialFeatureUsed,
+    totalWordsRead: s.totalWordsRead,
+    currentStreak: s.currentStreak,
+    trialDaysRemaining: s.trialDaysRemaining,
+    notificationsEnabled: s.notificationsEnabled, setNotificationsEnabled: s.setNotificationsEnabled,
+    reminderHour: s.reminderHour, reminderMinute: s.reminderMinute, setReminderTime: s.setReminderTime,
+    reduceMotion: s.reduceMotion, setReduceMotion: s.setReduceMotion,
   })));
+
+  // Peek animation state
+  const [peekActive, setPeekActive] = useState(false);
+  const peekTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const peekAndShowPaywall = useCallback((
+    context: PaywallContext,
+    previewFn?: () => void,
+    revertFn?: () => void,
+  ) => {
+    if (previewFn && revertFn) {
+      if (hapticFeedback) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      previewFn();
+      setPeekActive(true);
+      peekTimeoutRef.current = setTimeout(() => {
+        revertFn();
+        setPeekActive(false);
+        setPaywallContext(context);
+      }, 1500);
+    } else {
+      setPaywallContext(context);
+    }
+  }, [hapticFeedback, setPaywallContext]);
+
+  const handleSetFontFamily = useCallback((v: FontFamilyKey) => {
+    setFontFamily(v);
+    if (trialActive) addTrialFeatureUsed(`font:${v}`);
+  }, [setFontFamily, trialActive, addTrialFeatureUsed]);
+
+  const handleSetWordColor = useCallback((v: WordColorKey) => {
+    setWordColor(v);
+    if (trialActive) addTrialFeatureUsed(`color:${v}`);
+  }, [setWordColor, trialActive, addTrialFeatureUsed]);
+
+  const handleSetWordSize = useCallback((v: number) => {
+    setWordSize(v);
+    if (trialActive) addTrialFeatureUsed(`size:${v}`);
+  }, [setWordSize, trialActive, addTrialFeatureUsed]);
+
+  const handleSetWordBold = useCallback((v: boolean) => {
+    setWordBold(v);
+    if (trialActive && v) addTrialFeatureUsed('bold');
+  }, [setWordBold, trialActive, addTrialFeatureUsed]);
+
+  const handleSetBackgroundTheme = useCallback((v: string) => {
+    setBackgroundTheme(v);
+    if (trialActive) addTrialFeatureUsed(`background:${v}`);
+  }, [setBackgroundTheme, trialActive, addTrialFeatureUsed]);
+
+  const handleSetAutoPlay = useCallback((v: boolean) => {
+    setAutoPlay(v);
+    if (trialActive && v) addTrialFeatureUsed('autoplay');
+  }, [setAutoPlay, trialActive, addTrialFeatureUsed]);
+
+  const handleSetBreathingAnimation = useCallback((v: boolean) => {
+    setBreathingAnimation(v);
+    if (trialActive && v) addTrialFeatureUsed('breathing');
+  }, [setBreathingAnimation, trialActive, addTrialFeatureUsed]);
+
+  const handleSetChunkSize = useCallback((v: 1 | 2 | 3) => {
+    setChunkSize(v);
+    if (trialActive && v > 1) addTrialFeatureUsed('chunk');
+  }, [setChunkSize, trialActive, addTrialFeatureUsed]);
+
+  const handleLockedPress = (context: PaywallContext) => {
+    setPaywallContext(context);
+  };
+
+  const handleToggleNotifications = useCallback(async (enabled: boolean) => {
+    if (enabled) {
+      const granted = await requestNotificationPermissions();
+      if (!granted) {
+        Alert.alert('Permissions Required', 'Please enable notifications in your device settings.');
+        return;
+      }
+      setNotificationsEnabled(true);
+      await scheduleStreakReminder(reminderHour, reminderMinute, currentStreak);
+    } else {
+      setNotificationsEnabled(false);
+      await cancelAllReminders();
+    }
+  }, [setNotificationsEnabled, reminderHour, reminderMinute, currentStreak]);
+
+  const handleSetReminderTime = useCallback(async (hour: number, minute: number) => {
+    setReminderTime(hour, minute);
+    if (notificationsEnabled) {
+      await scheduleStreakReminder(hour, minute, currentStreak);
+    }
+  }, [setReminderTime, notificationsEnabled, currentStreak]);
+
+  const reminderTimeLabel = `${String(reminderHour).padStart(2, '0')}:${String(reminderMinute).padStart(2, '0')}`;
+
+  const readingLevelLabel = readingLevel === 'beginner' ? 'Beginner'
+    : readingLevel === 'intermediate' ? 'Intermediate' : 'Advanced';
+
+  const formatNumber = (n: number) =>
+    n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
+
+  const membershipLabel = isPremium ? 'PRO'
+    : trialActive ? `TRIAL \u00B7 ${trialDaysRemaining()} days left` : 'FREE';
+
+  const membershipBadgeBg = isPremium
+    ? isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'
+    : trialActive
+      ? isDark ? 'rgba(255,149,0,0.15)' : 'rgba(255,149,0,0.1)'
+      : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)';
+
+  const membershipBadgeColor = isPremium ? colors.primary
+    : trialActive ? colors.warning : colors.muted;
 
   const themeModes = ['Light', 'Dark'];
   const themeIndex = themeMode === 'dark' ? 1 : 0;
@@ -155,13 +325,6 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* Header - removed close button since formSheet has native swipe-to-dismiss */}
-      <View style={[styles.header, { backgroundColor: colors.bg }]}>
-        <Text style={[styles.headerTitle, { color: colors.primary }]}>
-          Settings
-        </Text>
-      </View>
-
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.scrollContent}
@@ -170,17 +333,29 @@ export default function SettingsScreen() {
         scrollEnabled={true}
         keyboardShouldPersistTaps="handled"
       >
-          {/* Stats card */}
-          <GlassCard>
-            <View style={styles.statsRow}>
-              <StatCard label="Words" value={totalWordsRead} />
-              <StatCard label="Texts" value={textsCompleted} />
-              <StatCard label="Streak" value={currentStreak} />
+          {/* Profile identity */}
+          <View style={styles.profileSection}>
+            <GradientOrb />
+            <Text style={[styles.identityTitle, { color: colors.primary }]}>
+              {readingLevelLabel} Reader
+            </Text>
+            <Text style={[styles.identitySubtitle, { color: colors.muted }]}>
+              {formatNumber(totalWordsRead)} words{currentStreak > 0 ? ` \u00B7 ${currentStreak} day streak` : ''}
+            </Text>
+            <View style={[styles.membershipBadge, { backgroundColor: membershipBadgeBg }]}>
+              <Text style={[styles.membershipBadgeText, { color: membershipBadgeColor }]}>
+                {membershipLabel}
+              </Text>
             </View>
+          </View>
+
+          {/* Hero: Live Word Preview */}
+          <GlassCard>
+            <WordPreview />
           </GlassCard>
 
-          {/* Appearance */}
-          <SectionHeader title="Appearance" />
+          {/* Section 1: Appearance */}
+          <SectionHeader title="Appearance" icon="palette" />
           <GlassCard>
             <SettingRow label="Theme">
               <GlassSegmentedControl
@@ -191,50 +366,9 @@ export default function SettingsScreen() {
                 }
               />
             </SettingRow>
-            {isPremium ? (
-              <View style={styles.settingRowNoBorder}>
-                <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                  Background
-                </Text>
-                <View style={styles.swatchRow}>
-                  {BackgroundThemes.map((theme) => {
-                    const bgColor = isDark ? theme.dark : theme.light;
-                    const isSelected = backgroundTheme === theme.key;
-                    return (
-                      <Pressable
-                        key={theme.key}
-                        onPress={() => setBackgroundTheme(theme.key)}
-                        style={[
-                          styles.swatch,
-                          {
-                            backgroundColor: bgColor,
-                            borderColor: isSelected
-                              ? colors.primary
-                              : glass.border,
-                            borderWidth: isSelected ? 2 : 0.5,
-                          },
-                        ]}
-                      />
-                    );
-                  })}
-                </View>
-              </View>
-            ) : (
-              <LockedSettingRow label="Background" isPremium={isPremium} noBorder>
-                <View />
-              </LockedSettingRow>
-            )}
-          </GlassCard>
-
-          {/* Word Display */}
-          <SectionHeader title="Word Display" />
-          <GlassCard>
-            {/* Live preview */}
-            <WordPreview />
-            <View style={[styles.separator, { backgroundColor: glass.border }]} />
 
             {/* Font picker - Pro only */}
-            {isPremium ? (
+            {isPremium || trialActive ? (
               <View style={styles.settingBlock}>
                 <Text style={[styles.settingLabel, { color: colors.primary }]}>
                   Font
@@ -242,12 +376,19 @@ export default function SettingsScreen() {
                 <View style={styles.fontPickerContainer}>
                   <FontPicker
                     selected={fontFamily}
-                    onSelect={(key: FontFamilyKey) => setFontFamily(key)}
+                    onSelect={(key: FontFamilyKey) => handleSetFontFamily(key)}
                   />
                 </View>
               </View>
             ) : (
-              <LockedSettingRow label="Font" isPremium={isPremium}>
+              <LockedSettingRow label="Font" isPremium={false} onLockedPress={() => {
+                const origFont = fontFamily;
+                peekAndShowPaywall(
+                  'locked_font',
+                  () => setFontFamily('literata'),
+                  () => setFontFamily(origFont),
+                );
+              }}>
                 <View />
               </LockedSettingRow>
             )}
@@ -255,7 +396,7 @@ export default function SettingsScreen() {
             <View style={[styles.separator, { backgroundColor: glass.border }]} />
 
             {/* Size slider - Pro only */}
-            {isPremium ? (
+            {isPremium || trialActive ? (
               <View style={styles.settingBlock}>
                 <View style={styles.sliderHeader}>
                   <Text style={[styles.settingLabel, { color: colors.primary }]}>
@@ -270,13 +411,20 @@ export default function SettingsScreen() {
                   minimumValue={WordSizeRange.min}
                   maximumValue={WordSizeRange.max}
                   step={1}
-                  onValueChange={setWordSize}
+                  onValueChange={handleSetWordSize}
                   leftLabel="Small"
                   rightLabel="Large"
                 />
               </View>
             ) : (
-              <LockedSettingRow label="Size" isPremium={isPremium}>
+              <LockedSettingRow label="Size" isPremium={false} onLockedPress={() => {
+                const origSize = wordSize;
+                peekAndShowPaywall(
+                  'locked_size',
+                  () => setWordSize(56),
+                  () => setWordSize(origSize),
+                );
+              }}>
                 <View />
               </LockedSettingRow>
             )}
@@ -284,15 +432,22 @@ export default function SettingsScreen() {
             <View style={[styles.separator, { backgroundColor: glass.border }]} />
 
             {/* Bold toggle - Pro only */}
-            <LockedSettingRow label="Bold" isPremium={isPremium}>
+            <LockedSettingRow label="Bold" isPremium={isPremium || trialActive} onLockedPress={() => {
+              const origBold = wordBold;
+              peekAndShowPaywall(
+                'locked_bold',
+                () => setWordBold(true),
+                () => setWordBold(origBold),
+              );
+            }}>
               <GlassToggle
                 value={wordBold}
-                onValueChange={setWordBold}
+                onValueChange={handleSetWordBold}
               />
             </LockedSettingRow>
 
             {/* Color picker - Pro only */}
-            {isPremium ? (
+            {isPremium || trialActive ? (
               <View style={styles.settingRowNoBorder}>
                 <Text style={[styles.settingLabel, { color: colors.primary }]}>
                   Color
@@ -304,7 +459,7 @@ export default function SettingsScreen() {
                     return (
                       <Pressable
                         key={wc.key}
-                        onPress={() => setWordColor(wc.key as WordColorKey)}
+                        onPress={() => handleSetWordColor(wc.key as WordColorKey)}
                         style={[
                           styles.colorCircle,
                           {
@@ -330,15 +485,84 @@ export default function SettingsScreen() {
                 </View>
               </View>
             ) : (
-              <LockedSettingRow label="Color" isPremium={isPremium} noBorder>
+              <LockedSettingRow label="Color" isPremium={false} noBorder onLockedPress={() => {
+                const origColor = wordColor;
+                peekAndShowPaywall(
+                  'locked_color',
+                  () => setWordColor('ocean'),
+                  () => setWordColor(origColor),
+                );
+              }}>
+                <View />
+              </LockedSettingRow>
+            )}
+
+            {/* Background swatches */}
+            {isPremium || trialActive ? (
+              <View style={styles.settingRowNoBorder}>
+                <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                  Background
+                </Text>
+                <View style={styles.swatchRow}>
+                  {BackgroundThemes.map((theme) => {
+                    const bgColor = isDark ? theme.dark : theme.light;
+                    const isSelected = backgroundTheme === theme.key;
+                    return (
+                      <Pressable
+                        key={theme.key}
+                        onPress={() => handleSetBackgroundTheme(theme.key)}
+                        style={[
+                          styles.swatch,
+                          {
+                            backgroundColor: bgColor,
+                            borderColor: isSelected
+                              ? colors.primary
+                              : glass.border,
+                            borderWidth: isSelected ? 2 : 0.5,
+                          },
+                        ]}
+                      />
+                    );
+                  })}
+                </View>
+              </View>
+            ) : (
+              <LockedSettingRow label="Background" isPremium={false} noBorder onLockedPress={() => {
+                const origBg = backgroundTheme;
+                peekAndShowPaywall(
+                  'locked_background',
+                  () => setBackgroundTheme('paper'),
+                  () => setBackgroundTheme(origBg),
+                );
+              }}>
                 <View />
               </LockedSettingRow>
             )}
           </GlassCard>
 
-          {/* Reading */}
-          <SectionHeader title="Reading" />
+          {/* Section 2: Reading */}
+          <SectionHeader title="Reading" icon="book" />
           <GlassCard>
+            <View style={styles.settingBlock}>
+              <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                Words at a Time
+              </Text>
+              <View style={styles.segmentedControlWrapper}>
+                <GlassSegmentedControl
+                  options={['1', '2', '3']}
+                  selectedIndex={chunkSize - 1}
+                  onSelect={(i) => {
+                    const size = (i + 1) as 1 | 2 | 3;
+                    if (size > 1 && !isPremium && !trialActive) {
+                      setPaywallContext('locked_chunk');
+                      return;
+                    }
+                    handleSetChunkSize(size);
+                  }}
+                />
+              </View>
+            </View>
+            <View style={[styles.separator, { backgroundColor: glass.border }]} />
             <View style={styles.settingBlock}>
               <Text style={[styles.settingLabel, { color: colors.primary }]}>
                 Reading Level
@@ -358,28 +582,16 @@ export default function SettingsScreen() {
                 onValueChange={setSentenceRecap}
               />
             </SettingRow>
-            <LockedSettingRow label="Voice Detection" isPremium={isPremium}>
-              <GlassToggle
-                value={voiceDetection}
-                onValueChange={setVoiceDetection}
-              />
-            </LockedSettingRow>
-            <SettingRow label="Haptic Feedback">
+            <SettingRow label="Haptic Feedback" noBorder>
               <GlassToggle
                 value={hapticFeedback}
                 onValueChange={setHapticFeedback}
               />
             </SettingRow>
-            <LockedSettingRow label="Breathing Animation" isPremium={isPremium} noBorder>
-              <GlassToggle
-                value={breathingAnimation}
-                onValueChange={setBreathingAnimation}
-              />
-            </LockedSettingRow>
           </GlassCard>
 
-          {/* Audio */}
-          <SectionHeader title="Audio" />
+          {/* Section 3: Audio */}
+          <SectionHeader title="Audio" icon="volume-2" />
           <GlassCard>
             <View style={styles.settingBlock}>
               <Text style={[styles.settingLabel, { color: colors.primary }]}>
@@ -394,13 +606,13 @@ export default function SettingsScreen() {
               </View>
             </View>
             <View style={[styles.separator, { backgroundColor: glass.border }]} />
-            <LockedSettingRow label="Auto-Play" isPremium={isPremium} noBorder={!isPremium || !autoPlay}>
+            <LockedSettingRow label="Auto-Play" isPremium={isPremium || trialActive} noBorder={(!isPremium && !trialActive) || !autoPlay} onLockedPress={() => handleLockedPress('locked_autoplay')}>
               <GlassToggle
                 value={autoPlay}
-                onValueChange={setAutoPlay}
+                onValueChange={handleSetAutoPlay}
               />
             </LockedSettingRow>
-            {isPremium && autoPlay && (
+            {(isPremium || trialActive) && autoPlay && (
               <>
                 <View style={[styles.separator, { backgroundColor: glass.border }]} />
                 <View style={styles.settingBlock}>
@@ -426,22 +638,118 @@ export default function SettingsScreen() {
             )}
           </GlassCard>
 
-          {/* About */}
-          <SectionHeader title="About" />
+          {/* Section 4: Advanced */}
+          <SectionHeader title="Advanced" icon="sliders" />
+          <GlassCard>
+            <LockedSettingRow label="Voice Detection" isPremium={isPremium}>
+              <GlassToggle
+                value={voiceDetection}
+                onValueChange={setVoiceDetection}
+              />
+            </LockedSettingRow>
+            <LockedSettingRow label="Breathing Animation" isPremium={isPremium || trialActive} onLockedPress={() => handleLockedPress('locked_breathing')}>
+              <GlassToggle
+                value={breathingAnimation}
+                onValueChange={handleSetBreathingAnimation}
+              />
+            </LockedSettingRow>
+            <SettingRow label="Reduce Motion" noBorder>
+              <GlassToggle
+                value={reduceMotion}
+                onValueChange={setReduceMotion}
+              />
+            </SettingRow>
+          </GlassCard>
+
+          {/* Section 5: Notifications */}
+          <SectionHeader title="Notifications" icon="bell" />
+          <GlassCard>
+            <SettingRow label="Daily Reminder" noBorder={!notificationsEnabled}>
+              <GlassToggle
+                value={notificationsEnabled}
+                onValueChange={handleToggleNotifications}
+              />
+            </SettingRow>
+            {notificationsEnabled && (
+              <SettingRow label="Reminder Time" noBorder>
+                <View style={styles.reminderTimeRow}>
+                  <Pressable
+                    onPress={() => {
+                      const newHour = (reminderHour + 1) % 24;
+                      handleSetReminderTime(newHour, reminderMinute);
+                    }}
+                    style={styles.timeButton}
+                  >
+                    <Text style={[styles.timeButtonText, { color: colors.primary }]}>
+                      {reminderTimeLabel}
+                    </Text>
+                  </Pressable>
+                </View>
+              </SettingRow>
+            )}
+          </GlassCard>
+
+          {/* Section 6: About */}
+          <SectionHeader title="About" icon="info" />
           <GlassCard>
             <Pressable
               onPress={() => router.push('/privacy')}
-              style={styles.settingRowNoBorder}
+              style={styles.settingRow}
             >
               <Text style={[styles.settingLabel, { color: colors.primary }]}>
                 Privacy Policy
               </Text>
               <Feather name="chevron-right" size={18} color={colors.muted} />
             </Pressable>
+            {isPremium && (
+              <Pressable
+                onPress={() => Linking.openURL('https://apps.apple.com/account/subscriptions')}
+                style={styles.settingRow}
+              >
+                <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                  Manage Subscription
+                </Text>
+                <Feather name="chevron-right" size={18} color={colors.muted} />
+              </Pressable>
+            )}
+            <Pressable
+              onPress={async () => {
+                const success = await restorePurchases();
+                if (success) {
+                  Alert.alert('Restored', 'Your purchases have been restored.');
+                } else {
+                  Alert.alert('No Purchases Found', 'No previous purchases were found.');
+                }
+              }}
+              style={isPremium ? styles.settingRowNoBorder : styles.settingRow}
+            >
+              <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                Restore Purchases
+              </Text>
+              <Feather name="chevron-right" size={18} color={colors.muted} />
+            </Pressable>
+            {!isPremium && (
+              <Pressable
+                onPress={() => setPaywallContext('settings_upgrade')}
+                style={styles.settingRowNoBorder}
+              >
+                <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                  Upgrade to Pro
+                </Text>
+                <Feather name="chevron-right" size={18} color={colors.muted} />
+              </Pressable>
+            )}
           </GlassCard>
 
           <View style={{ height: 40 + insets.bottom }} />
         </ScrollView>
+
+      {/* Paywall */}
+      <Paywall
+        visible={showPaywall}
+        onDismiss={() => setPaywallContext(null)}
+        context={paywallContext}
+      />
     </View>
   );
 }
@@ -453,34 +761,65 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  profileSection: {
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '300',
-    letterSpacing: -0.3,
+  orbContainer: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    overflow: 'hidden',
+  },
+  orb: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+  },
+  identityTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+    marginTop: Spacing.md,
+  },
+  identitySubtitle: {
+    fontSize: 13,
+    fontWeight: '400',
+    letterSpacing: 0.2,
+  },
+  membershipBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+    marginTop: Spacing.xs,
+  },
+  membershipBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xxl,
     gap: 12,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    marginBottom: -4,
+    paddingLeft: 4,
   },
   sectionHeader: {
     fontSize: 13,
     fontWeight: '600',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
-    marginTop: 12,
-    marginBottom: -4,
-    paddingLeft: 4,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
   },
   settingRow: {
     flexDirection: 'row',
@@ -565,5 +904,19 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  reminderTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timeButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  timeButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+    fontVariant: ['tabular-nums'],
   },
 });

@@ -1,6 +1,7 @@
 export interface Category {
   key: string;
   name: string;
+  icon: string;
   wordCount: number;
   level: 'beginner' | 'intermediate' | 'advanced';
   words: string[];
@@ -91,6 +92,7 @@ export const categories: Category[] = [
   {
     key: 'story',
     name: 'Story',
+    icon: 'book-open',
     wordCount: storyWords.length,
     level: 'beginner',
     words: storyWords,
@@ -98,6 +100,7 @@ export const categories: Category[] = [
   {
     key: 'article',
     name: 'Article',
+    icon: 'file-text',
     wordCount: articleWords.length,
     level: 'intermediate',
     words: articleWords,
@@ -105,6 +108,7 @@ export const categories: Category[] = [
   {
     key: 'speech',
     name: 'Speech',
+    icon: 'mic',
     wordCount: speechWords.length,
     level: 'intermediate',
     words: speechWords,
@@ -112,6 +116,7 @@ export const categories: Category[] = [
   {
     key: 'philosophy',
     name: 'Philosophy',
+    icon: 'compass',
     wordCount: philosophyWords.length,
     level: 'advanced',
     words: philosophyWords,
@@ -119,6 +124,7 @@ export const categories: Category[] = [
   {
     key: 'science',
     name: 'Science',
+    icon: 'zap',
     wordCount: scienceWords.length,
     level: 'intermediate',
     words: scienceWords,
@@ -126,6 +132,7 @@ export const categories: Category[] = [
   {
     key: 'literature',
     name: 'Literature',
+    icon: 'bookmark',
     wordCount: literatureWords.length,
     level: 'intermediate',
     words: literatureWords,
@@ -133,6 +140,7 @@ export const categories: Category[] = [
   {
     key: 'poetry',
     name: 'Poetry',
+    icon: 'feather',
     wordCount: poetryWords.length,
     level: 'beginner',
     words: poetryWords,
@@ -140,6 +148,7 @@ export const categories: Category[] = [
   {
     key: 'history',
     name: 'History',
+    icon: 'clock',
     wordCount: historyWords.length,
     level: 'intermediate',
     words: historyWords,
@@ -147,6 +156,7 @@ export const categories: Category[] = [
   {
     key: 'mindfulness',
     name: 'Mindfulness',
+    icon: 'wind',
     wordCount: mindfulnessWords.length,
     level: 'beginner',
     words: mindfulnessWords,

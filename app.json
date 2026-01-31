@@ -3,11 +3,13 @@
     "name": "Articulate",
     "slug": "Articulate",
     "version": "1.0.0",
+    "description": "Read one word at a time. Build focus, fluency, and confidence with science-backed reading practice.",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "articulate",
     "newArchEnabled": true,
+    "platforms": ["ios", "android"],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -15,7 +17,16 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.articulate.app"
+      "bundleIdentifier": "com.articulate.app",
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          }
+        ],
+        "NSPrivacyCollectedDataTypes": []
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -32,7 +43,14 @@
     },
     "plugins": [
       ["expo-router", { "root": "./src/app" }],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#000000"
+        }
+      ]
     ]
   }
 }

@@ -48,7 +48,11 @@ export function GlassToggle({ value, onValueChange }: GlassToggleProps) {
   };
 
   return (
-    <Pressable onPress={handlePress}>
+    <Pressable
+      onPress={handlePress}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
+    >
       <Animated.View style={[styles.track, trackStyle]}>
         <Animated.View style={[styles.thumb, thumbStyle]} />
       </Animated.View>

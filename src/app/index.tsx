@@ -6,6 +6,7 @@ import {
   ScrollView,
   Pressable,
   useWindowDimensions,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,9 +30,9 @@ import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { PageDots } from '../components/PageDots';
 import { TimeGreeting } from '../components/TimeGreeting';
-import { StreakDisplay } from '../components/StreakDisplay';
 import { ResumeCard } from '../components/ResumeCard';
 import { CategoryCard } from '../components/CategoryCard';
+import { Paywall } from '../components/Paywall';
 import {
   Spacing,
   Springs,
@@ -52,6 +53,12 @@ const ONBOARDING_CATEGORIES = categories.filter((c) =>
   ['story', 'article', 'speech'].includes(c.key)
 );
 
+const CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  story: 'Short Fiction',
+  article: 'News & Essays',
+  speech: 'Famous Speeches',
+};
+
 // ─── AnimatedCharacters Helper ───────────────────────────────
 
 function AnimatedLetter({
@@ -68,15 +75,11 @@ function AnimatedLetter({
   delayOffset: number;
 }) {
   const letterOpacity = useSharedValue(0);
-  const letterTracking = useSharedValue(20); // Start with wide spacing
+  const letterTracking = useSharedValue(20);
 
   useEffect(() => {
-    const delay = delayOffset + index * 80; // 80ms stagger between letters
-
-    // Fade in quickly
+    const delay = delayOffset + index * 80;
     letterOpacity.value = withDelay(delay, withTiming(1, { duration: 150 }));
-
-    // Tracking contracts from wide to tight
     letterTracking.value = withDelay(
       delay,
       withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) })
@@ -132,24 +135,14 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
   const [wordIndex, setWordIndex] = useState(-1);
   const [showHint, setShowHint] = useState(false);
 
-  // Word animation values
   const wordScale = useSharedValue(0.85);
   const wordOpacity = useSharedValue(0);
-
-  // Breathing animation
   const breatheScale = useSharedValue(1);
-
-  // Progress line (using scaleX for GPU-accelerated animation)
   const progressFraction = useSharedValue(0);
-
-  // Hint opacity
   const hintOpacity = useSharedValue(0);
-
-  // Shimmer glow for final word
   const glowScale = useSharedValue(0);
   const glowOpacity = useSharedValue(0);
 
-  // Show hint after 1.5s
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowHint(true);
@@ -158,7 +151,6 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
     return () => clearTimeout(timer);
   }, [hintOpacity]);
 
-  // Start breathing animation
   useEffect(() => {
     breatheScale.value = withRepeat(
       withSequence(
@@ -177,14 +169,12 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
       return;
     }
 
-    // Hide hint on first tap
     if (showHint && nextIndex === 0) {
       hintOpacity.value = withTiming(0, { duration: 300 });
     }
 
     const isFinalWord = nextIndex === ONBOARDING_WORDS.length - 1;
 
-    // Haptic — Medium for final word, Light otherwise
     if (hapticEnabled) {
       Haptics.impactAsync(
         isFinalWord
@@ -193,14 +183,11 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
       );
     }
 
-    // Animate word in
     setWordIndex(nextIndex);
 
     if (isFinalWord) {
-      // AnimatedCharacters handles its own entrance — just set opacity
       wordOpacity.value = 1;
       wordScale.value = 1;
-      // Shimmer glow
       glowScale.value = 0;
       glowOpacity.value = 0;
       glowScale.value = withSequence(
@@ -212,14 +199,12 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
         withTiming(0, { duration: 1000 })
       );
     } else {
-      // Normal words: scale 0.85 -> 1
       wordOpacity.value = 0;
       wordOpacity.value = withTiming(1, { duration: 200 });
       wordScale.value = 0.85;
       wordScale.value = withSpring(1, { damping: 15, stiffness: 150 });
     }
 
-    // Update progress (GPU-accelerated scaleX)
     progressFraction.value = withTiming(
       (nextIndex + 1) / ONBOARDING_WORDS.length,
       { duration: 300, easing: Easing.out(Easing.ease) }
@@ -269,7 +254,6 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
           Tap anywhere
         </Animated.Text>
       </View>
-      {/* Thin progress line at bottom */}
       <View style={styles.progressContainer}>
         <Animated.View
           style={[
@@ -290,7 +274,6 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
   const { fontFamily, setFontFamily, wordColor, setWordColor } = useSettingsStore();
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
 
-  // Preview animation
   const previewScale = useSharedValue(1);
 
   const animatePreview = useCallback(() => {
@@ -320,14 +303,12 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
     transform: [{ scale: previewScale.value }],
   }));
 
-  // Resolve display color
   const resolvedColor = WordColors.find((c) => c.key === wordColor)?.color ?? colors.primary;
   const fontConfig = FontFamilies[fontFamily];
 
   return (
     <View style={styles.onboardingPage}>
       <View style={styles.personalizeContent}>
-        {/* Title */}
         <Animated.Text
           entering={FadeIn.duration(400)}
           style={[styles.personalizeTitle, { color: colors.primary }]}
@@ -335,7 +316,6 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
           Make it yours.
         </Animated.Text>
 
-        {/* Live preview */}
         <View style={styles.previewArea}>
           <Animated.Text
             style={[
@@ -351,7 +331,6 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
           </Animated.Text>
         </View>
 
-        {/* Font picker */}
         <View style={styles.fontRow}>
           {ONBOARDING_FONTS.map((key, i) => {
             const font = FontFamilies[key];
@@ -387,7 +366,6 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
           })}
         </View>
 
-        {/* Color picker */}
         <View style={styles.colorRow}>
           {WordColors.map((c, i) => {
             const dotColor = c.color ?? colors.primary;
@@ -436,7 +414,6 @@ function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, 
   const { colors, glass, isDark } = useTheme();
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
 
-  // Animation shared values
   const scale = useSharedValue(1);
   const glowOpacity = useSharedValue(0);
   const glowSpread = useSharedValue(0);
@@ -444,18 +421,13 @@ function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, 
   const checkScale = useSharedValue(0);
   const checkOpacity = useSharedValue(0);
   const dimOpacity = useSharedValue(1);
-
-  // Track if we should animate (to skip animation on initial render)
   const hasAnimated = useSharedValue(false);
 
   useEffect(() => {
     if (isSelected) {
-      // Don't animate on initial mount, only on actual selection
       if (!hasAnimated.value) {
         hasAnimated.value = true;
       }
-
-      // Layer 1: Haptic + Scale Pulse
       if (hapticEnabled) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
@@ -463,35 +435,25 @@ function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, 
         withSpring(1.02, { damping: 12, stiffness: 200 }),
         withSpring(1, { damping: 12, stiffness: 200 })
       );
-
-      // Layer 2: Animated Border Glow
       glowOpacity.value = withTiming(1, { duration: 200 });
       glowSpread.value = withSequence(
         withTiming(0, { duration: 0 }),
         withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) })
       );
-
-      // Layer 3: Background Tint Fade
       backgroundTint.value = withTiming(1, { duration: 200 });
-
-      // Layer 4: Checkmark Reveal with bounce
       checkOpacity.value = withTiming(1, { duration: 150, easing: Easing.out(Easing.ease) });
       checkScale.value = withSequence(
         withTiming(0, { duration: 0 }),
         withSpring(1.1, { damping: 8, stiffness: 200 }),
         withSpring(1, { damping: 10, stiffness: 200 })
       );
-
-      // Layer 5: This card stays at full opacity (handled by dimOpacity staying at 1)
       dimOpacity.value = withTiming(1, { duration: 200 });
     } else {
-      // Reset animations when deselected
       glowOpacity.value = withTiming(0, { duration: 200 });
       glowSpread.value = withTiming(0, { duration: 200 });
       backgroundTint.value = withTiming(0, { duration: 200 });
       checkOpacity.value = withTiming(0, { duration: 100 });
       checkScale.value = withTiming(0, { duration: 100 });
-      // Dim unselected cards only when another card is selected
       dimOpacity.value = withTiming(hasSelection ? 0.7 : 1, { duration: 200 });
     }
   }, [isSelected, hasSelection, hapticEnabled]);
@@ -547,7 +509,6 @@ function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, 
               },
             ]}
           >
-            {/* Background tint overlay */}
             <Animated.View
               style={[
                 StyleSheet.absoluteFill,
@@ -558,17 +519,26 @@ function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, 
                 tintAnimatedStyle,
               ]}
             />
-
-            {/* Card content */}
             <View style={styles.selectableCardContent}>
-              <View style={styles.catRow}>
-                <Text style={[styles.levelLabel, { color: colors.primary }]}>
-                  {category.name}
-                </Text>
+              <View style={styles.selectableContentRow}>
+                <View style={[styles.selectableIconCircle, {
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                  borderColor: glass.border,
+                }]}>
+                  <Feather name={category.icon as any} size={20} color={colors.primary} />
+                </View>
+                <View style={styles.catColumn}>
+                  <Text style={[styles.levelLabel, { color: colors.primary }]}>
+                    {category.name}
+                  </Text>
+                  {CATEGORY_DESCRIPTIONS[category.key] && (
+                    <Text style={[styles.catDescription, { color: colors.secondary }]}>
+                      {CATEGORY_DESCRIPTIONS[category.key]}
+                    </Text>
+                  )}
+                </View>
               </View>
             </View>
-
-            {/* Animated checkmark */}
             <Animated.View
               style={[
                 styles.checkmarkContainer,
@@ -591,7 +561,6 @@ function OnboardingLaunch({ onNext }: { onNext: (categoryKey: string) => void })
   const { colors } = useTheme();
   const [selected, setSelected] = useState<string | null>(null);
 
-  // Reset opacity for all cards when selection changes
   const handleSelect = (key: string) => {
     setSelected(key);
   };
@@ -665,14 +634,117 @@ function Onboarding() {
 // ─── Home ────────────────────────────────────────────────────
 
 const FREE_CATEGORIES = ['story', 'article', 'speech'];
+const CORE_CATEGORIES = categories.filter((c) => FREE_CATEGORIES.includes(c.key));
+const MORE_CATEGORIES = categories.filter((c) => !FREE_CATEGORIES.includes(c.key));
 
 function Home() {
-  const { colors } = useTheme();
+  const { colors, isDark, glass } = useTheme();
   const router = useRouter();
-  const { resumeData, currentStreak, isPremium, setIsPremium, resetAll } = useSettingsStore();
+  const {
+    resumeData,
+    currentStreak,
+    isPremium,
+    setIsPremium,
+    resetAll,
+    lastReadDate,
+    customTexts,
+    removeCustomText,
+    checkTrialExpired,
+    trialActive,
+    trialStartDate,
+    showPaywall,
+    setPaywallContext,
+    paywallContext,
+    trialDaysRemaining,
+    savedPremiumSettings,
+    savedPremiumSettingsExpiry,
+    totalWordsRead,
+    textsCompleted,
+  } = useSettingsStore();
+
+  const [moreExpanded, setMoreExpanded] = useState(false);
+  const chevronRotation = useSharedValue(0);
+
+  const toggleMore = useCallback(() => {
+    setMoreExpanded((prev) => {
+      const next = !prev;
+      chevronRotation.value = withSpring(next ? 1 : 0, Springs.default);
+      return next;
+    });
+  }, [chevronRotation]);
+
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${chevronRotation.value * 180}deg` }],
+  }));
+
+  // Trial countdown
+  const daysLeft = trialDaysRemaining();
+  const showTrialCountdown = trialActive && daysLeft > 0;
+
+  // Post-trial win-back banner
+  const daysSinceExpired = (() => {
+    if (isPremium || trialActive || !trialStartDate) return -1;
+    const trialEnd = new Date(trialStartDate).getTime() + 3 * 24 * 60 * 60 * 1000;
+    return Math.floor((Date.now() - trialEnd) / (24 * 60 * 60 * 1000));
+  })();
+
+  const winBackText = (() => {
+    if (daysSinceExpired < 0 || isPremium) return null;
+    const features: string[] = [];
+    if (savedPremiumSettings) {
+      if (savedPremiumSettings.fontFamily !== 'sourceSerif') {
+        const f = FontFamilies[savedPremiumSettings.fontFamily as keyof typeof FontFamilies];
+        if (f) features.push(f.label + ' font');
+      }
+      if (savedPremiumSettings.wordColor !== 'default') {
+        const c = WordColors.find((wc) => wc.key === savedPremiumSettings.wordColor);
+        if (c) features.push(c.label + ' color');
+      }
+    }
+    const personalSuffix = features.length > 0
+      ? ` Your ${features.join(' and ')} ${features.length === 1 ? 'is' : 'are'} waiting.`
+      : '';
+
+    if (daysSinceExpired <= 3) {
+      return `Your trial ended. Your settings are saved for 7 days.${personalSuffix}`;
+    } else if (daysSinceExpired <= 6) {
+      return `Your saved settings expire soon. Upgrade to keep them.${personalSuffix}`;
+    } else {
+      return 'Upgrade anytime to unlock the full experience.';
+    }
+  })();
+
+  // Clear expired saved settings (7 days after trial end)
+  useEffect(() => {
+    if (savedPremiumSettingsExpiry) {
+      const expiry = new Date(savedPremiumSettingsExpiry).getTime();
+      if (Date.now() > expiry) {
+        useSettingsStore.setState({
+          savedPremiumSettings: null,
+          savedPremiumSettingsExpiry: null,
+        });
+      }
+    }
+  }, [savedPremiumSettingsExpiry]);
+
+  // Check trial expiration on mount
+  useEffect(() => {
+    checkTrialExpired();
+  }, [checkTrialExpired]);
+
+  // Streak "at risk" detection — warn at 20h (4-hour buffer before streak resets at 48h)
+  const isStreakAtRisk = currentStreak > 0 && lastReadDate !== null && (() => {
+    const now = Date.now();
+    const lastMs = new Date(lastReadDate).getTime();
+    if (isNaN(lastMs)) return false;
+    const elapsed = now - lastMs;
+    const HOURS_20 = 20 * 60 * 60 * 1000;
+    return elapsed >= HOURS_20;
+  })();
 
   const handleCategoryPress = (categoryKey: string) => {
     if (!isPremium && !FREE_CATEGORIES.includes(categoryKey)) {
+      setPaywallContext('locked_category');
       return;
     }
     router.push({
@@ -688,68 +760,285 @@ function Home() {
         params: {
           categoryKey: resumeData.categoryKey,
           resumeIndex: String(resumeData.wordIndex),
+          ...(resumeData.customTextId ? { customTextId: resumeData.customTextId } : {}),
         },
       });
     }
   };
 
+  const handleCustomTextPress = (id: string) => {
+    router.push({
+      pathname: '/reading',
+      params: { customTextId: id },
+    });
+  };
+
+  const handleCustomTextOptions = (id: string) => {
+    Alert.alert('Text Options', undefined, [
+      {
+        text: 'Edit',
+        onPress: () => router.push({ pathname: '/paste', params: { editTextId: id } }),
+      },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => removeCustomText(id),
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const formatNumber = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
+
   return (
     <SafeAreaView style={styles.flex}>
-      {/* Header stays at top */}
+      {/* Header */}
       <View style={styles.homeHeader}>
         <View style={styles.flex} />
         <View style={styles.headerIcons}>
-          {currentStreak > 0 && <StreakDisplay compact />}
-          <Pressable onPress={() => setIsPremium(!isPremium)}>
-            <Text style={[styles.devReplay, { color: isPremium ? colors.primary : colors.muted }]}>
-              {isPremium ? 'Pro' : 'Free'}
-            </Text>
-          </Pressable>
-          <Pressable onPress={() => resetAll()}>
-            <Text style={[styles.devReplay, { color: colors.muted }]}>
-              Replay
-            </Text>
-          </Pressable>
-          <Pressable onPress={() => router.push('/settings')} style={styles.headerButton}>
+          {__DEV__ && (
+            <>
+              <Pressable onPress={() => setIsPremium(!isPremium)}>
+                <Text style={[styles.devReplay, { color: isPremium ? colors.primary : colors.muted }]}>
+                  {isPremium ? 'Pro' : 'Free'}
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => resetAll()}>
+                <Text style={[styles.devReplay, { color: colors.muted }]}>
+                  Replay
+                </Text>
+              </Pressable>
+            </>
+          )}
+          <Pressable onPress={() => router.push('/settings')} style={styles.headerButton} accessibilityLabel="Open settings" accessibilityRole="button">
             <Feather name="settings" size={20} color={colors.primary} />
           </Pressable>
         </View>
       </View>
 
-      {/* Main content centered vertically */}
-      <View style={styles.homeMainContent}>
-        {/* Greeting */}
+      {/* Main content */}
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.homeScrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* 1. Greeting */}
         <View style={styles.greetingSection}>
           <TimeGreeting />
         </View>
 
-        {/* Resume card */}
+        {/* 2. Stats row */}
+        <Animated.View entering={FadeIn.delay(100).duration(400)} style={styles.bannerSection}>
+          <GlassCard>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Feather name="zap" size={14} color={colors.muted} />
+                <Text style={[styles.statValue, { color: colors.primary }]}>
+                  {currentStreak}
+                </Text>
+                <Text style={[styles.statLabel, { color: colors.muted }]}>
+                  {currentStreak === 1 ? 'day' : 'days'}
+                </Text>
+              </View>
+              <View style={[styles.statDivider, { backgroundColor: glass.border }]} />
+              <View style={styles.statItem}>
+                <Feather name="book-open" size={14} color={colors.muted} />
+                <Text style={[styles.statValue, { color: colors.primary }]}>
+                  {formatNumber(totalWordsRead)}
+                </Text>
+                <Text style={[styles.statLabel, { color: colors.muted }]}>
+                  words read
+                </Text>
+              </View>
+              <View style={[styles.statDivider, { backgroundColor: glass.border }]} />
+              <View style={styles.statItem}>
+                <Feather name="check-circle" size={14} color={colors.muted} />
+                <Text style={[styles.statValue, { color: colors.primary }]}>
+                  {textsCompleted}
+                </Text>
+                <Text style={[styles.statLabel, { color: colors.muted }]}>
+                  completed
+                </Text>
+              </View>
+            </View>
+          </GlassCard>
+        </Animated.View>
+
+        {/* 3. Banners */}
+        {/* Trial countdown banner (active trial) */}
+        {showTrialCountdown && (
+          <Animated.View entering={FadeIn.duration(400)} style={styles.bannerSection}>
+            <GlassCard onPress={() => setPaywallContext('generic')}>
+              <View style={styles.trialBanner}>
+                <View style={styles.trialBannerText}>
+                  <Text style={[
+                    styles.trialBannerTitle,
+                    { color: daysLeft <= 1 ? colors.warning : colors.primary }
+                  ]}>
+                    Premium trial: {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.muted} />
+              </View>
+            </GlassCard>
+          </Animated.View>
+        )}
+
+        {/* Post-trial win-back banner */}
+        {!isPremium && !trialActive && winBackText && (
+          <Animated.View entering={FadeIn.duration(400)} style={styles.bannerSection}>
+            <GlassCard onPress={() => setPaywallContext('trial_expired')}>
+              <View style={styles.trialBanner}>
+                <View style={styles.trialBannerText}>
+                  <Text style={[styles.trialBannerTitle, { color: colors.primary }]}>
+                    {daysSinceExpired <= 3 ? 'Your trial ended' : daysSinceExpired <= 6 ? 'Settings expiring soon' : 'Upgrade to Pro'}
+                  </Text>
+                  <Text style={[styles.trialBannerSubtitle, { color: colors.secondary }]}>
+                    {winBackText}
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.muted} />
+              </View>
+            </GlassCard>
+          </Animated.View>
+        )}
+
+        {/* Streak at risk warning */}
+        {isStreakAtRisk && (
+          <Animated.View entering={FadeIn.duration(400)} style={styles.bannerSection}>
+            <View style={[styles.streakWarning, { backgroundColor: isDark ? 'rgba(255,149,0,0.1)' : 'rgba(255,149,0,0.08)' }]}>
+              <Text style={[styles.streakWarningText, { color: colors.warning }]}>
+                Don't break your {currentStreak}-day streak! Read a text today.
+              </Text>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* 4. Resume card */}
         {resumeData && (
           <View style={styles.resumeSection}>
             <ResumeCard data={resumeData} onPress={handleResume} />
           </View>
         )}
 
-        {/* Categories */}
+        {/* 5. Paste Text card */}
+        <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.bannerSection}>
+          <GlassCard onPress={() => router.push('/paste')} accentBorder>
+            <View style={styles.pasteCard}>
+              <View
+                style={[
+                  styles.pasteCardIcon,
+                  {
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                    borderColor: glass.border,
+                  },
+                ]}
+              >
+                <Feather name="clipboard" size={20} color={colors.primary} />
+              </View>
+              <View style={styles.pasteCardText}>
+                <Text style={[styles.pasteCardTitle, { color: colors.primary }]}>
+                  Paste Text
+                </Text>
+                <Text style={[styles.pasteCardSubtitle, { color: colors.secondary }]}>
+                  Read any article, passage, or notes
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={colors.muted} />
+            </View>
+          </GlassCard>
+        </Animated.View>
+
+        {/* 6. My Texts section */}
+        {customTexts.length > 0 && (
+          <View style={styles.myTextsSection}>
+            <Text style={[styles.sectionTitle, { color: colors.secondary }]}>
+              MY TEXTS
+            </Text>
+            {customTexts.map((ct, i) => (
+              <Animated.View
+                key={ct.id}
+                entering={FadeIn.delay(i * 80).duration(300)}
+              >
+                <GlassCard onPress={() => handleCustomTextPress(ct.id)}>
+                  <View style={styles.customTextRow}>
+                    <View style={styles.customTextInfo}>
+                      <Text
+                        style={[styles.customTextTitle, { color: colors.primary }]}
+                        numberOfLines={1}
+                      >
+                        {ct.title}
+                      </Text>
+                      <Text style={[styles.customTextCount, { color: colors.muted }]}>
+                        ~{ct.wordCount} words
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() => handleCustomTextOptions(ct.id)}
+                      style={styles.moreButton}
+                      hitSlop={8}
+                    >
+                      <Feather name="more-vertical" size={18} color={colors.muted} />
+                    </Pressable>
+                  </View>
+                </GlassCard>
+              </Animated.View>
+            ))}
+          </View>
+        )}
+
+        {/* 7. Core category cards (Story, Article, Speech) */}
         <View style={styles.categoriesSection}>
-          <Text style={[styles.subtitle, { color: colors.muted }]}>
-            What would you like to read?
-          </Text>
           <View style={styles.categoryList}>
-            {categories.map((cat) => {
-              const isLocked = !isPremium && !FREE_CATEGORIES.includes(cat.key);
-              return (
-                <CategoryCard
-                  key={cat.key}
-                  category={cat}
-                  onPress={() => handleCategoryPress(cat.key)}
-                  locked={isLocked}
-                />
-              );
-            })}
+            {CORE_CATEGORIES.map((cat, i) => (
+              <CategoryCard
+                key={cat.key}
+                category={cat}
+                onPress={() => handleCategoryPress(cat.key)}
+                index={i}
+              />
+            ))}
           </View>
         </View>
-      </View>
+
+        {/* 8. "More to explore" expandable section */}
+        <View style={styles.moreSection}>
+          <Pressable onPress={toggleMore} style={styles.moreHeader}>
+            <Text style={[styles.moreHeaderText, { color: colors.secondary }]}>
+              More to explore
+            </Text>
+            <Animated.View style={chevronStyle}>
+              <Feather name="chevron-down" size={18} color={colors.secondary} />
+            </Animated.View>
+          </Pressable>
+          {moreExpanded && (
+            <Animated.View entering={FadeIn.duration(300)} style={styles.categoryList}>
+              {MORE_CATEGORIES.map((cat, i) => {
+                const isLocked = !isPremium && !FREE_CATEGORIES.includes(cat.key);
+                return (
+                  <CategoryCard
+                    key={cat.key}
+                    category={cat}
+                    onPress={() => handleCategoryPress(cat.key)}
+                    locked={isLocked}
+                    index={i}
+                  />
+                );
+              })}
+            </Animated.View>
+          )}
+        </View>
+
+        {/* 9. Bottom spacer */}
+        <View style={{ height: 40 }} />
+      </ScrollView>
+
+      {/* Paywall modal */}
+      <Paywall
+        visible={showPaywall}
+        onDismiss={() => setPaywallContext(null)}
+        context={paywallContext}
+      />
     </SafeAreaView>
   );
 }
@@ -797,6 +1086,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  catColumn: {
+    flex: 1,
+    gap: 2,
+  },
+  catDescription: {
+    fontSize: 13,
+    fontWeight: '400',
   },
   // Step 1 — Silent Start
   silentCenter: {
@@ -907,6 +1204,20 @@ const styles = StyleSheet.create({
   selectableCardContent: {
     padding: 16,
   },
+  selectableContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  selectableIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    borderWidth: 0.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   checkmarkContainer: {
     position: 'absolute',
     bottom: 10,
@@ -945,13 +1256,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  homeMainContent: {
-    flex: 1,
-    justifyContent: 'center',
+  homeScrollContent: {
     paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
   },
   greetingSection: {
     marginBottom: Spacing.lg,
+  },
+  bannerSection: {
+    marginBottom: Spacing.md,
   },
   resumeSection: {
     marginBottom: Spacing.xl,
@@ -959,13 +1272,136 @@ const styles = StyleSheet.create({
   categoriesSection: {
     marginTop: Spacing.md,
   },
-  subtitle: {
+  categoryList: {
+    gap: 12,
+  },
+  // Stats row
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 2,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '400',
+  },
+  statDivider: {
+    width: 0.5,
+    height: 32,
+  },
+  // More to explore
+  moreSection: {
+    marginTop: Spacing.md,
+  },
+  moreHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  moreHeaderText: {
     fontSize: 15,
-    fontWeight: '300',
-    marginBottom: 20,
+    fontWeight: '500',
     letterSpacing: 0.2,
   },
-  categoryList: {
-    gap: 16,
+  // Trial banner
+  trialBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  trialBannerText: {
+    flex: 1,
+    gap: 2,
+  },
+  trialBannerTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  trialBannerSubtitle: {
+    fontSize: 13,
+    fontWeight: '400',
+  },
+  // Streak warning
+  streakWarning: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+  },
+  streakWarningText: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  // Paste card
+  pasteCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  pasteCardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    borderWidth: 0.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pasteCardText: {
+    flex: 1,
+    gap: 2,
+  },
+  pasteCardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  pasteCardSubtitle: {
+    fontSize: 13,
+    fontWeight: '400',
+  },
+  // Custom texts
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  myTextsSection: {
+    marginTop: Spacing.md,
+    gap: 8,
+  },
+  customTextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  customTextInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  customTextTitle: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  customTextCount: {
+    fontSize: 12,
+    fontWeight: '400',
+  },
+  moreButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

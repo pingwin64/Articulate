@@ -6,6 +6,7 @@ import {
   type StyleProp,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
@@ -68,15 +69,13 @@ export function GlassCard({ children, style, onPress, disabled, accentBorder }: 
           { backgroundColor: glass.fill },
         ]}
       />
-      <View
-        style={[
-          styles.highlight,
-          {
-            experimental_backgroundImage: isDark
-              ? 'linear-gradient(to bottom, rgba(255,255,255,0.08), rgba(255,255,255,0))'
-              : 'linear-gradient(to bottom, rgba(255,255,255,0.9), rgba(255,255,255,0))',
-          },
-        ]}
+      <LinearGradient
+        colors={isDark
+          ? ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0)']
+          : ['rgba(255,255,255,0.9)', 'rgba(255,255,255,0)']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={styles.highlight}
       />
       <View style={styles.content}>{children}</View>
     </View>

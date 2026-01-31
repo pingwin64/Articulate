@@ -60,6 +60,9 @@ export function GlassButton({
   return (
     <GestureDetector gesture={tap}>
       <Animated.View
+        accessibilityLabel={title}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !!disabled }}
         style={[
           styles.button,
           {

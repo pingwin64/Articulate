@@ -11,19 +11,22 @@ import Animated, {
   FadeIn,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 import { categories } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { NumberRoll } from '../components/NumberRoll';
+import { Paywall } from '../components/Paywall';
 import { Spacing } from '../design/theme';
 
 export default function CompleteScreen() {
-  const { colors, glass } = useTheme();
+  const { colors, glass, isDark } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{
     categoryKey: string;
+    customTextId?: string;
     wordsRead: string;
     timeSpent: string;
   }>();
@@ -39,15 +42,36 @@ export default function CompleteScreen() {
     setIsPremium,
     setFontFamily,
     setWordColor,
+    startTrial,
+    isPremium,
+    textsCompleted,
+    totalWordsRead,
+    showPaywall,
+    setPaywallContext,
+    paywallContext,
+    hasShownThirdReadingNudge,
+    setHasShownThirdReadingNudge,
+    unlockAchievement,
+    unlockedAchievements,
   } = useSettingsStore();
+
+  const { customTexts } = useSettingsStore();
+  const customText = params.customTextId
+    ? customTexts.find((t) => t.id === params.customTextId)
+    : undefined;
 
   const wordsRead = parseInt(params.wordsRead ?? '0', 10);
   const timeSpent = parseInt(params.timeSpent ?? '0', 10);
   const wpm = timeSpent > 0 ? Math.round((wordsRead / timeSpent) * 60) : 0;
   const category = categories.find((c) => c.key === params.categoryKey);
+  const displayName = customText?.title ?? category?.name ?? 'Reading';
+  const displayIcon = customText ? 'clipboard' : category?.icon;
   const minutes = Math.floor(timeSpent / 60);
   const seconds = timeSpent % 60;
   const timeDisplay = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+
+  // Track newly unlocked achievements for display
+  const [newAchievement, setNewAchievement] = React.useState<string | null>(null);
 
   // Checkmark animation
   const checkScale = useSharedValue(0);
@@ -68,6 +92,30 @@ export default function CompleteScreen() {
     incrementWordsRead(wordsRead);
     incrementTextsCompleted();
     updateStreak();
+
+    // Check achievement conditions
+    const checkAchievements = () => {
+      const state = useSettingsStore.getState();
+      const checks: { id: string; label: string; condition: boolean }[] = [
+        { id: 'first_read', label: 'First Read', condition: state.textsCompleted >= 1 },
+        { id: 'streak_7', label: '7-Day Streak', condition: state.currentStreak >= 7 },
+        { id: 'streak_30', label: '30-Day Streak', condition: state.currentStreak >= 30 },
+        { id: 'words_1k', label: '1,000 Words', condition: state.totalWordsRead >= 1000 },
+        { id: 'words_10k', label: '10,000 Words', condition: state.totalWordsRead >= 10000 },
+        { id: 'speed_reader', label: 'Speed Reader', condition: wpm > 300 },
+      ];
+      for (const check of checks) {
+        if (check.condition && !state.unlockedAchievements.includes(check.id)) {
+          unlockAchievement(check.id);
+          setNewAchievement(check.label);
+          if (hapticFeedback) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+          break; // Show one achievement at a time
+        }
+      }
+    };
+    checkAchievements();
 
     // Animation sequence
     // T+200ms: checkmark
@@ -126,12 +174,15 @@ export default function CompleteScreen() {
   const handleReadAgain = () => {
     router.replace({
       pathname: '/reading',
-      params: { categoryKey: params.categoryKey ?? '' },
+      params: {
+        categoryKey: params.categoryKey ?? '',
+        ...(params.customTextId ? { customTextId: params.customTextId } : {}),
+      },
     });
   };
 
   const handleSubscribe = () => {
-    setIsPremium(true);
+    startTrial();
     setHasOnboarded(true);
     router.replace('/');
   };
@@ -166,9 +217,7 @@ export default function CompleteScreen() {
                 },
               ]}
             >
-              <Text style={[styles.checkmark, { color: colors.primary }]}>
-                {'\u2713'}
-              </Text>
+              <Feather name="check" size={32} color={colors.primary} />
             </Animated.View>
 
             {/* Well Done */}
@@ -180,12 +229,17 @@ export default function CompleteScreen() {
             </Animated.Text>
 
             {/* Category */}
-            <Animated.Text
+            <Animated.View
               entering={FadeIn.delay(700).duration(300)}
-              style={[styles.categoryLabel, { color: colors.secondary }]}
+              style={styles.categoryRow}
             >
-              {category?.name ?? 'Reading'}
-            </Animated.Text>
+              {displayIcon && (
+                <Feather name={displayIcon as any} size={16} color={colors.secondary} />
+              )}
+              <Text style={[styles.categoryLabel, { color: colors.secondary }]}>
+                {displayName}
+              </Text>
+            </Animated.View>
 
             {/* Stats */}
             <Animated.View
@@ -232,23 +286,55 @@ export default function CompleteScreen() {
               </Animated.View>
             )}
 
+            {/* Achievement badge */}
+            {newAchievement && (
+              <Animated.View
+                entering={FadeIn.delay(1700).duration(400)}
+                style={[styles.achievementBadge, { backgroundColor: isDark ? 'rgba(255,215,0,0.12)' : 'rgba(255,215,0,0.15)' }]}
+              >
+                <Feather name="award" size={16} color={colors.warning ?? '#FFD700'} />
+                <Text style={[styles.achievementText, { color: colors.primary }]}>
+                  {newAchievement} unlocked!
+                </Text>
+              </Animated.View>
+            )}
+
+            {/* Milestone celebration */}
+            {(() => {
+              const milestones: Record<number, string> = {
+                1: 'Your reading journey begins!',
+                5: 'Five texts down. You\'re building a habit.',
+                10: 'Double digits! Consistency is your superpower.',
+                25: 'Twenty-five texts. You\'re on fire.',
+                50: 'Fifty completed. That\'s dedication.',
+                100: 'One hundred texts. Legendary reader.',
+              };
+              const msg = milestones[textsCompleted];
+              if (!msg) return null;
+              return (
+                <Animated.View entering={FadeIn.delay(1600).duration(300)}>
+                  <Text style={[styles.milestoneText, { color: colors.secondary }]}>
+                    {msg}
+                  </Text>
+                </Animated.View>
+              );
+            })()}
+
             {/* Paywall Section (first reading only) */}
             {isFirstReading && (
               <Animated.View style={[styles.paywallSection, paywallAnimStyle]}>
                 <Text style={[styles.paywallHeadline, { color: colors.primary }]}>
-                  Unlock the full experience
+                  You just read {wordsRead} words
                 </Text>
                 <View style={styles.featureList}>
                   {[
-                    'All typography styles',
-                    'Full color palette',
+                    'All typography styles & fonts',
+                    'Full color palette & themes',
                     'Entire reading library',
-                    'New content added regularly',
+                    'Auto-play, breathing & chunk reading',
                   ].map((feature) => (
                     <View key={feature} style={styles.featureRow}>
-                      <Text style={[styles.featureCheck, { color: colors.primary }]}>
-                        {'\u2713'}
-                      </Text>
+                      <Feather name="check" size={16} color={colors.primary} />
                       <Text style={[styles.featureText, { color: colors.secondary }]}>
                         {feature}
                       </Text>
@@ -256,8 +342,22 @@ export default function CompleteScreen() {
                   ))}
                 </View>
                 <Text style={[styles.credibilityText, { color: colors.muted }]}>
-                  Built on cognitive reading research
+                  Grounded in cognitive reading science
                 </Text>
+              </Animated.View>
+            )}
+
+            {/* Third-reading soft nudge */}
+            {!isFirstReading && !isPremium && textsCompleted >= 3 && !hasShownThirdReadingNudge && (
+              <Animated.View entering={FadeIn.delay(1800).duration(300)}>
+                <Pressable onPress={() => {
+                  setHasShownThirdReadingNudge(true);
+                  setPaywallContext('generic');
+                }}>
+                  <Text style={[styles.nudgeText, { color: colors.secondary }]}>
+                    Enjoying Articulate? Go Pro for the full experience.
+                  </Text>
+                </Pressable>
               </Animated.View>
             )}
           </View>
@@ -267,7 +367,7 @@ export default function CompleteScreen() {
         <Animated.View style={[styles.ctaContainer, ctaAnimStyle]}>
           {isFirstReading ? (
             <>
-              <GlassButton title="Unlock Premium" onPress={handleSubscribe} />
+              <GlassButton title="Try Free for 3 Days" onPress={handleSubscribe} />
               <Pressable onPress={handleDismiss} style={styles.dismissButton}>
                 <Text style={[styles.dismissLink, { color: colors.muted }]}>
                   Maybe later
@@ -286,6 +386,13 @@ export default function CompleteScreen() {
           )}
         </Animated.View>
       </SafeAreaView>
+
+      {/* Paywall modal (for third-reading nudge) */}
+      <Paywall
+        visible={showPaywall}
+        onDismiss={() => setPaywallContext(null)}
+        context={paywallContext}
+      />
     </View>
   );
 }
@@ -315,19 +422,20 @@ const styles = StyleSheet.create({
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
     marginBottom: 8,
   },
-  checkmark: {
-    fontSize: 36,
-    fontWeight: '300',
-  },
   title: {
     fontSize: 32,
     fontWeight: '300',
     letterSpacing: -0.5,
   },
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 24,
+  },
   categoryLabel: {
     fontSize: 16,
     fontWeight: '400',
-    marginBottom: 24,
   },
   statsContainer: {
     width: '100%',
@@ -392,10 +500,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  featureCheck: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
   featureText: {
     fontSize: 15,
     fontWeight: '400',
@@ -414,5 +518,31 @@ const styles = StyleSheet.create({
   dismissLink: {
     fontSize: 14,
     fontWeight: '400',
+  },
+  nudgeText: {
+    fontSize: 14,
+    fontWeight: '400',
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+    paddingVertical: 4,
+  },
+  achievementBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+  },
+  achievementText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  milestoneText: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

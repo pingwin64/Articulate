@@ -6,9 +6,11 @@ import Animated, {
   withSpring,
   withDelay,
 } from 'react-native-reanimated';
+import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { GlassCard } from './GlassCard';
 import { categories } from '../lib/data/categories';
+import { useSettingsStore } from '../lib/store/settings';
 import type { ResumeData } from '../lib/store/settings';
 
 interface ResumeCardProps {
@@ -22,6 +24,12 @@ export function ResumeCard({ data, onPress }: ResumeCardProps) {
   const opacity = useSharedValue(0);
 
   const category = categories.find((c) => c.key === data.categoryKey);
+  const customTexts = useSettingsStore((s) => s.customTexts);
+  const customText = data.customTextId
+    ? customTexts.find((t) => t.id === data.customTextId)
+    : undefined;
+  const displayName = customText?.title ?? category?.name ?? 'Reading';
+  const displayIcon = customText ? 'clipboard' : category?.icon;
 
   useEffect(() => {
     translateY.value = withDelay(100, withSpring(0, { damping: 15, stiffness: 120 }));
@@ -37,9 +45,14 @@ export function ResumeCard({ data, onPress }: ResumeCardProps) {
     <Animated.View style={animatedStyle}>
       <GlassCard onPress={onPress} accentBorder>
         <View style={styles.content}>
-          <Text style={[styles.category, { color: colors.primary }]}>
-            {category?.name ?? 'Reading'}
-          </Text>
+          <View style={styles.categoryRow}>
+            {displayIcon && (
+              <Feather name={displayIcon as any} size={16} color={colors.primary} />
+            )}
+            <Text style={[styles.category, { color: colors.primary }]}>
+              {displayName}
+            </Text>
+          </View>
           <Text style={[styles.progress, { color: colors.secondary }]}>
             Word {data.wordIndex + 1} of {data.totalWords}
           </Text>
@@ -65,6 +78,11 @@ export function ResumeCard({ data, onPress }: ResumeCardProps) {
 
 const styles = StyleSheet.create({
   content: {
+    gap: 6,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
   category: {

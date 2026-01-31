@@ -98,7 +98,11 @@ export function GlassSlider({
   }));
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      accessibilityRole="adjustable"
+      accessibilityValue={{ min: minimumValue, max: maximumValue, now: value }}
+    >
       {leftLabel && (
         <Text style={[styles.label, { color: colors.muted }]}>{leftLabel}</Text>
       )}

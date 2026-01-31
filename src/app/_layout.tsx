@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect } from 'react';
+import { View, StyleSheet, AccessibilityInfo } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -21,6 +21,9 @@ import {
 } from '@expo-google-fonts/literata';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useTheme } from '../hooks/useTheme';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { useSettingsStore } from '../lib/store/settings';
+import { initPurchases } from '../lib/purchases';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -38,6 +41,26 @@ export default function RootLayout() {
   });
 
   const { colors, isDark } = useTheme();
+  const setReduceMotion = useSettingsStore((s) => s.setReduceMotion);
+
+  // Sync system reduce motion preference on mount
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (enabled) setReduceMotion(true);
+    });
+    const subscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      (enabled) => setReduceMotion(enabled)
+    );
+    return () => subscription.remove();
+  }, [setReduceMotion]);
+
+  // Initialize RevenueCat
+  useEffect(() => {
+    initPurchases().catch(() => {
+      // RevenueCat init may fail in dev/simulator — non-critical
+    });
+  }, []);
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded) {
@@ -53,6 +76,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <View style={[styles.container, { backgroundColor: colors.bg }]}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
+        <ErrorBoundary>
         <Stack
           screenOptions={{
             headerShown: false,
@@ -73,8 +97,10 @@ export default function RootLayout() {
               sheetCornerRadius: 20,
             }}
           />
+          <Stack.Screen name="paste" />
           <Stack.Screen name="privacy" />
         </Stack>
+        </ErrorBoundary>
       </View>
     </GestureHandlerRootView>
   );
