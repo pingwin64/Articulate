@@ -26,6 +26,7 @@ export type PaywallContext =
   | 'locked_font' | 'locked_color' | 'locked_size' | 'locked_bold'
   | 'locked_background' | 'locked_autoplay' | 'locked_chunk'
   | 'locked_breathing' | 'locked_tts' | 'locked_quiz'
+  | 'locked_daily_upload' | 'locked_scan' | 'streak_save' | 'goal_almost'
   | 'trial_expired' | 'settings_upgrade' | 'generic';
 
 export interface SavedPremiumSettings {
@@ -177,6 +178,23 @@ export interface SettingsState {
   // Nudge tracking
   hasShownThirdReadingNudge: boolean;
   setHasShownThirdReadingNudge: (v: boolean) => void;
+
+  // FormSheet workaround — store categoryKey before navigating to formSheet
+  selectedCategoryKey: string | null;
+  setSelectedCategoryKey: (v: string | null) => void;
+
+  // Daily upload limit (free users)
+  dailyUploadDate: string | null;
+  dailyUploadUsed: boolean;
+  resetDailyUploadIfNewDay: () => void;
+  useDailyUpload: () => void;
+
+  // Daily word goal
+  dailyWordGoal: number;
+  setDailyWordGoal: (v: number) => void;
+  dailyWordsToday: number;
+  addDailyWordsRead: (count: number) => void;
+  lastDailyResetDate: string | null;
 
   // Computed helper
   trialDaysRemaining: () => number;
@@ -463,6 +481,37 @@ export const useSettingsStore = create<SettingsState>()(
       hasShownThirdReadingNudge: false,
       setHasShownThirdReadingNudge: (v) => set({ hasShownThirdReadingNudge: v }),
 
+      // FormSheet workaround
+      selectedCategoryKey: null,
+      setSelectedCategoryKey: (v) => set({ selectedCategoryKey: v }),
+
+      // Daily upload limit
+      dailyUploadDate: null,
+      dailyUploadUsed: false,
+      resetDailyUploadIfNewDay: () => {
+        const state = get();
+        const today = new Date().toDateString();
+        if (state.dailyUploadDate !== today) {
+          set({ dailyUploadDate: today, dailyUploadUsed: false });
+        }
+        // Also reset daily words if new day
+        if (state.lastDailyResetDate !== today) {
+          set({ dailyWordsToday: 0, lastDailyResetDate: today });
+        }
+      },
+      useDailyUpload: () => {
+        const today = new Date().toDateString();
+        set({ dailyUploadDate: today, dailyUploadUsed: true });
+      },
+
+      // Daily word goal
+      dailyWordGoal: 100,
+      setDailyWordGoal: (v) => set({ dailyWordGoal: v }),
+      dailyWordsToday: 0,
+      addDailyWordsRead: (count) =>
+        set((s) => ({ dailyWordsToday: s.dailyWordsToday + count })),
+      lastDailyResetDate: null,
+
       // Computed helper
       trialDaysRemaining: () => {
         const state = get();
@@ -517,11 +566,17 @@ export const useSettingsStore = create<SettingsState>()(
         hasShownThirdReadingNudge: false,
         trialStartDate: null,
         trialActive: false,
+        selectedCategoryKey: null,
+        dailyUploadDate: null,
+        dailyUploadUsed: false,
+        dailyWordGoal: 100,
+        dailyWordsToday: 0,
+        lastDailyResetDate: null,
       }),
     }),
     {
       name: 'articulate-settings',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -532,6 +587,15 @@ export const useSettingsStore = create<SettingsState>()(
           if (persisted.savedPremiumSettings?.fontFamily === 'newYork') {
             persisted.savedPremiumSettings.fontFamily = 'sourceSerif';
           }
+        }
+        if (version < 2) {
+          // v2: add daily upload limit, daily word goal, formSheet workaround fields
+          persisted.selectedCategoryKey = persisted.selectedCategoryKey ?? null;
+          persisted.dailyUploadDate = persisted.dailyUploadDate ?? null;
+          persisted.dailyUploadUsed = persisted.dailyUploadUsed ?? false;
+          persisted.dailyWordGoal = persisted.dailyWordGoal ?? 100;
+          persisted.dailyWordsToday = persisted.dailyWordsToday ?? 0;
+          persisted.lastDailyResetDate = persisted.lastDailyResetDate ?? null;
         }
         return persisted;
       },

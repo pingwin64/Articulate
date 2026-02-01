@@ -53,6 +53,13 @@
           "icon": "./assets/icon.png",
           "color": "#000000"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Articulate to access your photos to scan text from images.",
+          "cameraPermission": "Allow Articulate to use your camera to scan text from photos."
+        }
       ]
     ]
   }

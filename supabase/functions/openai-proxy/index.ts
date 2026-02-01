@@ -23,6 +23,9 @@ Rules:
 const PDF_PROMPT =
   "Extract all readable text from this PDF. Return ONLY plain text paragraphs. No markdown, no commentary.";
 
+const SCAN_IMAGE_PROMPT =
+  "Extract all readable text from this image. Return ONLY the text as plain paragraphs. No markdown, no headers, no commentary. If no text is visible, respond with exactly: NO_TEXT_FOUND";
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -53,6 +56,10 @@ Deno.serve(async (req: Request) => {
 
     if (action === "parse-pdf") {
       return await handleParsePDF(body.fileData, body.model);
+    }
+
+    if (action === "scan-image") {
+      return await handleScanImage(body.imageData);
     }
 
     return json({ error: "Unknown action" }, 400);
@@ -155,6 +162,62 @@ async function handleParsePDF(fileData: string, model: string) {
 
   const data = await response.json();
   const text = data.choices?.[0]?.message?.content ?? "";
+  return json({ text });
+}
+
+async function handleScanImage(imageData: string) {
+  if (!imageData) {
+    return json({ error: "No image data provided" }, 400);
+  }
+
+  // Ensure proper data URI format
+  const imageUrl = imageData.startsWith("data:")
+    ? imageData
+    : `data:image/jpeg;base64,${imageData}`;
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      temperature: 0,
+      max_tokens: 4000,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: {
+                url: imageUrl,
+                detail: "high",
+              },
+            },
+            { type: "text", text: SCAN_IMAGE_PROMPT },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    return json(
+      { error: err?.error?.message ?? `OpenAI error: ${response.status}` },
+      response.status === 429 ? 429 : 502
+    );
+  }
+
+  const data = await response.json();
+  const text = (data.choices?.[0]?.message?.content ?? "").trim();
+
+  if (!text || text === "NO_TEXT_FOUND") {
+    return json({ error: "No readable text found in this image" }, 422);
+  }
+
   return json({ text });
 }
 

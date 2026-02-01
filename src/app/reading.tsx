@@ -257,7 +257,7 @@ export default function ReadingScreen() {
         />
         <Stack.Toolbar.Spacer />
         <Stack.Toolbar.Button
-          icon="gearshape"
+          icon="person.circle"
           onPress={() => router.push('/settings')}
         />
       </Stack.Toolbar>

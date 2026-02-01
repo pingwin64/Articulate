@@ -3,6 +3,7 @@ import { StyleSheet, View, Text, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useTheme } from '../hooks/useTheme';
+import { useSettingsStore } from '../lib/store/settings';
 import { categories } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { Feather } from '@expo/vector-icons';
@@ -11,12 +12,19 @@ import { Spacing } from '../design/theme';
 export default function TextSelectScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { categoryKey } = useLocalSearchParams<{ categoryKey: string }>();
+  const params = useLocalSearchParams<{ categoryKey: string }>();
+  const selectedCategoryKey = useSettingsStore((s) => s.selectedCategoryKey);
+  const setSelectedCategoryKey = useSettingsStore((s) => s.setSelectedCategoryKey);
+
+  // FormSheet workaround: params may be empty, fall back to store
+  const categoryKey = params.categoryKey || selectedCategoryKey || undefined;
 
   const category = categories.find((c) => c.key === categoryKey);
 
   const handleTextSelect = (textId: string) => {
     if (category) {
+      // Clear the store value after use
+      setSelectedCategoryKey(null);
       router.dismiss();
       // Use setTimeout to ensure the dismiss completes before pushing
       setTimeout(() => {

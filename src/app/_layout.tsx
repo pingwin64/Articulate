@@ -102,7 +102,7 @@ export default function RootLayout() {
             options={{
               animation: 'slide_from_right',
               headerShown: true,
-              title: 'Settings',
+              title: 'Profile',
               headerLargeTitle: true,
               headerStyle: { backgroundColor: colors.bg },
               headerTintColor: colors.primary,

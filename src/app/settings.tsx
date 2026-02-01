@@ -8,6 +8,14 @@ import {
   Alert,
   Linking,
 } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useShallow } from 'zustand/react/shallow';
@@ -134,6 +142,53 @@ function GradientOrb() {
         style={[styles.orb, { borderColor: glass.border }]}
       />
     </View>
+  );
+}
+
+function SettingsUpgradeCTA({ onPress }: { onPress: () => void }) {
+  const { colors, glass, isDark } = useTheme();
+  const reduceMotion = useSettingsStore((s) => s.reduceMotion);
+  const shimmerOpacity = useSharedValue(0.4);
+
+  React.useEffect(() => {
+    if (reduceMotion) return;
+    shimmerOpacity.value = withRepeat(
+      withSequence(
+        withTiming(0.7, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.4, { duration: 2500, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, [reduceMotion, shimmerOpacity]);
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    opacity: shimmerOpacity.value,
+  }));
+
+  return (
+    <Pressable onPress={onPress}>
+      <View style={[
+        styles.upgradeCTACard,
+        { backgroundColor: glass.fill, borderColor: glass.border },
+      ]}>
+        <Animated.View style={[
+          styles.upgradeCTAAccentLine,
+          { backgroundColor: colors.primary },
+          shimmerStyle,
+        ]} />
+        <View style={styles.upgradeCTAContent}>
+          <Feather name="zap" size={24} color={colors.primary} />
+          <Text style={[styles.upgradeCTATitle, { color: colors.primary }]}>
+            Read Your Way
+          </Text>
+          <Text style={[styles.upgradeCTASubtitle, { color: colors.secondary }]}>
+            Unlock all fonts, colors, themes, and more
+          </Text>
+          <Feather name="arrow-right" size={18} color={colors.muted} style={{ marginTop: 8 }} />
+        </View>
+      </View>
+    </Pressable>
   );
 }
 
@@ -340,15 +395,13 @@ export default function SettingsScreen() {
               {formatNumber(totalWordsRead)} words{currentStreak > 0 ? ` \u00B7 ${currentStreak} day streak` : ''}
             </Text>
             {!isPremium ? (
-              <Pressable
-                onPress={() => setPaywallContext('settings_upgrade')}
+              <View
                 style={[styles.upgradeBadge, { backgroundColor: membershipBadgeBg, borderColor: membershipBadgeColor + '40' }]}
               >
                 <Text style={[styles.membershipBadgeText, { color: membershipBadgeColor }]}>
                   {membershipLabel}
                 </Text>
-                <Feather name="chevron-right" size={12} color={membershipBadgeColor} />
-              </Pressable>
+              </View>
             ) : (
               <View style={[styles.proBadgeTop, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' }]}>
                 <Feather name="award" size={12} color={colors.primary} />
@@ -357,10 +410,14 @@ export default function SettingsScreen() {
             )}
           </View>
 
-          {/* Hero: Live Word Preview */}
-          <GlassCard>
-            <WordPreview />
-          </GlassCard>
+          {/* Hero: Live Word Preview or Upgrade CTA */}
+          {isPremium || trialActive ? (
+            <GlassCard>
+              <WordPreview />
+            </GlassCard>
+          ) : (
+            <SettingsUpgradeCTA onPress={() => setPaywallContext('settings_upgrade')} />
+          )}
 
           {/* Section 1: Appearance */}
           <SectionHeader title="Appearance" icon="eye" />
@@ -943,5 +1000,32 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     fontVariant: ['tabular-nums'],
+  },
+  // Upgrade CTA card
+  upgradeCTACard: {
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    borderWidth: 0.5,
+    overflow: 'hidden',
+  },
+  upgradeCTAAccentLine: {
+    height: 1,
+  },
+  upgradeCTAContent: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    gap: 6,
+  },
+  upgradeCTATitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+    marginTop: 4,
+  },
+  upgradeCTASubtitle: {
+    fontSize: 14,
+    fontWeight: '400',
+    textAlign: 'center',
   },
 });

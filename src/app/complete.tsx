@@ -54,6 +54,8 @@ export default function CompleteScreen() {
     setHasShownThirdReadingNudge,
     unlockAchievement,
     unlockedAchievements,
+    addDailyWordsRead,
+    resetDailyUploadIfNewDay,
   } = useSettingsStore();
 
   const { customTexts } = useSettingsStore();
@@ -94,7 +96,9 @@ export default function CompleteScreen() {
     didRun.current = true;
 
     // Record stats
+    resetDailyUploadIfNewDay(); // ensure daily counters are fresh
     incrementWordsRead(wordsRead);
+    addDailyWordsRead(wordsRead);
     incrementTextsCompleted();
     updateStreak();
 
@@ -157,7 +161,7 @@ export default function CompleteScreen() {
       clearTimeout(t3);
       clearTimeout(t4);
     };
-  }, [wordsRead, incrementWordsRead, incrementTextsCompleted, updateStreak, hapticFeedback, checkScale, checkOpacity, ctaOpacity, paywallOpacity, hasOnboarded]);
+  }, [wordsRead, incrementWordsRead, addDailyWordsRead, resetDailyUploadIfNewDay, incrementTextsCompleted, updateStreak, hapticFeedback, checkScale, checkOpacity, ctaOpacity, paywallOpacity, hasOnboarded]);
 
   const checkAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: checkScale.value }],
@@ -374,6 +378,25 @@ export default function CompleteScreen() {
                 </Pressable>
               </Animated.View>
             )}
+
+            {/* Tomorrow's preview — Commitment & Consistency */}
+            {!isFirstReading && (() => {
+              // Find next text in the same category
+              if (category && params.textId) {
+                const currentIdx = category.texts.findIndex((t) => t.id === params.textId);
+                const nextText = category.texts[currentIdx + 1];
+                if (nextText) {
+                  return (
+                    <Animated.View entering={FadeIn.delay(1900).duration(300)}>
+                      <Text style={[styles.tomorrowPreview, { color: colors.muted }]}>
+                        Tomorrow: continue your streak with "{nextText.title}"
+                      </Text>
+                    </Animated.View>
+                  );
+                }
+              }
+              return null;
+            })()}
           </View>
         </ScrollView>
 
@@ -558,5 +581,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  tomorrowPreview: {
+    fontSize: 13,
+    fontWeight: '400',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 8,
   },
 });

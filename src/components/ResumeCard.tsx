@@ -30,6 +30,8 @@ export const ResumeCard = forwardRef<View, ResumeCardProps>(function ResumeCard(
     : undefined;
   const displayName = customText?.title ?? category?.name ?? 'Reading';
   const displayIcon = customText ? 'clipboard' : category?.icon;
+  const wordsRemaining = data.totalWords - data.wordIndex;
+  const isAlmostDone = wordsRemaining <= 50;
 
   useEffect(() => {
     translateY.value = withDelay(100, withSpring(0, { damping: 15, stiffness: 120 }));
@@ -56,8 +58,10 @@ export const ResumeCard = forwardRef<View, ResumeCardProps>(function ResumeCard(
           <Text style={[styles.progress, { color: colors.secondary }]}>
             Word {data.wordIndex + 1} of {data.totalWords}
           </Text>
-          <Text style={[styles.cta, { color: colors.muted }]}>
-            Pick up where you left off
+          <Text style={[styles.cta, { color: isAlmostDone ? colors.secondary : colors.muted }]}>
+            {isAlmostDone
+              ? `Almost done — just ${wordsRemaining} ${wordsRemaining === 1 ? 'word' : 'words'} left`
+              : `${wordsRemaining} ${wordsRemaining === 1 ? 'word' : 'words'} to go`}
           </Text>
           <View style={styles.progressBar}>
             <View

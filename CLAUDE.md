@@ -95,7 +95,7 @@ The store uses `zustand/middleware` persist with versioned migrations:
 ```typescript
 {
   name: 'articulate-settings',
-  version: 1,  // increment when schema changes
+  version: 2,  // increment when schema changes
   storage: createJSONStorage(() => mmkvStorage),
   migrate: (persisted: any, version: number) => {
     if (version === 0) {
@@ -130,16 +130,37 @@ The "Take Quiz" button on the complete screen is **always visible** for all user
 
 It does NOT have an `icon` prop. To show a lock or icon indicator, embed it in the title string (e.g., `"Take Quiz  \u{1F512}"`).
 
+### 8. FormSheet Parameter Workaround
+
+When navigating to a formSheet screen, ALWAYS store the key parameters in the Zustand store before calling `router.push()`. Read from store as fallback in the target screen. Clear after use. This prevents the blank screen issue where route params don't propagate to formSheets.
+
+```tsx
+// Before navigation:
+setSelectedCategoryKey(categoryKey);
+router.push({ pathname: '/text-select', params: { categoryKey } });
+
+// In target screen:
+const params = useLocalSearchParams();
+const selectedCategoryKey = useSettingsStore((s) => s.selectedCategoryKey);
+const categoryKey = params.categoryKey || selectedCategoryKey || undefined;
+// Clear after use:
+setSelectedCategoryKey(null);
+```
+
+### 9. Daily Limits & Gating
+
+Free users: 1 custom text upload per day, 3 core categories, default styling. Daily upload resets at midnight local time. Track via `dailyUploadDate` in store. Daily word goal tracked via `dailyWordGoal` / `dailyWordsToday`.
+
 ## Navigation
 
 - **index** — Home (onboarding for new users)
 - **reading** — Main reading screen (`headerShown: true`, transparent header, `Stack.Toolbar` at bottom)
 - **complete** — Post-reading celebration
-- **settings** — `slide_from_right`, large title header
+- **profile** — Route is `settings.tsx`, display title is "Profile". `slide_from_right`, large title, icon is `user` (Feather) / `person.circle` (SF Symbol)
 - **text-select** — `formSheet`, grabber visible, detents `[0.5, 1.0]`
 - **paywall** — `formSheet`, detents `[0.75, 1.0]`
 - **quiz** — Comprehension quiz
-- **paste** — Custom text input
+- **paste** — Custom text input (renamed header: "Your Text")
 
 ## Animation Conventions
 
@@ -160,8 +181,8 @@ It does NOT have an `icon` prop. To show a lock or icon indicator, embed it in t
 
 ## Premium / Free Boundaries
 
-**Free features:** sourceSerif font, default color, default background, 3 core categories (story, article, speech), 1 custom text
-**Premium features:** all fonts, all colors, all backgrounds, all categories, unlimited custom texts, TTS, auto-play, chunk reading, breathing animation, quizzes
+**Free features:** sourceSerif font, default color, default background, 3 core categories (story, article, speech), 1 custom text upload per day, daily word goal tracking
+**Premium features:** all fonts, all colors, all backgrounds, all categories, unlimited custom texts, TTS, auto-play, chunk reading, breathing animation, quizzes, scan text (unlimited)
 
 When gating a feature for free users:
 - Show the control/button but trigger `setPaywallContext('locked_*')` on interaction

@@ -26,7 +26,7 @@ export function WordPreview() {
           },
         ]}
       >
-        serenity
+        articulate
       </Text>
     </View>
   );

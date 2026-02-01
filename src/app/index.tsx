@@ -4,6 +4,7 @@ import {
   View,
   Text,
   ScrollView,
+  FlatList,
   Pressable,
   useWindowDimensions,
   Alert,
@@ -556,7 +557,158 @@ function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, 
   );
 }
 
-// ─── Step 3: Your First Reading (Launch) ─────────────────────
+// ─── Step 3: Daily Goal ──────────────────────────────────────
+
+const GOAL_OPTIONS = [50, 100, 150, 200, 300, 500];
+const GOAL_LABELS: Record<number, string> = {
+  50: 'A gentle start',
+  100: 'Build a daily habit',
+  150: 'Steady progress',
+  200: 'Ambitious reader',
+  300: 'Dedicated learner',
+  500: 'Power reader',
+};
+const GOAL_TIME: Record<number, string> = {
+  50: '~5 min/day',
+  100: '~10 min/day',
+  150: '~15 min/day',
+  200: '~20 min/day',
+  300: '~30 min/day',
+  500: '~50 min/day',
+};
+
+const ITEM_HEIGHT = 56;
+
+function OnboardingDailyGoal({ onNext }: { onNext: (goal: number) => void }) {
+  const { colors, glass, isDark } = useTheme();
+  const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
+
+  // Default to 100 (index 1)
+  const [selectedIndex, setSelectedIndex] = useState(1);
+  const selectedGoal = GOAL_OPTIONS[selectedIndex];
+  const flatListRef = React.useRef<FlatList>(null);
+  const lastSnappedIndex = React.useRef(1);
+
+  // Pad data so the first/last items can scroll to center
+  const paddedData = React.useMemo(() => [
+    { key: 'pad-top', value: 0 },
+    ...GOAL_OPTIONS.map((v) => ({ key: String(v), value: v })),
+    { key: 'pad-bottom', value: 0 },
+  ], []);
+
+  const handleScroll = React.useCallback((event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const index = Math.round(offsetY / ITEM_HEIGHT);
+    const clamped = Math.max(0, Math.min(index, GOAL_OPTIONS.length - 1));
+    if (clamped !== lastSnappedIndex.current) {
+      lastSnappedIndex.current = clamped;
+      setSelectedIndex(clamped);
+      if (hapticEnabled) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    }
+  }, [hapticEnabled]);
+
+  // Scroll to default on mount
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      flatListRef.current?.scrollToOffset({ offset: 1 * ITEM_HEIGHT, animated: false });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const renderItem = React.useCallback(({ item, index }: { item: { key: string; value: number }; index: number }) => {
+    if (item.value === 0) {
+      return <View style={{ height: ITEM_HEIGHT }} />;
+    }
+    const dataIndex = index - 1; // account for top padding
+    const isSelected = dataIndex === selectedIndex;
+    return (
+      <View style={[styles.goalItem, { height: ITEM_HEIGHT }]}>
+        <Text style={[
+          styles.goalItemText,
+          {
+            color: isSelected ? colors.primary : colors.muted,
+            fontSize: isSelected ? 48 : 24,
+            fontWeight: isSelected ? '700' : '400',
+            opacity: isSelected ? 1 : 0.3,
+          },
+        ]}>
+          {item.value}
+        </Text>
+      </View>
+    );
+  }, [selectedIndex, colors.primary, colors.muted]);
+
+  return (
+    <View style={styles.onboardingPage}>
+      <View style={styles.onboardingCenter}>
+        <Animated.Text
+          entering={FadeIn.duration(400)}
+          style={[styles.personalizeTitle, { color: colors.primary }]}
+        >
+          Set your daily goal.
+        </Animated.Text>
+        <Animated.Text
+          entering={FadeIn.delay(100).duration(400)}
+          style={[styles.goalSubtitle, { color: colors.secondary }]}
+        >
+          How many words do you want to read each day?
+        </Animated.Text>
+
+        {/* Wheel picker */}
+        <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.goalWheelContainer}>
+          {/* Center highlight band */}
+          <View style={[
+            styles.goalHighlightBand,
+            {
+              backgroundColor: glass.fill,
+              borderTopColor: glass.border,
+              borderBottomColor: glass.border,
+            },
+          ]} />
+          <FlatList
+            ref={flatListRef}
+            data={paddedData}
+            keyExtractor={(item) => item.key}
+            renderItem={renderItem}
+            showsVerticalScrollIndicator={false}
+            snapToInterval={ITEM_HEIGHT}
+            decelerationRate="fast"
+            onMomentumScrollEnd={handleScroll}
+            getItemLayout={(_, index) => ({
+              length: ITEM_HEIGHT,
+              offset: ITEM_HEIGHT * index,
+              index,
+            })}
+            style={{ height: ITEM_HEIGHT * 3 }}
+          />
+        </Animated.View>
+
+        {/* Time estimate */}
+        <Animated.Text
+          entering={FadeIn.delay(300).duration(400)}
+          style={[styles.goalTimeLabel, { color: colors.muted }]}
+        >
+          {GOAL_TIME[selectedGoal]}
+        </Animated.Text>
+
+        {/* Contextual description */}
+        <Animated.Text
+          entering={FadeIn.delay(350).duration(400)}
+          style={[styles.goalDescription, { color: colors.secondary }]}
+        >
+          {GOAL_LABELS[selectedGoal]}
+        </Animated.Text>
+      </View>
+      <View style={styles.onboardingBottom}>
+        <GlassButton title="Continue" onPress={() => onNext(selectedGoal)} />
+      </View>
+    </View>
+  );
+}
+
+// ─── Step 4: Your First Reading (Launch) ─────────────────────
 
 function OnboardingLaunch({ onNext }: { onNext: (categoryKey: string) => void }) {
   const { colors } = useTheme();
@@ -604,7 +756,7 @@ function OnboardingLaunch({ onNext }: { onNext: (categoryKey: string) => void })
 function Onboarding() {
   const [page, setPage] = useState(0);
   const router = useRouter();
-  const { setReadingLevel } = useSettingsStore();
+  const { setReadingLevel, setDailyWordGoal } = useSettingsStore();
 
   const handleSilentStartDone = useCallback(() => {
     setPage(1);
@@ -613,6 +765,11 @@ function Onboarding() {
   const handlePersonalizeDone = useCallback(() => {
     setPage(2);
   }, []);
+
+  const handleGoalSet = useCallback((goal: number) => {
+    setDailyWordGoal(goal);
+    setPage(3);
+  }, [setDailyWordGoal]);
 
   const handleLaunch = useCallback((categoryKey: string) => {
     setReadingLevel('intermediate');
@@ -627,8 +784,9 @@ function Onboarding() {
     <SafeAreaView style={styles.flex}>
       {page === 0 && <OnboardingSilentStart onNext={handleSilentStartDone} />}
       {page === 1 && <OnboardingPersonalize onNext={handlePersonalizeDone} />}
-      {page === 2 && <OnboardingLaunch onNext={handleLaunch} />}
-      <PageDots total={3} current={page} />
+      {page === 2 && <OnboardingDailyGoal onNext={handleGoalSet} />}
+      {page === 3 && <OnboardingLaunch onNext={handleLaunch} />}
+      <PageDots total={4} current={page} />
     </SafeAreaView>
   );
 }
@@ -662,10 +820,32 @@ function Home() {
     savedPremiumSettingsExpiry,
     totalWordsRead,
     textsCompleted,
+    reduceMotion,
+    dailyWordGoal,
+    dailyWordsToday,
+    resetDailyUploadIfNewDay,
   } = useSettingsStore();
 
   const [moreExpanded, setMoreExpanded] = useState(false);
   const chevronRotation = useSharedValue(0);
+
+  // Breathing border animation for "Your Text" hero card
+  const heroBorderOpacity = useSharedValue(0.25);
+  useEffect(() => {
+    if (reduceMotion) return;
+    heroBorderOpacity.value = withRepeat(
+      withSequence(
+        withTiming(0.4, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.25, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, [reduceMotion, heroBorderOpacity]);
+
+  const heroBorderStyle = useAnimatedStyle(() => ({
+    borderColor: `rgba(${isDark ? '255,255,255' : '0,0,0'}, ${heroBorderOpacity.value})`,
+  }));
 
   const toggleMore = useCallback(() => {
     setMoreExpanded((prev) => {
@@ -734,6 +914,11 @@ function Home() {
     checkTrialExpired();
   }, [checkTrialExpired]);
 
+  // Reset daily counters if new day
+  useEffect(() => {
+    resetDailyUploadIfNewDay();
+  }, [resetDailyUploadIfNewDay]);
+
   // Streak "at risk" detection — warn at 20h (4-hour buffer before streak resets at 48h)
   const isStreakAtRisk = currentStreak > 0 && lastReadDate !== null && (() => {
     const now = Date.now();
@@ -744,6 +929,8 @@ function Home() {
     return elapsed >= HOURS_20;
   })();
 
+  const setSelectedCategoryKey = useSettingsStore((s) => s.setSelectedCategoryKey);
+
   const handleCategoryPress = (categoryKey: string) => {
     if (!isPremium && !FREE_CATEGORIES.includes(categoryKey)) {
       setPaywallContext('locked_category');
@@ -751,6 +938,8 @@ function Home() {
     }
     const cat = categories.find((c) => c.key === categoryKey);
     if (cat && cat.texts.length > 1) {
+      // FormSheet workaround: store categoryKey before navigation
+      setSelectedCategoryKey(categoryKey);
       router.push({
         pathname: '/text-select',
         params: { categoryKey },
@@ -800,8 +989,8 @@ function Home() {
               </Pressable>
             </>
           )}
-          <Pressable onPress={() => router.push('/settings')} style={styles.headerButton} accessibilityLabel="Open settings" accessibilityRole="button">
-            <Feather name="settings" size={20} color={colors.primary} />
+          <Pressable onPress={() => router.push('/settings')} style={styles.headerButton} accessibilityLabel="Open profile" accessibilityRole="button">
+            <Feather name="user" size={20} color={colors.primary} />
           </Pressable>
         </View>
       </View>
@@ -852,9 +1041,61 @@ function Home() {
               </View>
             </View>
           </GlassCard>
+          {/* Daily word goal progress */}
+          {dailyWordGoal > 0 && (
+            <View style={styles.dailyGoalRow}>
+              <View style={[styles.dailyGoalBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+                <View style={[
+                  styles.dailyGoalFill,
+                  {
+                    backgroundColor: colors.primary,
+                    width: `${Math.min(100, (dailyWordsToday / dailyWordGoal) * 100)}%`,
+                  },
+                ]} />
+              </View>
+              <Text style={[styles.dailyGoalText, { color: dailyWordsToday >= dailyWordGoal ? colors.secondary : colors.muted }]}>
+                {dailyWordsToday >= dailyWordGoal
+                  ? 'Daily goal reached'
+                  : `${dailyWordsToday} / ${dailyWordGoal} words today`}
+              </Text>
+            </View>
+          )}
         </Animated.View>
 
-        {/* 3. Banners */}
+        {/* 3. Your Text hero card */}
+        <Animated.View entering={FadeIn.delay(150).duration(400)} style={styles.bannerSection}>
+          <Pressable onPress={() => router.push('/paste')}>
+            <Animated.View style={[styles.heroCard, { backgroundColor: glass.fill }, heroBorderStyle]}>
+              <View
+                style={[
+                  styles.heroCardIcon,
+                  {
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                    borderColor: glass.border,
+                  },
+                ]}
+              >
+                <Feather name="edit-3" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.heroCardText}>
+                <Text style={[styles.heroCardTitle, { color: colors.primary }]}>
+                  Your Text
+                </Text>
+                <Text style={[styles.heroCardSubtitle, { color: colors.secondary }]}>
+                  Paste, scan, or import any text
+                </Text>
+                {customTexts.length > 0 && (
+                  <Text style={[styles.heroCardMeta, { color: colors.muted }]}>
+                    {customTexts.length} saved {customTexts.length === 1 ? 'text' : 'texts'}
+                  </Text>
+                )}
+              </View>
+              <Feather name="chevron-right" size={18} color={colors.muted} />
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
+
+        {/* 4. Banners */}
         {/* Trial countdown banner (active trial) */}
         {showTrialCountdown && (
           <Animated.View entering={FadeIn.duration(400)} style={styles.bannerSection}>
@@ -893,11 +1134,11 @@ function Home() {
           </Animated.View>
         )}
 
-        {/* Streak at risk warning */}
+        {/* Streak at risk warning — Loss Aversion framing */}
         {isStreakAtRisk && (
           <Animated.View entering={FadeIn.duration(400)} style={styles.bannerSection}>
             <Text style={[styles.streakHint, { color: colors.secondary }]}>
-              Don't break your {currentStreak}-day streak — read a text today.
+              Your {currentStreak}-day streak expires tonight
             </Text>
           </Animated.View>
         )}
@@ -924,33 +1165,7 @@ function Home() {
           </View>
         )}
 
-        {/* 5. Paste Text card */}
-        <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.bannerSection}>
-          <GlassCard onPress={() => router.push('/paste')} accentBorder>
-            <View style={styles.pasteCard}>
-              <View
-                style={[
-                  styles.pasteCardIcon,
-                  {
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                    borderColor: glass.border,
-                  },
-                ]}
-              >
-                <Feather name="clipboard" size={20} color={colors.primary} />
-              </View>
-              <View style={styles.pasteCardText}>
-                <Text style={[styles.pasteCardTitle, { color: colors.primary }]}>
-                  Paste Text
-                </Text>
-                <Text style={[styles.pasteCardSubtitle, { color: colors.secondary }]}>
-                  Read any article, passage, or notes
-                </Text>
-              </View>
-              <Feather name="chevron-right" size={18} color={colors.muted} />
-            </View>
-          </GlassCard>
-        </Animated.View>
+        {/* (Your Text card moved above banners) */}
 
         {/* 6. My Texts section */}
         {customTexts.length > 0 && (
@@ -1226,6 +1441,47 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderCurve: 'continuous',
   },
+  // Daily Goal wheel picker
+  goalSubtitle: {
+    fontSize: 16,
+    fontWeight: '400',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  goalWheelContainer: {
+    height: 56 * 3,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  goalHighlightBand: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 56,
+    height: 56,
+    borderTopWidth: 0.5,
+    borderBottomWidth: 0.5,
+    borderRadius: 12,
+  },
+  goalItem: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  goalItemText: {
+    textAlign: 'center',
+  },
+  goalTimeLabel: {
+    fontSize: 14,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  goalDescription: {
+    fontSize: 15,
+    fontWeight: '500',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
   // Selectable Category Card (Luminous Selection)
   selectableCard: {
     borderRadius: 16,
@@ -1336,6 +1592,25 @@ const styles = StyleSheet.create({
     width: 0.5,
     height: 32,
   },
+  // Daily goal progress
+  dailyGoalRow: {
+    marginTop: 10,
+    gap: 4,
+  },
+  dailyGoalBar: {
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  dailyGoalFill: {
+    height: 4,
+    borderRadius: 2,
+  },
+  dailyGoalText: {
+    fontSize: 11,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
   // More to explore
   moreSection: {
     marginTop: Spacing.md,
@@ -1375,32 +1650,41 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     textAlign: 'center',
   },
-  // Paste card
-  pasteCard: {
+  // Hero "Your Text" card
+  heroCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
+    padding: 16,
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    borderWidth: 1,
   },
-  pasteCardIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+  heroCardIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
     borderCurve: 'continuous',
     borderWidth: 0.5,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  pasteCardText: {
+  heroCardText: {
     flex: 1,
     gap: 2,
   },
-  pasteCardTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+  heroCardTitle: {
+    fontSize: 17,
+    fontWeight: '700',
   },
-  pasteCardSubtitle: {
+  heroCardSubtitle: {
     fontSize: 13,
     fontWeight: '400',
+  },
+  heroCardMeta: {
+    fontSize: 12,
+    fontWeight: '400',
+    marginTop: 2,
   },
   // Custom texts
   sectionTitle: {

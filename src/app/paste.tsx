@@ -22,8 +22,10 @@ import { useSettingsStore } from '../lib/store/settings';
 import { GlassButton } from '../components/GlassButton';
 import { Paywall } from '../components/Paywall';
 import { Spacing } from '../design/theme';
+import * as ImagePicker from 'expo-image-picker';
 import { extractArticle } from '../lib/extractArticle';
 import { parseFile } from '../lib/parseFile';
+import { scanTextFromImage } from '../lib/scanText';
 
 const URL_REGEX = /^https?:\/\/[^\s]+$/;
 
@@ -31,11 +33,20 @@ export default function PasteScreen() {
   const { colors, glass, isDark } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ editTextId?: string }>();
-  const { addCustomText, hapticFeedback, isPremium, customTexts, updateCustomText, setPaywallContext, showPaywall, paywallContext } = useSettingsStore();
+  const {
+    addCustomText, hapticFeedback, isPremium, customTexts, updateCustomText,
+    setPaywallContext, showPaywall, paywallContext,
+    dailyUploadUsed, resetDailyUploadIfNewDay, useDailyUpload,
+  } = useSettingsStore();
 
   const editingText = params.editTextId
     ? customTexts.find((t) => t.id === params.editTextId)
     : undefined;
+
+  // Reset daily upload if new day
+  React.useEffect(() => {
+    resetDailyUploadIfNewDay();
+  }, [resetDailyUploadIfNewDay]);
 
   const textInputRef = useRef<TextInput>(null);
   const [title, setTitle] = useState(editingText?.title ?? '');
@@ -47,6 +58,8 @@ export default function PasteScreen() {
   const wordCount = text.trim() ? words.length : 0;
 
   const isUrl = URL_REGEX.test(text.trim());
+
+  const isDailyUploadLocked = !isPremium && !editingText && dailyUploadUsed;
 
   const handleStartReading = useCallback(() => {
     if (wordCount === 0) return;
@@ -66,6 +79,11 @@ export default function PasteScreen() {
         params: { customTextId: editingText.id },
       });
     } else {
+      // Mark daily upload as used for free users
+      if (!isPremium) {
+        useDailyUpload();
+      }
+
       const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
       const customText = {
         id,
@@ -82,7 +100,7 @@ export default function PasteScreen() {
         params: { customTextId: id },
       });
     }
-  }, [wordCount, title, text, hapticFeedback, addCustomText, updateCustomText, editingText, router]);
+  }, [wordCount, title, text, hapticFeedback, addCustomText, updateCustomText, editingText, router, isPremium, useDailyUpload]);
 
   const handleExtractUrl = useCallback(async () => {
     const url = text.trim();
@@ -167,6 +185,72 @@ export default function PasteScreen() {
     }
   }, [hapticFeedback]);
 
+  const handleScanText = useCallback(async (source: 'camera' | 'library') => {
+    try {
+      let result: ImagePicker.ImagePickerResult;
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Required', 'Camera permission is needed to scan text.');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          base64: true,
+          quality: 0.8,
+        });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Required', 'Photo library permission is needed to scan text.');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          base64: true,
+          quality: 0.8,
+        });
+      }
+
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+      const asset = result.assets[0];
+      if (!asset.base64) {
+        Alert.alert('Error', 'Could not read the image. Please try again.');
+        return;
+      }
+
+      setIsLoading(true);
+      setLoadingMessage('Scanning text...');
+
+      if (hapticFeedback) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+
+      const scanned = await scanTextFromImage(asset.base64);
+      setText(scanned.text);
+
+      // Auto-generate title from first line if title is empty
+      if (!title.trim()) {
+        const firstLine = scanned.text.split('\n').find((l) => l.trim())?.trim() ?? '';
+        if (firstLine.length > 0 && firstLine.length <= 100) {
+          setTitle(firstLine);
+        }
+      }
+    } catch (error: any) {
+      Alert.alert('Scan Failed', error.message || "Couldn't extract text from that image");
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage('');
+    }
+  }, [hapticFeedback, title]);
+
+  const handleScanPrompt = useCallback(() => {
+    Alert.alert('Scan Text', 'Choose a source', [
+      { text: 'Take Photo', onPress: () => handleScanText('camera') },
+      { text: 'Choose from Library', onPress: () => handleScanText('library') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [handleScanText]);
+
   const handleClose = () => {
     router.back();
   };
@@ -191,7 +275,7 @@ export default function PasteScreen() {
               </Text>
             </Pressable>
             <Text style={[styles.headerTitle, { color: colors.primary }]}>
-              {editingText ? 'Edit Text' : 'Paste Text'}
+              {editingText ? 'Edit Text' : 'Your Text'}
             </Text>
             <View style={styles.headerButton} />
           </View>
@@ -227,8 +311,34 @@ export default function PasteScreen() {
               </Pressable>
             </Animated.View>
 
-            {/* Title field */}
+            {/* Scan Text Card */}
             <Animated.View entering={FadeIn.delay(100).duration(300)}>
+              <Pressable
+                onPress={handleScanPrompt}
+                disabled={isLoading}
+                style={[
+                  styles.importCard,
+                  {
+                    backgroundColor: glass.fill,
+                    borderColor: glass.border,
+                  },
+                ]}
+              >
+                <Feather name="camera" size={20} color={colors.primary} />
+                <View style={styles.importCardText}>
+                  <Text style={[styles.importCardTitle, { color: colors.primary }]}>
+                    Scan Text
+                  </Text>
+                  <Text style={[styles.importCardSubtitle, { color: colors.muted }]}>
+                    Camera or photo library
+                  </Text>
+                </View>
+                <Feather name="image" size={18} color={colors.muted} />
+              </Pressable>
+            </Animated.View>
+
+            {/* Title field */}
+            <Animated.View entering={FadeIn.delay(150).duration(300)}>
               <Text style={[styles.label, { color: colors.secondary }]}>
                 Title (optional)
               </Text>
@@ -252,7 +362,7 @@ export default function PasteScreen() {
             </Animated.View>
 
             {/* Text input */}
-            <Animated.View entering={FadeIn.delay(200).duration(300)} style={styles.textInputContainer}>
+            <Animated.View entering={FadeIn.delay(250).duration(300)} style={styles.textInputContainer}>
               <Text style={[styles.label, { color: colors.secondary }]}>
                 Paste your text or URL
               </Text>
@@ -310,7 +420,7 @@ export default function PasteScreen() {
 
             {/* Word count */}
             {!isUrl && (
-              <Animated.View entering={FadeIn.delay(300).duration(300)} style={styles.statsRow}>
+              <Animated.View entering={FadeIn.delay(350).duration(300)} style={styles.statsRow}>
                 <View style={styles.wordCountBadge}>
                   <Feather name="type" size={14} color={colors.secondary} />
                   <Text style={[styles.wordCount, { color: colors.secondary }]}>
@@ -341,12 +451,34 @@ export default function PasteScreen() {
           </ScrollView>
 
           {/* CTA */}
-          <Animated.View entering={FadeIn.delay(400).duration(300)} style={styles.ctaContainer}>
-            <GlassButton
-              title="Start Reading"
-              onPress={handleStartReading}
-              disabled={wordCount === 0 || isUrl || isLoading}
-            />
+          <Animated.View entering={FadeIn.delay(450).duration(300)} style={styles.ctaContainer}>
+            {isDailyUploadLocked ? (
+              <View style={styles.lockedUploadSection}>
+                <Text style={[styles.lockedUploadTitle, { color: colors.primary }]}>
+                  You've used today's upload
+                </Text>
+                <Text style={[styles.lockedUploadSubtitle, { color: colors.muted }]}>
+                  Upgrade to Pro for unlimited uploads
+                </Text>
+                <GlassButton
+                  title="Unlock Unlimited Uploads"
+                  onPress={() => setPaywallContext('locked_daily_upload')}
+                />
+              </View>
+            ) : (
+              <>
+                {!isPremium && !editingText && (
+                  <Text style={[styles.dailyLimitHint, { color: colors.muted }]}>
+                    1 free upload per day
+                  </Text>
+                )}
+                <GlassButton
+                  title="Start Reading"
+                  onPress={handleStartReading}
+                  disabled={wordCount === 0 || isUrl || isLoading}
+                />
+              </>
+            )}
           </Animated.View>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -515,5 +647,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.lg,
     paddingTop: Spacing.sm,
+  },
+  lockedUploadSection: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  lockedUploadTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  lockedUploadSubtitle: {
+    fontSize: 13,
+    fontWeight: '400',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  dailyLimitHint: {
+    fontSize: 12,
+    fontWeight: '400',
+    textAlign: 'center',
+    marginBottom: 4,
   },
 });

@@ -132,7 +132,36 @@ function getContextualCopy(context: PaywallContext | null): ContextualCopy {
         subheadline: 'Your fonts, colors, and settings are saved. Unlock them again.',
         featureOrder: [1, 0, 2, 3, 4, 5],
       };
+    case 'locked_daily_upload':
+      return {
+        headline: 'Upload unlimited texts',
+        subheadline: 'Read anything you want, every day — no limits.',
+        featureOrder: [0, 2, 1, 3, 4, 5],
+      };
+    case 'locked_scan':
+      return {
+        headline: 'Scan any page, anytime',
+        subheadline: 'Turn photos into readable text with unlimited scans.',
+        featureOrder: [0, 1, 2, 3, 4, 5],
+      };
+    case 'streak_save':
+      return {
+        headline: "Don't lose your streak",
+        subheadline: 'Unlock the full library so you always have something to read.',
+        featureOrder: [2, 0, 1, 3, 4, 5],
+      };
+    case 'goal_almost':
+      return {
+        headline: "You're almost there",
+        subheadline: 'Finish your daily goal faster with auto-play and the full library.',
+        featureOrder: [3, 2, 0, 1, 4, 5],
+      };
     case 'settings_upgrade':
+      return {
+        headline: 'Read your way',
+        subheadline: 'Unlock all fonts, colors, themes, and reading tools.',
+        featureOrder: [1, 0, 2, 3, 4, 5],
+      };
     case 'generic':
     default:
       return {
