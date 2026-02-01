@@ -152,9 +152,11 @@ interface PaywallProps {
   onDismiss: () => void;
   onSubscribe?: () => void;
   context?: PaywallContext | null;
+  /** When true, render content directly without wrapping in a Modal (for use inside a route) */
+  inline?: boolean;
 }
 
-export function Paywall({ visible, onDismiss, onSubscribe, context: propContext }: PaywallProps) {
+export function Paywall({ visible, onDismiss, onSubscribe, context: propContext, inline }: PaywallProps) {
   const { colors, glass, isDark } = useTheme();
   const router = useRouter();
   const {
@@ -322,13 +324,7 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext 
     return pkg?.product?.priceString ?? fallback;
   };
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={handleClose}
-    >
+  const content = (
       <View style={[styles.container, { backgroundColor: colors.bg }]}>
         <SafeAreaView style={styles.flex}>
           {/* Close */}
@@ -542,6 +538,20 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext 
           </Animated.View>
         </SafeAreaView>
       </View>
+  );
+
+  if (inline) {
+    return visible ? content : null;
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={handleClose}
+    >
+      {content}
     </Modal>
   );
 }

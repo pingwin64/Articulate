@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
@@ -8,12 +8,12 @@ import type { Category } from '../lib/data/categories';
 
 interface CategoryCardProps {
   category: Category;
-  onPress: () => void;
+  onPress?: () => void;
   locked?: boolean;
   index?: number;
 }
 
-export function CategoryCard({ category, onPress, locked, index = 0 }: CategoryCardProps) {
+export const CategoryCard = forwardRef<View, CategoryCardProps>(function CategoryCard({ category, onPress, locked, index = 0 }, ref) {
   const { colors, glass, isDark } = useTheme();
 
   const iconName = locked ? 'lock' : (category.icon as any);
@@ -21,7 +21,7 @@ export function CategoryCard({ category, onPress, locked, index = 0 }: CategoryC
   const textCount = category.texts.length;
 
   return (
-    <Animated.View entering={FadeIn.delay(index * 80).duration(400)}>
+    <Animated.View ref={ref} entering={FadeIn.delay(index * 80).duration(400)}>
       <GlassCard onPress={onPress}>
         <View style={[styles.content, locked && styles.lockedContent]}>
           <View
@@ -56,7 +56,7 @@ export function CategoryCard({ category, onPress, locked, index = 0 }: CategoryC
       </GlassCard>
     </Animated.View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   content: {

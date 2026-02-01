@@ -5,11 +5,10 @@ import {
   Text,
   ScrollView,
   Pressable,
-  Modal,
   useWindowDimensions,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
   useAnimatedStyle,
@@ -42,7 +41,6 @@ import {
   Radius,
 } from '../design/theme';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
-import type { Category, TextEntry } from '../lib/data/categories';
 
 // ─── Onboarding Constants ────────────────────────────────────
 
@@ -667,7 +665,6 @@ function Home() {
   } = useSettingsStore();
 
   const [moreExpanded, setMoreExpanded] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const chevronRotation = useSharedValue(0);
 
   const toggleMore = useCallback(() => {
@@ -754,44 +751,16 @@ function Home() {
     }
     const cat = categories.find((c) => c.key === categoryKey);
     if (cat && cat.texts.length > 1) {
-      setSelectedCategory(cat);
+      router.push({
+        pathname: '/text-select',
+        params: { categoryKey },
+      });
     } else if (cat) {
       router.push({
         pathname: '/reading',
         params: { categoryKey, textId: cat.texts[0]?.id ?? '' },
       });
     }
-  };
-
-  const handleTextSelect = (textId: string) => {
-    if (selectedCategory) {
-      router.push({
-        pathname: '/reading',
-        params: { categoryKey: selectedCategory.key, textId },
-      });
-      setSelectedCategory(null);
-    }
-  };
-
-  const handleResume = () => {
-    if (resumeData) {
-      router.push({
-        pathname: '/reading',
-        params: {
-          categoryKey: resumeData.categoryKey,
-          resumeIndex: String(resumeData.wordIndex),
-          ...(resumeData.textId ? { textId: resumeData.textId } : {}),
-          ...(resumeData.customTextId ? { customTextId: resumeData.customTextId } : {}),
-        },
-      });
-    }
-  };
-
-  const handleCustomTextPress = (id: string) => {
-    router.push({
-      pathname: '/reading',
-      params: { customTextId: id },
-    });
   };
 
   const handleCustomTextOptions = (id: string) => {
@@ -927,18 +896,31 @@ function Home() {
         {/* Streak at risk warning */}
         {isStreakAtRisk && (
           <Animated.View entering={FadeIn.duration(400)} style={styles.bannerSection}>
-            <View style={[styles.streakWarning, { backgroundColor: isDark ? 'rgba(255,149,0,0.1)' : 'rgba(255,149,0,0.08)' }]}>
-              <Text style={[styles.streakWarningText, { color: colors.warning }]}>
-                Don't break your {currentStreak}-day streak! Read a text today.
-              </Text>
-            </View>
+            <Text style={[styles.streakHint, { color: colors.secondary }]}>
+              Don't break your {currentStreak}-day streak — read a text today.
+            </Text>
           </Animated.View>
         )}
 
         {/* 4. Resume card */}
         {resumeData && (
           <View style={styles.resumeSection}>
-            <ResumeCard data={resumeData} onPress={handleResume} />
+            <Link
+              href={{
+                pathname: '/reading',
+                params: {
+                  categoryKey: resumeData.categoryKey,
+                  resumeIndex: String(resumeData.wordIndex),
+                  ...(resumeData.textId ? { textId: resumeData.textId } : {}),
+                  ...(resumeData.customTextId ? { customTextId: resumeData.customTextId } : {}),
+                },
+              }}
+              asChild
+            >
+              <Link.AppleZoom>
+                <ResumeCard data={resumeData} />
+              </Link.AppleZoom>
+            </Link>
           </View>
         )}
 
@@ -980,29 +962,43 @@ function Home() {
               <Animated.View
                 key={ct.id}
                 entering={FadeIn.delay(i * 80).duration(300)}
+                style={styles.customTextCardWrapper}
               >
-                <GlassCard onPress={() => handleCustomTextPress(ct.id)}>
-                  <View style={styles.customTextRow}>
-                    <View style={styles.customTextInfo}>
-                      <Text
-                        style={[styles.customTextTitle, { color: colors.primary }]}
-                        numberOfLines={1}
-                      >
-                        {ct.title}
-                      </Text>
-                      <Text style={[styles.customTextCount, { color: colors.muted }]}>
-                        ~{ct.wordCount} words
-                      </Text>
-                    </View>
-                    <Pressable
-                      onPress={() => handleCustomTextOptions(ct.id)}
-                      style={styles.moreButton}
-                      hitSlop={8}
-                    >
-                      <Feather name="more-vertical" size={18} color={colors.muted} />
-                    </Pressable>
-                  </View>
-                </GlassCard>
+                <Link
+                  href={{
+                    pathname: '/reading',
+                    params: { customTextId: ct.id },
+                  }}
+                  asChild
+                >
+                  <Link.AppleZoom>
+                    <GlassCard>
+                      <View style={styles.customTextRow}>
+                        <View style={styles.customTextInfo}>
+                          <Text
+                            style={[styles.customTextTitle, { color: colors.primary }]}
+                            numberOfLines={1}
+                          >
+                            {ct.title}
+                          </Text>
+                          <Text style={[styles.customTextCount, { color: colors.muted }]}>
+                            ~{ct.wordCount} words
+                          </Text>
+                        </View>
+                        {/* Spacer for the absolutely positioned options button */}
+                        <View style={styles.moreButton} />
+                      </View>
+                    </GlassCard>
+                  </Link.AppleZoom>
+                </Link>
+                {/* Options button positioned outside Link to avoid gesture conflicts */}
+                <Pressable
+                  onPress={() => handleCustomTextOptions(ct.id)}
+                  style={styles.moreButtonOverlay}
+                  hitSlop={8}
+                >
+                  <Feather name="more-vertical" size={18} color={colors.muted} />
+                </Pressable>
               </Animated.View>
             ))}
           </View>
@@ -1011,14 +1007,35 @@ function Home() {
         {/* 7. Core category cards (Story, Article, Speech) */}
         <View style={styles.categoriesSection}>
           <View style={styles.categoryList}>
-            {CORE_CATEGORIES.map((cat, i) => (
-              <CategoryCard
-                key={cat.key}
-                category={cat}
-                onPress={() => handleCategoryPress(cat.key)}
-                index={i}
-              />
-            ))}
+            {CORE_CATEGORIES.map((cat, i) => {
+              if (cat.texts.length === 1) {
+                return (
+                  <Link
+                    key={cat.key}
+                    href={{
+                      pathname: '/reading',
+                      params: { categoryKey: cat.key, textId: cat.texts[0]?.id ?? '' },
+                    }}
+                    asChild
+                  >
+                    <Link.AppleZoom>
+                      <CategoryCard
+                        category={cat}
+                        index={i}
+                      />
+                    </Link.AppleZoom>
+                  </Link>
+                );
+              }
+              return (
+                <CategoryCard
+                  key={cat.key}
+                  category={cat}
+                  onPress={() => handleCategoryPress(cat.key)}
+                  index={i}
+                />
+              );
+            })}
           </View>
         </View>
 
@@ -1054,64 +1071,7 @@ function Home() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Text selection modal */}
-      <Modal
-        visible={selectedCategory !== null}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setSelectedCategory(null)}
-      >
-        <View style={[styles.flex, { backgroundColor: colors.bg }]}>
-          <SafeAreaView style={styles.flex}>
-            <View style={styles.textSelectHeader}>
-              <Pressable onPress={() => setSelectedCategory(null)} style={styles.headerButton}>
-                <Feather name="x" size={22} color={colors.secondary} />
-              </Pressable>
-            </View>
-            <ScrollView
-              style={styles.flex}
-              contentContainerStyle={styles.textSelectContent}
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={[styles.textSelectTitle, { color: colors.primary }]}>
-                {selectedCategory?.name}
-              </Text>
-              <Text style={[styles.textSelectSubtitle, { color: colors.secondary }]}>
-                Choose a text to read
-              </Text>
-              <View style={styles.textSelectList}>
-                {selectedCategory?.texts.map((entry, i) => (
-                  <Animated.View
-                    key={entry.id}
-                    entering={FadeIn.delay(i * 60).duration(300)}
-                  >
-                    <GlassCard onPress={() => handleTextSelect(entry.id)}>
-                      <View style={styles.textSelectRow}>
-                        <View style={styles.textSelectInfo}>
-                          <Text style={[styles.textSelectName, { color: colors.primary }]}>
-                            {entry.title}
-                          </Text>
-                          {entry.author && (
-                            <Text style={[styles.textSelectAuthor, { color: colors.secondary }]}>
-                              {entry.author}
-                            </Text>
-                          )}
-                          <Text style={[styles.textSelectWords, { color: colors.muted }]}>
-                            ~{entry.words.length} words
-                          </Text>
-                        </View>
-                        <Feather name="chevron-right" size={18} color={colors.muted} />
-                      </View>
-                    </GlassCard>
-                  </Animated.View>
-                ))}
-              </View>
-            </ScrollView>
-          </SafeAreaView>
-        </View>
-      </Modal>
-
-      {/* Paywall modal */}
+      {/* Paywall */}
       <Paywall
         visible={showPaywall}
         onDismiss={() => setPaywallContext(null)}
@@ -1409,16 +1369,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '400',
   },
-  // Streak warning
-  streakWarning: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderCurve: 'continuous',
-  },
-  streakWarningText: {
-    fontSize: 14,
-    fontWeight: '500',
+  // Streak hint
+  streakHint: {
+    fontSize: 13,
+    fontWeight: '400',
     textAlign: 'center',
   },
   // Paste card
@@ -1482,52 +1436,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Text selection modal
-  textSelectHeader: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
+  customTextCardWrapper: {
+    position: 'relative',
   },
-  textSelectContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: 40,
-  },
-  textSelectTitle: {
-    fontSize: 28,
-    fontWeight: '300',
-    letterSpacing: -0.3,
-    marginBottom: 4,
-  },
-  textSelectSubtitle: {
-    fontSize: 15,
-    fontWeight: '400',
-    marginBottom: Spacing.lg,
-  },
-  textSelectList: {
-    gap: 10,
-  },
-  textSelectRow: {
-    flexDirection: 'row',
+  moreButtonOverlay: {
+    position: 'absolute',
+    right: 16,
+    top: 0,
+    bottom: 0,
+    width: 32,
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  textSelectInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  textSelectName: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  textSelectAuthor: {
-    fontSize: 13,
-    fontWeight: '400',
-    fontStyle: 'italic',
-  },
-  textSelectWords: {
-    fontSize: 12,
-    fontWeight: '400',
   },
 });

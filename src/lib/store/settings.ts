@@ -521,7 +521,20 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'articulate-settings',
+      version: 1,
       storage: createJSONStorage(() => mmkvStorage),
+      migrate: (persisted: any, version: number) => {
+        if (version === 0) {
+          // Migrate users who had newYork font (removed in v1)
+          if (persisted.fontFamily === 'newYork') {
+            persisted.fontFamily = 'sourceSerif';
+          }
+          if (persisted.savedPremiumSettings?.fontFamily === 'newYork') {
+            persisted.savedPremiumSettings.fontFamily = 'sourceSerif';
+          }
+        }
+        return persisted;
+      },
     }
   )
 );

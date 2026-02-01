@@ -15,7 +15,6 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 import { categories } from '../lib/data/categories';
-import { getQuizForText } from '../lib/data/quizzes';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { NumberRoll } from '../components/NumberRoll';
@@ -23,7 +22,7 @@ import { Paywall } from '../components/Paywall';
 import { Spacing } from '../design/theme';
 
 export default function CompleteScreen() {
-  const { colors, glass, isDark } = useTheme();
+  const { colors, glass } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{
     categoryKey: string;
@@ -72,12 +71,6 @@ export default function CompleteScreen() {
   const displayName = customText?.title ?? textEntry?.title ?? category?.name ?? 'Reading';
   const displayIcon = customText ? 'clipboard' : category?.icon;
 
-  // Quiz availability
-  const hasBuiltInQuiz = params.categoryKey && params.textId
-    ? getQuizForText(params.categoryKey, params.textId).length > 0
-    : false;
-  const hasCustomQuiz = !!params.customTextId;
-  const quizAvailable = isPremium && (hasBuiltInQuiz || hasCustomQuiz);
   const minutes = Math.floor(timeSpent / 60);
   const seconds = timeSpent % 60;
   const timeDisplay = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
@@ -312,15 +305,12 @@ export default function CompleteScreen() {
 
             {/* Achievement badge */}
             {newAchievement && (
-              <Animated.View
+              <Animated.Text
                 entering={FadeIn.delay(1700).duration(400)}
-                style={[styles.achievementBadge, { backgroundColor: isDark ? 'rgba(255,215,0,0.12)' : 'rgba(255,215,0,0.15)' }]}
+                style={[styles.milestoneText, { color: colors.secondary }]}
               >
-                <Feather name="award" size={16} color={colors.warning ?? '#FFD700'} />
-                <Text style={[styles.achievementText, { color: colors.primary }]}>
-                  {newAchievement} unlocked!
-                </Text>
-              </Animated.View>
+                {newAchievement} unlocked
+              </Animated.Text>
             )}
 
             {/* Milestone celebration */}
@@ -401,16 +391,15 @@ export default function CompleteScreen() {
           ) : (
             <>
               <GlassButton title="Continue" onPress={handleContinue} />
-              {quizAvailable && (
+              {isPremium ? (
                 <GlassButton
                   title="Take Quiz"
                   onPress={handleTakeQuiz}
                   variant="outline"
                 />
-              )}
-              {!isPremium && (hasBuiltInQuiz || !!params.customTextId) && (
+              ) : (
                 <GlassButton
-                  title="Take Quiz"
+                  title="Take Quiz  \u{1F512}"
                   onPress={() => setPaywallContext('locked_quiz')}
                   variant="outline"
                 />
@@ -563,19 +552,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textDecorationLine: 'underline',
     paddingVertical: 4,
-  },
-  achievementBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderCurve: 'continuous',
-  },
-  achievementText: {
-    fontSize: 15,
-    fontWeight: '600',
   },
   milestoneText: {
     fontSize: 14,

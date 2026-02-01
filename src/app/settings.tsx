@@ -9,7 +9,6 @@ import {
   Linking,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useShallow } from 'zustand/react/shallow';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -140,7 +139,6 @@ function GradientOrb() {
 
 export default function SettingsScreen() {
   const { colors, glass, isDark } = useTheme();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
 
   const {
@@ -323,16 +321,10 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <View style={[styles.header, { paddingTop: insets.top + Spacing.sm }]}>
-        <Pressable onPress={() => router.back()} hitSlop={16} style={styles.headerBackButton}>
-          <Feather name="chevron-left" size={24} color={colors.primary} />
-        </Pressable>
-        <Text style={[styles.headerTitle, { color: colors.primary }]}>Profile</Text>
-        <View style={styles.headerBackButton} />
-      </View>
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.scrollContent}
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
         bounces={true}
         scrollEnabled={true}
@@ -755,7 +747,7 @@ export default function SettingsScreen() {
             </Pressable>
           </GlassCard>
 
-          <View style={{ height: 40 + insets.bottom }} />
+          <View style={{ height: 40 }} />
         </ScrollView>
 
       {/* Paywall */}
@@ -951,23 +943,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     fontVariant: ['tabular-nums'],
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.md,
-  },
-  headerBackButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    letterSpacing: -0.3,
   },
 });

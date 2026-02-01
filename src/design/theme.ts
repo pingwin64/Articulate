@@ -75,13 +75,6 @@ export const FontFamilies = {
     semiBold: 'System',
     bold: 'System',
   },
-  newYork: {
-    key: 'newYork',
-    label: 'New York',
-    regular: 'NewYork-Regular',
-    semiBold: 'NewYork-Medium',
-    bold: 'NewYork-Bold',
-  },
   jetBrains: {
     key: 'jetBrains',
     label: 'JetBrains Mono',

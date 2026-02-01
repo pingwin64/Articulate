@@ -86,18 +86,51 @@ export default function RootLayout() {
           }}
         >
           <Stack.Screen name="index" />
-          <Stack.Screen name="reading" />
+          <Stack.Screen
+            name="reading"
+            options={{
+              headerShown: true,
+              headerTransparent: true,
+              headerTitle: '',
+              headerShadowVisible: false,
+              headerBackVisible: false,
+            }}
+          />
           <Stack.Screen name="complete" />
           <Stack.Screen
             name="settings"
             options={{
               animation: 'slide_from_right',
+              headerShown: true,
+              title: 'Settings',
+              headerLargeTitle: true,
+              headerStyle: { backgroundColor: colors.bg },
+              headerTintColor: colors.primary,
+              headerTitleStyle: { color: colors.primary },
+              headerLargeTitleStyle: { color: colors.primary },
             }}
           />
           <Stack.Screen name="paste" />
           <Stack.Screen name="privacy" />
           <Stack.Screen name="tos" />
           <Stack.Screen name="quiz" />
+          <Stack.Screen
+            name="text-select"
+            options={{
+              presentation: 'formSheet',
+              sheetGrabberVisible: true,
+              sheetAllowedDetents: [0.5, 1.0],
+            }}
+          />
+          <Stack.Screen
+            name="paywall"
+            options={{
+              presentation: 'formSheet',
+              sheetGrabberVisible: true,
+              sheetAllowedDetents: [0.75, 1.0],
+              contentStyle: { backgroundColor: 'transparent' },
+            }}
+          />
         </Stack>
         </ErrorBoundary>
       </View>

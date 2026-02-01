@@ -41,6 +41,7 @@ export function GlassSlider({
     Math.max(0, Math.min(1, (v - minimumValue) / (maximumValue - minimumValue)));
 
   const denormalize = (ratio: number) => {
+    'worklet';
     const raw = minimumValue + ratio * (maximumValue - minimumValue);
     return Math.round(raw / step) * step;
   };

@@ -8,7 +8,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "articulate",
-    "newArchEnabled": true,
     "platforms": ["ios"],
     "splash": {
       "image": "./assets/splash-icon.png",

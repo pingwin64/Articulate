@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -28,7 +28,7 @@ interface GlassCardProps {
   accentBorder?: boolean;
 }
 
-export function GlassCard({ children, style, onPress, disabled, accentBorder }: GlassCardProps) {
+export const GlassCard = forwardRef<View, GlassCardProps>(function GlassCard({ children, style, onPress, disabled, accentBorder }, ref) {
   const { colors, glass, isDark } = useTheme();
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
   const pressed = useSharedValue(0);
@@ -97,15 +97,15 @@ export function GlassCard({ children, style, onPress, disabled, accentBorder }: 
   if (onPress) {
     return (
       <GestureDetector gesture={tap}>
-        <Animated.View style={[containerStyle, animatedStyle, style]}>
+        <Animated.View ref={ref} style={[containerStyle, animatedStyle, style]}>
           {cardContent}
         </Animated.View>
       </GestureDetector>
     );
   }
 
-  return <View style={[containerStyle, style]}>{cardContent}</View>;
-}
+  return <View ref={ref} style={[containerStyle, style]}>{cardContent}</View>;
+});
 
 const styles = StyleSheet.create({
   inner: {

@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { StyleSheet, View, Text, Pressable } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -135,7 +135,7 @@ export default function ReadingScreen() {
 
   const handleTtsToggle = () => {
     if (!isPremium) {
-      setPaywallContext('locked_tts' as any);
+      setPaywallContext('locked_tts');
       return;
     }
     if (ttsEnabled) {
@@ -183,71 +183,85 @@ export default function ReadingScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <SafeAreaView style={styles.flex}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable onPress={handleClose} style={styles.headerButton} accessibilityLabel="Close reading" accessibilityRole="button">
-            <Feather name="x" size={20} color={colors.primary} />
-          </Pressable>
-
-          <ArticulateProgress progress={progress} />
-
-          <View style={styles.headerRight}>
-            <Pressable onPress={handleTtsToggle} style={styles.headerButton} accessibilityLabel={ttsEnabled ? 'Disable text-to-speech' : 'Enable text-to-speech'} accessibilityRole="button">
-              <Feather name={ttsEnabled ? 'volume-2' : 'volume-x'} size={20} color={ttsEnabled ? colors.primary : colors.muted} />
+    <>
+      <View style={[styles.container, { backgroundColor: colors.bg }]}>
+        <SafeAreaView style={styles.flex}>
+          {/* Simplified header: Close + Progress */}
+          <View style={styles.header}>
+            <Pressable onPress={handleClose} style={styles.headerButton} accessibilityLabel="Close reading" accessibilityRole="button">
+              <Feather name="x" size={20} color={colors.primary} />
             </Pressable>
-            <Pressable onPress={() => router.push('/settings')} style={styles.headerButton} accessibilityLabel="Open settings" accessibilityRole="button">
-              <Feather name="settings" size={20} color={colors.primary} />
-            </Pressable>
+
+            <ArticulateProgress progress={progress} />
+
+            <View style={styles.headerButton} />
           </View>
-        </View>
 
-        {/* Word counter */}
-        <View style={styles.counterRow}>
-          <Text style={[styles.counter, { color: colors.muted }]}>
-            {Math.min(currentIndex + chunkSize, totalWords)} / {totalWords}
-          </Text>
-          {progress > 0.75 && (totalWords - currentIndex) <= 20 && (
-            <Text style={[styles.goalGradient, { color: colors.success ?? colors.primary }]}>
-              {totalWords - currentIndex} words to go
+          {/* Word counter */}
+          <View style={styles.counterRow}>
+            <Text style={[styles.counter, { color: colors.muted }]}>
+              {Math.min(currentIndex + chunkSize, totalWords)} / {totalWords}
             </Text>
-          )}
-        </View>
-
-        {/* Main tap area */}
-        <Pressable
-          style={styles.tapArea}
-          onPress={advanceWord}
-          accessibilityLabel={`Current word: ${currentWord}. Tap to advance to next word. ${currentIndex + 1} of ${totalWords}.`}
-          accessibilityRole="button"
-        >
-          <View style={styles.wordContainer}>
-            <WordDisplay word={currentWord} wordKey={currentIndex} />
+            {(() => {
+              const remaining = totalWords - currentIndex;
+              const show = remaining === 15 || (remaining <= 3 && remaining >= 1);
+              if (!show) return null;
+              return (
+                <Text style={[styles.goalGradient, { color: colors.success ?? colors.primary }]}>
+                  {remaining} {remaining === 1 ? 'word' : 'words'} to go
+                </Text>
+              );
+            })()}
           </View>
 
-          {/* Below-word content: absolutely positioned to prevent layout shift */}
-          <View style={styles.belowWord}>
-            <SentenceTrail words={completedWords} visible={hasOnboarded && sentenceRecap} />
-            {showHint && (
-              <Animated.Text
-                entering={FadeIn.duration(300)}
-                exiting={FadeOut.duration(300)}
-                style={[styles.hint, { color: colors.muted }]}
-              >
-                Tap to continue
-              </Animated.Text>
-            )}
-          </View>
-        </Pressable>
-      </SafeAreaView>
+          {/* Main tap area */}
+          <Pressable
+            style={styles.tapArea}
+            onPress={advanceWord}
+            accessibilityLabel={`Current word: ${currentWord}. Tap to advance to next word. ${currentIndex + 1} of ${totalWords}.`}
+            accessibilityRole="button"
+          >
+            <View style={styles.wordContainer}>
+              <WordDisplay word={currentWord} wordKey={currentIndex} />
+            </View>
 
-      <Paywall
-        visible={showPaywall}
-        onDismiss={() => setPaywallContext(null)}
-        context={paywallContext}
-      />
-    </View>
+            {/* Below-word content: absolutely positioned to prevent layout shift */}
+            <View style={styles.belowWord}>
+              <SentenceTrail words={completedWords} visible={hasOnboarded && sentenceRecap} />
+              {showHint && (
+                <Animated.Text
+                  entering={FadeIn.duration(300)}
+                  exiting={FadeOut.duration(300)}
+                  style={[styles.hint, { color: colors.muted }]}
+                >
+                  Tap to continue
+                </Animated.Text>
+              )}
+            </View>
+          </Pressable>
+        </SafeAreaView>
+
+        <Paywall
+          visible={showPaywall}
+          onDismiss={() => setPaywallContext(null)}
+          context={paywallContext}
+        />
+      </View>
+
+      {/* Native bottom toolbar: must be top-level sibling for Stack to render it */}
+      <Stack.Toolbar placement="bottom">
+        <Stack.Toolbar.Button
+          icon={ttsEnabled ? 'speaker.wave.2.fill' : 'speaker.slash'}
+          selected={ttsEnabled}
+          onPress={handleTtsToggle}
+        />
+        <Stack.Toolbar.Spacer />
+        <Stack.Toolbar.Button
+          icon="gearshape"
+          onPress={() => router.push('/settings')}
+        />
+      </Stack.Toolbar>
+    </>
   );
 }
 
@@ -269,10 +283,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerRight: {
-    flexDirection: 'row',
     alignItems: 'center',
   },
   counterRow: {

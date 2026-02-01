@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { forwardRef, useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -15,10 +15,10 @@ import type { ResumeData } from '../lib/store/settings';
 
 interface ResumeCardProps {
   data: ResumeData;
-  onPress: () => void;
+  onPress?: () => void;
 }
 
-export function ResumeCard({ data, onPress }: ResumeCardProps) {
+export const ResumeCard = forwardRef<View, ResumeCardProps>(function ResumeCard({ data, onPress }, ref) {
   const { colors } = useTheme();
   const translateY = useSharedValue(-20);
   const opacity = useSharedValue(0);
@@ -42,7 +42,7 @@ export function ResumeCard({ data, onPress }: ResumeCardProps) {
   }));
 
   return (
-    <Animated.View style={animatedStyle}>
+    <Animated.View ref={ref} style={animatedStyle}>
       <GlassCard onPress={onPress} accentBorder>
         <View style={styles.content}>
           <View style={styles.categoryRow}>
@@ -74,7 +74,7 @@ export function ResumeCard({ data, onPress }: ResumeCardProps) {
       </GlassCard>
     </Animated.View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   content: {
