@@ -940,10 +940,7 @@ function Home() {
     if (cat && cat.texts.length > 1) {
       // FormSheet workaround: store categoryKey before navigation
       setSelectedCategoryKey(categoryKey);
-      router.push({
-        pathname: '/text-select',
-        params: { categoryKey },
-      });
+      router.push(`/text-select?categoryKey=${encodeURIComponent(categoryKey)}`);
     } else if (cat) {
       router.push({
         pathname: '/reading',

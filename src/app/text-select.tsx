@@ -21,6 +21,11 @@ export default function TextSelectScreen() {
 
   const category = categories.find((c) => c.key === categoryKey);
 
+  // Clear store fallback on unmount (e.g. swipe dismiss)
+  React.useEffect(() => {
+    return () => { setSelectedCategoryKey(null); };
+  }, [setSelectedCategoryKey]);
+
   const handleTextSelect = (textId: string) => {
     if (category) {
       // Clear the store value after use
@@ -28,10 +33,7 @@ export default function TextSelectScreen() {
       router.dismiss();
       // Use setTimeout to ensure the dismiss completes before pushing
       setTimeout(() => {
-        router.push({
-          pathname: '/reading',
-          params: { categoryKey: category.key, textId },
-        });
+        router.push(`/reading?categoryKey=${encodeURIComponent(category.key)}&textId=${encodeURIComponent(textId)}`);
       }, 0);
     }
   };

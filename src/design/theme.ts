@@ -57,6 +57,7 @@ export const BackgroundThemes: BackgroundTheme[] = [
   { key: 'default', label: 'Default', light: '#FFFFFF', dark: '#000000' },
   { key: 'paper', label: 'Paper', light: '#FDFBF7', dark: '#1A1714' },
   { key: 'stone', label: 'Stone', light: '#F0EFED', dark: '#161618' },
+  { key: 'sepia', label: 'Sepia', light: '#F5EDDC', dark: '#1D1508' },
   { key: 'midnight', label: 'Midnight', light: '#0A0A12', dark: '#0A0A12', darkOnly: true },
 ];
 

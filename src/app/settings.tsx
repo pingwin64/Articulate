@@ -562,47 +562,57 @@ export default function SettingsScreen() {
               </LockedSettingRow>
             )}
 
-            {/* Background swatches */}
-            {isPremium || trialActive ? (
-              <View style={styles.settingRowNoBorder}>
-                <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                  Background
-                </Text>
-                <View style={styles.swatchRow}>
-                  {BackgroundThemes.map((theme) => {
-                    const bgColor = isDark ? theme.dark : theme.light;
-                    const isSelected = backgroundTheme === theme.key;
-                    return (
-                      <Pressable
-                        key={theme.key}
-                        onPress={() => handleSetBackgroundTheme(theme.key)}
-                        style={[
-                          styles.swatch,
-                          {
-                            backgroundColor: bgColor,
-                            borderColor: isSelected
-                              ? colors.primary
-                              : glass.border,
-                            borderWidth: isSelected ? 2 : 0.5,
-                          },
-                        ]}
-                      />
-                    );
-                  })}
-                </View>
+            {/* Background swatches — visible to all users */}
+            <View style={styles.settingRowNoBorder}>
+              <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                Background
+              </Text>
+              <View style={styles.swatchRow}>
+                {BackgroundThemes.map((theme) => {
+                  const bgColor = isDark ? theme.dark : theme.light;
+                  const isSelected = backgroundTheme === theme.key;
+                  const isDefault = theme.key === 'default';
+                  const isLocked = !isDefault && !isPremium && !trialActive;
+                  return (
+                    <Pressable
+                      key={theme.key}
+                      onPress={() => {
+                        if (isLocked) {
+                          const origBg = backgroundTheme;
+                          peekAndShowPaywall(
+                            'locked_background',
+                            () => setBackgroundTheme(theme.key),
+                            () => setBackgroundTheme(origBg),
+                          );
+                        } else {
+                          handleSetBackgroundTheme(theme.key);
+                        }
+                      }}
+                    >
+                      <View style={styles.swatchContainer}>
+                        <View
+                          style={[
+                            styles.swatch,
+                            {
+                              backgroundColor: bgColor,
+                              borderColor: isSelected
+                                ? colors.primary
+                                : glass.border,
+                              borderWidth: isSelected ? 2 : 0.5,
+                            },
+                          ]}
+                        />
+                        {isLocked && (
+                          <View style={styles.swatchLockOverlay}>
+                            <Feather name="lock" size={10} color="#FFFFFF" />
+                          </View>
+                        )}
+                      </View>
+                    </Pressable>
+                  );
+                })}
               </View>
-            ) : (
-              <LockedSettingRow label="Background" isPremium={false} noBorder onLockedPress={() => {
-                const origBg = backgroundTheme;
-                peekAndShowPaywall(
-                  'locked_background',
-                  () => setBackgroundTheme('paper'),
-                  () => setBackgroundTheme(origBg),
-                );
-              }}>
-                <View />
-              </LockedSettingRow>
-            )}
+            </View>
           </GlassCard>
 
           {/* Section 2: Reading */}
@@ -927,8 +937,11 @@ const styles = StyleSheet.create({
   },
   swatchRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
     marginTop: 10,
+  },
+  swatchContainer: {
+    position: 'relative',
   },
   swatch: {
     width: 32,
@@ -936,6 +949,17 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderCurve: 'continuous',
     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+  },
+  swatchLockOverlay: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fontPickerContainer: {
     marginTop: 10,
