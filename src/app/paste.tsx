@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -34,7 +34,7 @@ export default function PasteScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ editTextId?: string }>();
   const {
-    addCustomText, hapticFeedback, isPremium, customTexts, updateCustomText,
+    addCustomText, hapticFeedback, isPremium, customTexts, updateCustomText, removeCustomText,
     setPaywallContext, showPaywall, paywallContext,
     dailyUploadUsed, resetDailyUploadIfNewDay, useDailyUpload,
   } = useSettingsStore();
@@ -59,7 +59,56 @@ export default function PasteScreen() {
 
   const isUrl = URL_REGEX.test(text.trim());
 
-  const isDailyUploadLocked = !isPremium && !editingText && dailyUploadUsed;
+  // Daily gate: full-screen lock for free users who have used their daily upload
+  const isDailyGated = !isPremium && !editingText && dailyUploadUsed;
+
+  // Countdown timer to midnight
+  const [timeToReset, setTimeToReset] = useState('');
+  useEffect(() => {
+    if (!isDailyGated) return;
+    const tick = () => {
+      const now = new Date();
+      const midnight = new Date(now);
+      midnight.setHours(24, 0, 0, 0);
+      const diff = midnight.getTime() - now.getTime();
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      setTimeToReset(`${h}h ${m}m`);
+    };
+    tick();
+    const interval = setInterval(tick, 60000);
+    return () => clearInterval(interval);
+  }, [isDailyGated]);
+
+  const atLimit = !isPremium && customTexts.length >= 1 && !editingText;
+
+  // Shared helper: create or replace a custom text
+  const createOrReplaceText = useCallback(() => {
+    const trimmedTitle = title.trim() || 'My Text';
+    const trimmedText = text.trim();
+
+    // If at storage limit, replace existing text instead of adding
+    if (atLimit && customTexts.length > 0) {
+      const existingId = customTexts[0].id;
+      removeCustomText(existingId);
+    }
+
+    // Mark daily upload as used for free users
+    if (!isPremium) {
+      useDailyUpload();
+    }
+
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    const customText = {
+      id,
+      title: trimmedTitle,
+      text: trimmedText,
+      wordCount,
+      createdAt: new Date().toISOString(),
+    };
+    addCustomText(customText);
+    return id;
+  }, [title, text, wordCount, atLimit, customTexts, removeCustomText, addCustomText, isPremium, useDailyUpload]);
 
   const handleStartReading = useCallback(() => {
     if (wordCount === 0) return;
@@ -79,28 +128,13 @@ export default function PasteScreen() {
         params: { customTextId: editingText.id },
       });
     } else {
-      // Mark daily upload as used for free users
-      if (!isPremium) {
-        useDailyUpload();
-      }
-
-      const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-      const customText = {
-        id,
-        title: title.trim() || 'My Text',
-        text: text.trim(),
-        wordCount,
-        createdAt: new Date().toISOString(),
-      };
-
-      addCustomText(customText);
-
+      const id = createOrReplaceText();
       router.replace({
         pathname: '/reading',
         params: { customTextId: id },
       });
     }
-  }, [wordCount, title, text, hapticFeedback, addCustomText, updateCustomText, editingText, router, isPremium, useDailyUpload]);
+  }, [wordCount, title, text, hapticFeedback, updateCustomText, editingText, router, createOrReplaceText]);
 
   const handleSaveToLibrary = useCallback(() => {
     if (wordCount === 0) return;
@@ -110,7 +144,6 @@ export default function PasteScreen() {
     }
 
     if (editingText) {
-      // For editing, just save the changes
       updateCustomText(editingText.id, {
         title: title.trim() || 'My Text',
         text: text.trim(),
@@ -119,25 +152,11 @@ export default function PasteScreen() {
       Alert.alert('Saved', 'Your text has been updated.');
       router.back();
     } else {
-      // Mark daily upload as used for free users
-      if (!isPremium) {
-        useDailyUpload();
-      }
-
-      const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-      const customText = {
-        id,
-        title: title.trim() || 'My Text',
-        text: text.trim(),
-        wordCount,
-        createdAt: new Date().toISOString(),
-      };
-
-      addCustomText(customText);
-      Alert.alert('Saved', 'Your text has been saved to your library.');
+      createOrReplaceText();
+      Alert.alert('Saved', atLimit ? 'Your previous text has been replaced.' : 'Your text has been saved to your library.');
       router.back();
     }
-  }, [wordCount, title, text, hapticFeedback, addCustomText, updateCustomText, editingText, router, isPremium, useDailyUpload]);
+  }, [wordCount, title, text, hapticFeedback, updateCustomText, editingText, router, createOrReplaceText, atLimit]);
 
   const handleExtractUrl = useCallback(async () => {
     const url = text.trim();
@@ -292,10 +311,41 @@ export default function PasteScreen() {
     router.back();
   };
 
-  const atLimit = !isPremium && customTexts.length >= 1 && !editingText;
-  const limitMessage = atLimit
-    ? 'Free accounts can save 1 text at a time. Starting will replace your previous text.'
-    : null;
+  // Full-screen daily gate overlay
+  if (isDailyGated) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.bg }]}>
+        <SafeAreaView style={[styles.flex, styles.gateContainer]}>
+          <Feather name="lock" size={40} color={colors.muted} />
+          <Text style={[styles.gateHeadline, { color: colors.primary }]}>
+            Come back tomorrow
+          </Text>
+          <Text style={[styles.gateCountdown, { color: colors.secondary }]}>
+            Your daily text resets in {timeToReset}
+          </Text>
+          <Text style={[styles.gateSubtext, { color: colors.muted }]}>
+            1 free text per day
+          </Text>
+          <View style={styles.gateActions}>
+            <GlassButton
+              title="Unlock Unlimited Texts"
+              onPress={() => setPaywallContext('locked_daily_upload')}
+            />
+            <Pressable onPress={() => router.back()} style={styles.gateWaitButton}>
+              <Text style={[styles.gateWaitText, { color: colors.muted }]}>
+                I'll wait
+              </Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+        <Paywall
+          visible={showPaywall}
+          onDismiss={() => setPaywallContext(null)}
+          context={paywallContext}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -472,8 +522,8 @@ export default function PasteScreen() {
               </Animated.View>
             )}
 
-            {/* Limit message - only show when at storage limit, not daily upload limit */}
-            {atLimit && !dailyUploadUsed && (
+            {/* Limit message - show when at storage limit */}
+            {atLimit && (
               <View style={styles.limitSection}>
                 <Text style={[styles.limitMessage, { color: colors.muted }]}>
                   Starting will replace your saved text
@@ -484,44 +534,21 @@ export default function PasteScreen() {
 
           {/* CTA */}
           <Animated.View entering={FadeIn.delay(450).duration(300)} style={styles.ctaContainer}>
-            {isDailyUploadLocked ? (
-              <View style={styles.lockedUploadSection}>
-                <Feather name="lock" size={24} color={colors.muted} style={{ marginBottom: 4 }} />
-                <Text style={[styles.lockedUploadHeadline, { color: colors.primary }]}>
-                  Come back tomorrow
-                </Text>
-                <Text style={[styles.lockedUploadBody, { color: colors.secondary }]}>
-                  Your free upload resets at midnight
-                </Text>
-                <GlassButton
-                  title="Unlock Unlimited Uploads"
-                  onPress={() => setPaywallContext('locked_daily_upload')}
-                />
-                <Pressable onPress={() => router.back()} style={styles.maybeLaterButton}>
-                  <Text style={[styles.maybeLaterText, { color: colors.muted }]}>
-                    I'll wait
-                  </Text>
-                </Pressable>
-              </View>
-            ) : (
-              <>
-                <GlassButton
-                  title="Save to Library"
-                  onPress={handleSaveToLibrary}
-                  disabled={wordCount === 0 || isUrl || isLoading}
-                  variant="outline"
-                />
-                <GlassButton
-                  title="Start Reading"
-                  onPress={handleStartReading}
-                  disabled={wordCount === 0 || isUrl || isLoading}
-                />
-                {!isPremium && !editingText && (
-                  <Text style={[styles.dailyLimitHint, { color: colors.muted }]}>
-                    Free users: 1 upload per day
-                  </Text>
-                )}
-              </>
+            <GlassButton
+              title="Save to Library"
+              onPress={handleSaveToLibrary}
+              disabled={wordCount === 0 || isUrl || isLoading}
+              variant="outline"
+            />
+            <GlassButton
+              title="Start Reading"
+              onPress={handleStartReading}
+              disabled={wordCount === 0 || isUrl || isLoading}
+            />
+            {!isPremium && !editingText && (
+              <Text style={[styles.dailyLimitHint, { color: colors.muted }]}>
+                Free users: 1 upload per day
+              </Text>
             )}
           </Animated.View>
         </KeyboardAvoidingView>
@@ -685,29 +712,40 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.lg,
     paddingTop: Spacing.sm,
   },
-  lockedUploadSection: {
+  // Full-screen daily gate overlay
+  gateContainer: {
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    gap: 16,
+    paddingHorizontal: Spacing.lg,
   },
-  lockedUploadHeadline: {
-    fontSize: 18,
-    fontWeight: '600',
+  gateHeadline: {
+    fontSize: 22,
+    fontWeight: '300',
     textAlign: 'center',
     letterSpacing: -0.3,
+    marginTop: 12,
   },
-  lockedUploadBody: {
-    fontSize: 14,
+  gateCountdown: {
+    fontSize: 15,
     fontWeight: '400',
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 4,
   },
-  maybeLaterButton: {
+  gateSubtext: {
+    fontSize: 13,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  gateActions: {
+    width: '100%',
+    gap: 12,
+    marginTop: 24,
+  },
+  gateWaitButton: {
+    alignItems: 'center',
     paddingVertical: 8,
   },
-  maybeLaterText: {
+  gateWaitText: {
     fontSize: 14,
     fontWeight: '400',
   },

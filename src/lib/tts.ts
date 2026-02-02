@@ -7,12 +7,6 @@ const RATE_MAP: Record<TTSSpeed, number> = {
   fast: 1.3,
 };
 
-// iOS voice identifiers for English
-const VOICE_MAP: Record<VoiceGender, string> = {
-  female: 'com.apple.voice.compact.en-US.Samantha',
-  male: 'com.apple.voice.compact.en-US.Aaron',
-};
-
 export function speakWord(
   word: string,
   speed: TTSSpeed,
@@ -22,7 +16,7 @@ export function speakWord(
   Speech.speak(word, {
     rate: RATE_MAP[speed],
     language: 'en-US',
-    voice: VOICE_MAP[gender],
+    pitch: gender === 'male' ? 0.85 : 1.1,
   });
 }
 

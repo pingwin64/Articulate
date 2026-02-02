@@ -148,8 +148,8 @@ export default function CompleteScreen() {
             if (badge.id === 'custom-creator' && params.customTextId) shouldUnlock = true;
             if (badge.id === 'listener' && state.hasUsedTTS) shouldUnlock = true;
             if (badge.id === 'speed-demon' && wpm >= 500) shouldUnlock = true;
-            if (badge.id === 'night-owl' && hour >= 0 && hour < 6) shouldUnlock = true;
-            if (badge.id === 'early-bird' && hour >= 4 && hour < 6) shouldUnlock = true;
+            if (badge.id === 'night-owl' && hour >= 0 && hour < 4) shouldUnlock = true;
+            if (badge.id === 'early-bird' && hour >= 4 && hour < 8) shouldUnlock = true;
             break;
 
           case 'streak':

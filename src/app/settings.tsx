@@ -48,6 +48,7 @@ import {
   cancelAllReminders,
 } from '../lib/notifications';
 import { restorePurchases } from '../lib/purchases';
+import { ALL_BADGES } from '../lib/data/badges';
 
 function SectionHeader({ title, icon }: { title: string; icon?: string }) {
   const { colors } = useTheme();
@@ -401,17 +402,21 @@ export default function SettingsScreen() {
   };
 
   const handleToggleNotifications = useCallback(async (enabled: boolean) => {
-    if (enabled) {
-      const granted = await requestNotificationPermissions();
-      if (!granted) {
-        Alert.alert('Permissions Required', 'Please enable notifications in your device settings.');
-        return;
+    try {
+      if (enabled) {
+        const granted = await requestNotificationPermissions();
+        if (!granted) {
+          Alert.alert('Permissions Required', 'Please enable notifications in your device settings.');
+          return;
+        }
+        setNotificationsEnabled(true);
+        await scheduleStreakReminder(reminderHour, reminderMinute, currentStreak);
+      } else {
+        setNotificationsEnabled(false);
+        await cancelAllReminders();
       }
-      setNotificationsEnabled(true);
-      await scheduleStreakReminder(reminderHour, reminderMinute, currentStreak);
-    } else {
-      setNotificationsEnabled(false);
-      await cancelAllReminders();
+    } catch {
+      // Notification scheduling may fail on some devices
     }
   }, [setNotificationsEnabled, reminderHour, reminderMinute, currentStreak]);
 
@@ -455,7 +460,7 @@ export default function SettingsScreen() {
 
   const voiceGenders: VoiceGender[] = ['female', 'male'];
   const voiceLabels = ['Female', 'Male'];
-  const voiceIndex = voiceGenders.indexOf(voiceGender);
+  const voiceIndex = Math.max(0, voiceGenders.indexOf(voiceGender));
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -560,8 +565,9 @@ export default function SettingsScreen() {
             </>
           )}
 
-          {/* Referral Program */}
+          {/* Referral Program — hidden until referral system is live
           <ReferralCard />
+          */}
 
           {/* Section 1: Appearance */}
           <SectionHeader title="Appearance" icon="eye" />
@@ -719,19 +725,23 @@ export default function SettingsScreen() {
                   // Check if this is a reward theme
                   const isRewardTheme = !!theme.rewardId;
                   const isRewardUnlocked = theme.rewardId ? unlockedRewards.includes(theme.rewardId) : false;
+                  // Hybrid model: Pro users can access proAccessible reward themes
+                  const canProAccess = isRewardTheme && theme.proAccessible && (isPremium || trialActive);
                   // Theme is locked if: not premium AND (is reward theme that's not unlocked OR basic premium theme)
                   const isPremiumLocked = !isDefault && !isPremium && !trialActive && !isRewardTheme;
-                  const isRewardLocked = isRewardTheme && !isRewardUnlocked;
+                  const isRewardLocked = isRewardTheme && !isRewardUnlocked && !canProAccess;
                   const isLocked = isPremiumLocked || isRewardLocked;
                   return (
                     <Pressable
                       key={theme.key}
                       onPress={() => {
                         if (isRewardLocked) {
-                          // Show hint about how to unlock
+                          // Show hint about how to unlock via badge name lookup
+                          const rewardBadge = ALL_BADGES.find((b) => b.reward?.id === theme.rewardId);
+                          const badgeName = rewardBadge?.name ?? 'a special';
                           Alert.alert(
                             `${theme.label} Theme`,
-                            `Unlock this theme by earning the ${theme.rewardId?.includes('30') ? '30-Day Streak' : theme.rewardId?.includes('100') ? '100-Day Streak' : '365-Day Streak'} badge!`,
+                            `Unlock this theme by earning the ${badgeName} badge!`,
                             [{ text: 'OK' }]
                           );
                         } else if (isPremiumLocked) {
@@ -990,12 +1000,13 @@ export default function SettingsScreen() {
           <GlassCard>
             <Pressable
               onPress={async () => {
-                const isAvailable = await StoreReview.isAvailableAsync();
-                if (isAvailable) {
-                  await StoreReview.requestReview();
-                } else {
-                  // Fallback to App Store page
-                  Linking.openURL('https://apps.apple.com/app/id123456789'); // Replace with actual app ID
+                try {
+                  const isAvailable = await StoreReview.isAvailableAsync();
+                  if (isAvailable) {
+                    await StoreReview.requestReview();
+                  }
+                } catch {
+                  // StoreReview may not be available on all devices
                 }
               }}
               style={styles.settingRow}
