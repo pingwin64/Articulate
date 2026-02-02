@@ -102,6 +102,43 @@ export default function PasteScreen() {
     }
   }, [wordCount, title, text, hapticFeedback, addCustomText, updateCustomText, editingText, router, isPremium, useDailyUpload]);
 
+  const handleSaveToLibrary = useCallback(() => {
+    if (wordCount === 0) return;
+
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    if (editingText) {
+      // For editing, just save the changes
+      updateCustomText(editingText.id, {
+        title: title.trim() || 'My Text',
+        text: text.trim(),
+        wordCount,
+      });
+      Alert.alert('Saved', 'Your text has been updated.');
+      router.back();
+    } else {
+      // Mark daily upload as used for free users
+      if (!isPremium) {
+        useDailyUpload();
+      }
+
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      const customText = {
+        id,
+        title: title.trim() || 'My Text',
+        text: text.trim(),
+        wordCount,
+        createdAt: new Date().toISOString(),
+      };
+
+      addCustomText(customText);
+      Alert.alert('Saved', 'Your text has been saved to your library.');
+      router.back();
+    }
+  }, [wordCount, title, text, hapticFeedback, addCustomText, updateCustomText, editingText, router, isPremium, useDailyUpload]);
+
   const handleExtractUrl = useCallback(async () => {
     const url = text.trim();
     if (!URL_REGEX.test(url)) return;
@@ -435,17 +472,12 @@ export default function PasteScreen() {
               </Animated.View>
             )}
 
-            {/* Limit message */}
-            {limitMessage && (
+            {/* Limit message - only show when at storage limit, not daily upload limit */}
+            {atLimit && !dailyUploadUsed && (
               <View style={styles.limitSection}>
                 <Text style={[styles.limitMessage, { color: colors.muted }]}>
-                  {limitMessage}
+                  Starting will replace your saved text
                 </Text>
-                <Pressable onPress={() => setPaywallContext('custom_text_limit')}>
-                  <Text style={[styles.limitUpgrade, { color: colors.info }]}>
-                    Upgrade for unlimited texts
-                  </Text>
-                </Pressable>
               </View>
             )}
           </ScrollView>
@@ -454,29 +486,41 @@ export default function PasteScreen() {
           <Animated.View entering={FadeIn.delay(450).duration(300)} style={styles.ctaContainer}>
             {isDailyUploadLocked ? (
               <View style={styles.lockedUploadSection}>
-                <Text style={[styles.lockedUploadTitle, { color: colors.primary }]}>
-                  You've used today's upload
+                <Feather name="lock" size={24} color={colors.muted} style={{ marginBottom: 4 }} />
+                <Text style={[styles.lockedUploadHeadline, { color: colors.primary }]}>
+                  Come back tomorrow
                 </Text>
-                <Text style={[styles.lockedUploadSubtitle, { color: colors.muted }]}>
-                  Upgrade to Pro for unlimited uploads
+                <Text style={[styles.lockedUploadBody, { color: colors.secondary }]}>
+                  Your free upload resets at midnight
                 </Text>
                 <GlassButton
                   title="Unlock Unlimited Uploads"
                   onPress={() => setPaywallContext('locked_daily_upload')}
                 />
+                <Pressable onPress={() => router.back()} style={styles.maybeLaterButton}>
+                  <Text style={[styles.maybeLaterText, { color: colors.muted }]}>
+                    I'll wait
+                  </Text>
+                </Pressable>
               </View>
             ) : (
               <>
-                {!isPremium && !editingText && (
-                  <Text style={[styles.dailyLimitHint, { color: colors.muted }]}>
-                    1 free upload per day
-                  </Text>
-                )}
+                <GlassButton
+                  title="Save to Library"
+                  onPress={handleSaveToLibrary}
+                  disabled={wordCount === 0 || isUrl || isLoading}
+                  variant="outline"
+                />
                 <GlassButton
                   title="Start Reading"
                   onPress={handleStartReading}
                   disabled={wordCount === 0 || isUrl || isLoading}
                 />
+                {!isPremium && !editingText && (
+                  <Text style={[styles.dailyLimitHint, { color: colors.muted }]}>
+                    Free users: 1 upload per day
+                  </Text>
+                )}
               </>
             )}
           </Animated.View>
@@ -629,18 +673,11 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   limitSection: {
-    gap: 6,
     alignItems: 'center',
   },
   limitMessage: {
     fontSize: 13,
     fontWeight: '400',
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-  limitUpgrade: {
-    fontSize: 13,
-    fontWeight: '600',
     textAlign: 'center',
   },
   ctaContainer: {
@@ -650,23 +687,34 @@ const styles = StyleSheet.create({
   },
   lockedUploadSection: {
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
-  lockedUploadTitle: {
-    fontSize: 16,
+  lockedUploadHeadline: {
+    fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
+    letterSpacing: -0.3,
   },
-  lockedUploadSubtitle: {
-    fontSize: 13,
+  lockedUploadBody: {
+    fontSize: 14,
     fontWeight: '400',
     textAlign: 'center',
+    lineHeight: 20,
     marginBottom: 4,
+  },
+  maybeLaterButton: {
+    paddingVertical: 8,
+  },
+  maybeLaterText: {
+    fontSize: 14,
+    fontWeight: '400',
   },
   dailyLimitHint: {
     fontSize: 12,
     fontWeight: '400',
     textAlign: 'center',
-    marginBottom: 4,
+    marginTop: 4,
   },
 });

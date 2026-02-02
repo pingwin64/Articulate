@@ -168,6 +168,7 @@ export default function QuizScreen() {
         </View>
 
         <QuizQuestionCard
+          key={currentQ}
           question={questions[currentQ]}
           questionNumber={currentQ + 1}
           totalQuestions={questions.length}

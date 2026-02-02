@@ -103,14 +103,25 @@ export default function RootLayout() {
               animation: 'slide_from_right',
               headerShown: true,
               title: 'Profile',
-              headerLargeTitle: true,
+              headerBackTitle: 'Home',
               headerStyle: { backgroundColor: colors.bg },
               headerTintColor: colors.primary,
               headerTitleStyle: { color: colors.primary },
-              headerLargeTitleStyle: { color: colors.primary },
             }}
           />
           <Stack.Screen name="paste" />
+          <Stack.Screen
+            name="achievements"
+            options={{
+              animation: 'slide_from_right',
+              headerShown: true,
+              title: 'Achievements',
+              headerBackTitle: 'Profile',
+              headerStyle: { backgroundColor: colors.bg },
+              headerTintColor: colors.primary,
+              headerTitleStyle: { color: colors.primary },
+            }}
+          />
           <Stack.Screen name="privacy" />
           <Stack.Screen name="tos" />
           <Stack.Screen name="quiz" />

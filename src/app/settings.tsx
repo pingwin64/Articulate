@@ -7,7 +7,9 @@ import {
   Pressable,
   Alert,
   Linking,
+  Share,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -17,6 +19,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import * as StoreReview from 'expo-store-review';
 import { useRouter } from 'expo-router';
 import { useShallow } from 'zustand/react/shallow';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -38,7 +41,7 @@ import {
   Radius,
 } from '../design/theme';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
-import type { ReadingLevel, TTSSpeed, PaywallContext } from '../lib/store/settings';
+import type { ReadingLevel, TTSSpeed, PaywallContext, VoiceGender } from '../lib/store/settings';
 import {
   requestNotificationPermissions,
   scheduleStreakReminder,
@@ -145,6 +148,76 @@ function GradientOrb() {
   );
 }
 
+function ReferralCard() {
+  const { colors, glass, isDark } = useTheme();
+  const [copied, setCopied] = useState(false);
+
+  const referralLink = 'https://articulate.app/invite/ABC123'; // Placeholder - will be user-specific
+
+  const handleCopyLink = async () => {
+    await Clipboard.setStringAsync(referralLink);
+    setCopied(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `Try Articulate - the minimalist reading app! Use my invite link to get a free month of Pro: ${referralLink}`,
+        url: referralLink,
+      });
+    } catch {
+      // User cancelled
+    }
+  };
+
+  return (
+    <GlassCard>
+      <View style={styles.referralContent}>
+        <View style={styles.referralHeader}>
+          <View style={[styles.referralIconBg, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)' }]}>
+            <Feather name="gift" size={20} color={colors.primary} />
+          </View>
+          <View style={styles.referralText}>
+            <Text style={[styles.referralTitle, { color: colors.primary }]}>
+              Refer and earn rewards
+            </Text>
+            <Text style={[styles.referralSubtitle, { color: colors.muted }]}>
+              Give a month of Pro, get a month free
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.referralActions}>
+          <Pressable
+            onPress={handleCopyLink}
+            style={[
+              styles.referralLinkButton,
+              { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)', borderColor: glass.border },
+            ]}
+          >
+            <Text style={[styles.referralLinkText, { color: colors.secondary }]} numberOfLines={1}>
+              {referralLink}
+            </Text>
+            <Feather name={copied ? 'check' : 'copy'} size={16} color={copied ? colors.success ?? colors.primary : colors.muted} />
+          </Pressable>
+
+          <Pressable
+            onPress={handleShare}
+            style={[styles.shareButton, { backgroundColor: colors.primary }]}
+          >
+            <Feather name="share" size={16} color={isDark ? colors.bg : '#FFFFFF'} />
+            <Text style={[styles.shareButtonText, { color: isDark ? colors.bg : '#FFFFFF' }]}>
+              Invite Friends
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </GlassCard>
+  );
+}
+
 function SettingsUpgradeCTA({ onPress }: { onPress: () => void }) {
   const { colors, glass, isDark } = useTheme();
   const reduceMotion = useSettingsStore((s) => s.reduceMotion);
@@ -210,6 +283,7 @@ export default function SettingsScreen() {
     hapticFeedback, setHapticFeedback,
     breathingAnimation, setBreathingAnimation,
     ttsSpeed, setTtsSpeed,
+    voiceGender, setVoiceGender,
     autoPlay, setAutoPlay,
     autoPlayWPM, setAutoPlayWPM,
     chunkSize, setChunkSize,
@@ -219,6 +293,8 @@ export default function SettingsScreen() {
     addTrialFeatureUsed,
     totalWordsRead,
     currentStreak,
+    readingHistory,
+    unlockedRewards,
     trialDaysRemaining,
     notificationsEnabled, setNotificationsEnabled,
     reminderHour, reminderMinute, setReminderTime,
@@ -237,6 +313,7 @@ export default function SettingsScreen() {
     hapticFeedback: s.hapticFeedback, setHapticFeedback: s.setHapticFeedback,
     breathingAnimation: s.breathingAnimation, setBreathingAnimation: s.setBreathingAnimation,
     ttsSpeed: s.ttsSpeed, setTtsSpeed: s.setTtsSpeed,
+    voiceGender: s.voiceGender, setVoiceGender: s.setVoiceGender,
     autoPlay: s.autoPlay, setAutoPlay: s.setAutoPlay,
     autoPlayWPM: s.autoPlayWPM, setAutoPlayWPM: s.setAutoPlayWPM,
     chunkSize: s.chunkSize, setChunkSize: s.setChunkSize,
@@ -246,6 +323,8 @@ export default function SettingsScreen() {
     addTrialFeatureUsed: s.addTrialFeatureUsed,
     totalWordsRead: s.totalWordsRead,
     currentStreak: s.currentStreak,
+    readingHistory: s.readingHistory,
+    unlockedRewards: s.unlockedRewards,
     trialDaysRemaining: s.trialDaysRemaining,
     notificationsEnabled: s.notificationsEnabled, setNotificationsEnabled: s.setNotificationsEnabled,
     reminderHour: s.reminderHour, reminderMinute: s.reminderMinute, setReminderTime: s.setReminderTime,
@@ -374,6 +453,10 @@ export default function SettingsScreen() {
   const ttsLabels = ['Slow', 'Normal', 'Fast'];
   const ttsIndex = ttsSpeeds.indexOf(ttsSpeed);
 
+  const voiceGenders: VoiceGender[] = ['female', 'male'];
+  const voiceLabels = ['Female', 'Male'];
+  const voiceIndex = voiceGenders.indexOf(voiceGender);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <ScrollView
@@ -418,6 +501,67 @@ export default function SettingsScreen() {
           ) : (
             <SettingsUpgradeCTA onPress={() => setPaywallContext('settings_upgrade')} />
           )}
+
+          {/* Achievements Card */}
+          <Pressable onPress={() => router.push('/achievements')}>
+            <GlassCard>
+              <View style={styles.achievementsRow}>
+                <View style={styles.achievementsLeft}>
+                  <Feather name="award" size={20} color={colors.primary} />
+                  <View style={styles.achievementsText}>
+                    <Text style={[styles.achievementsTitle, { color: colors.primary }]}>
+                      Achievements
+                    </Text>
+                    <Text style={[styles.achievementsSubtitle, { color: colors.muted }]}>
+                      View your badges and progress
+                    </Text>
+                  </View>
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.muted} />
+              </View>
+            </GlassCard>
+          </Pressable>
+
+          {/* Reading History */}
+          {readingHistory.length > 0 && (
+            <>
+              <SectionHeader title="Reading History" icon="clock" />
+              <GlassCard>
+                {readingHistory.slice(0, 5).map((entry, index) => {
+                  const date = new Date(entry.completedAt);
+                  const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                  const isLast = index === Math.min(readingHistory.length, 5) - 1;
+                  return (
+                    <View
+                      key={entry.id}
+                      style={[
+                        styles.historyRow,
+                        !isLast && { borderBottomWidth: 0.5, borderBottomColor: glass.border },
+                      ]}
+                    >
+                      <View style={styles.historyInfo}>
+                        <Text style={[styles.historyTitle, { color: colors.primary }]} numberOfLines={1}>
+                          {entry.title}
+                        </Text>
+                        <Text style={[styles.historyMeta, { color: colors.muted }]}>
+                          {entry.wordsRead} words · {entry.wpm} WPM · {dateStr}
+                        </Text>
+                      </View>
+                      <Feather name="check-circle" size={16} color={colors.success} />
+                    </View>
+                  );
+                })}
+                {readingHistory.length > 5 && (
+                  <Text style={[styles.historyMore, { color: colors.secondary }]}>
+                    +{readingHistory.length - 5} more completed
+                  </Text>
+                )}
+              </GlassCard>
+            </>
+          )}
+
+          {/* Referral Program */}
+          <ReferralCard />
 
           {/* Section 1: Appearance */}
           <SectionHeader title="Appearance" icon="eye" />
@@ -572,12 +716,25 @@ export default function SettingsScreen() {
                   const bgColor = isDark ? theme.dark : theme.light;
                   const isSelected = backgroundTheme === theme.key;
                   const isDefault = theme.key === 'default';
-                  const isLocked = !isDefault && !isPremium && !trialActive;
+                  // Check if this is a reward theme
+                  const isRewardTheme = !!theme.rewardId;
+                  const isRewardUnlocked = theme.rewardId ? unlockedRewards.includes(theme.rewardId) : false;
+                  // Theme is locked if: not premium AND (is reward theme that's not unlocked OR basic premium theme)
+                  const isPremiumLocked = !isDefault && !isPremium && !trialActive && !isRewardTheme;
+                  const isRewardLocked = isRewardTheme && !isRewardUnlocked;
+                  const isLocked = isPremiumLocked || isRewardLocked;
                   return (
                     <Pressable
                       key={theme.key}
                       onPress={() => {
-                        if (isLocked) {
+                        if (isRewardLocked) {
+                          // Show hint about how to unlock
+                          Alert.alert(
+                            `${theme.label} Theme`,
+                            `Unlock this theme by earning the ${theme.rewardId?.includes('30') ? '30-Day Streak' : theme.rewardId?.includes('100') ? '100-Day Streak' : '365-Day Streak'} badge!`,
+                            [{ text: 'OK' }]
+                          );
+                        } else if (isPremiumLocked) {
                           const origBg = backgroundTheme;
                           peekAndShowPaywall(
                             'locked_background',
@@ -603,8 +760,8 @@ export default function SettingsScreen() {
                           ]}
                         />
                         {isLocked && (
-                          <View style={styles.swatchLockOverlay}>
-                            <Feather name="lock" size={10} color="#FFFFFF" />
+                          <View style={[styles.swatchLockOverlay, isRewardLocked && styles.swatchRewardLock]}>
+                            <Feather name={isRewardLocked ? 'award' : 'lock'} size={10} color="#FFFFFF" />
                           </View>
                         )}
                       </View>
@@ -668,6 +825,20 @@ export default function SettingsScreen() {
           {/* Section 3: Audio */}
           <SectionHeader title="Audio" icon="volume-2" />
           <GlassCard>
+            {/* Voice Gender - available to all users */}
+            <View style={styles.settingBlock}>
+              <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                Voice
+              </Text>
+              <View style={styles.segmentedControlWrapper}>
+                <GlassSegmentedControl
+                  options={voiceLabels}
+                  selectedIndex={voiceIndex}
+                  onSelect={(i) => setVoiceGender(voiceGenders[i])}
+                />
+              </View>
+            </View>
+            <View style={[styles.separator, { backgroundColor: glass.border }]} />
             {isPremium || trialActive ? (
               <View style={styles.settingBlock}>
                 <Text style={[styles.settingLabel, { color: colors.primary }]}>
@@ -811,6 +982,39 @@ export default function SettingsScreen() {
                 Restore Purchases
               </Text>
               <Feather name="chevron-right" size={18} color={colors.muted} />
+            </Pressable>
+          </GlassCard>
+
+          {/* Section 7: Help */}
+          <SectionHeader title="Help" icon="help-circle" />
+          <GlassCard>
+            <Pressable
+              onPress={async () => {
+                const isAvailable = await StoreReview.isAvailableAsync();
+                if (isAvailable) {
+                  await StoreReview.requestReview();
+                } else {
+                  // Fallback to App Store page
+                  Linking.openURL('https://apps.apple.com/app/id123456789'); // Replace with actual app ID
+                }
+              }}
+              style={styles.settingRow}
+            >
+              <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                Rate Articulate
+              </Text>
+              <Feather name="star" size={18} color={colors.muted} />
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                Linking.openURL('mailto:support@articulate.app?subject=Articulate%20Support');
+              }}
+              style={styles.settingRowNoBorder}
+            >
+              <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                Contact Support
+              </Text>
+              <Feather name="mail" size={18} color={colors.muted} />
             </Pressable>
           </GlassCard>
 
@@ -961,6 +1165,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  swatchRewardLock: {
+    backgroundColor: 'rgba(255, 215, 0, 0.8)',
+  },
   fontPickerContainer: {
     marginTop: 10,
     marginHorizontal: -16,
@@ -1051,5 +1258,110 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '400',
     textAlign: 'center',
+  },
+  // Achievements card
+  achievementsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  achievementsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  achievementsText: {
+    gap: 2,
+  },
+  achievementsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  achievementsSubtitle: {
+    fontSize: 13,
+    fontWeight: '400',
+  },
+  // Reading history
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  historyInfo: {
+    flex: 1,
+    gap: 2,
+    marginRight: 12,
+  },
+  historyTitle: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  historyMeta: {
+    fontSize: 12,
+    fontWeight: '400',
+  },
+  historyMore: {
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+    paddingTop: 8,
+  },
+  // Referral card
+  referralContent: {
+    gap: 16,
+  },
+  referralHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  referralIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  referralText: {
+    flex: 1,
+    gap: 2,
+  },
+  referralTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  referralSubtitle: {
+    fontSize: 13,
+    fontWeight: '400',
+  },
+  referralActions: {
+    gap: 10,
+  },
+  referralLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 0.5,
+  },
+  referralLinkText: {
+    fontSize: 13,
+    flex: 1,
+    marginRight: 8,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  shareButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

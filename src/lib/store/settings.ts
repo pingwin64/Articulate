@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
 import type { FontFamilyKey, WordColorKey } from '../../design/theme';
+import { getBadgeById } from '../data/badges';
 
 const storage = createMMKV({ id: 'articulate-mmkv' });
 
@@ -20,6 +21,7 @@ const mmkvStorage = {
 
 export type ReadingLevel = 'beginner' | 'intermediate' | 'advanced';
 export type TTSSpeed = 'slow' | 'normal' | 'fast';
+export type VoiceGender = 'male' | 'female';
 
 export type PaywallContext =
   | 'post_onboarding' | 'locked_category' | 'custom_text_limit'
@@ -52,6 +54,17 @@ export interface ResumeData {
   wordIndex: number;
   totalWords: number;
   startTime: number;
+}
+
+export interface ReadingHistoryEntry {
+  id: string;
+  categoryKey: string;
+  textId?: string;
+  customTextId?: string;
+  title: string;
+  wordsRead: number;
+  completedAt: string;
+  wpm: number;
 }
 
 export interface SettingsState {
@@ -98,6 +111,8 @@ export interface SettingsState {
   // Audio
   ttsSpeed: TTSSpeed;
   setTtsSpeed: (v: TTSSpeed) => void;
+  voiceGender: VoiceGender;
+  setVoiceGender: (v: VoiceGender) => void;
   autoPlay: boolean;
   setAutoPlay: (v: boolean) => void;
   autoPlayWPM: number;
@@ -135,14 +150,27 @@ export interface SettingsState {
   chunkSize: 1 | 2 | 3;
   setChunkSize: (v: 1 | 2 | 3) => void;
 
-  // Comprehension
+  // Comprehension & Quiz Stats
   avgComprehension: number;
   totalQuizzesTaken: number;
+  perfectQuizzes: number;
   updateComprehension: (score: number, totalQuestions: number) => void;
 
   // Achievements
   unlockedAchievements: string[];
   unlockAchievement: (id: string) => void;
+
+  // Reading History & Badge System
+  readingHistory: ReadingHistoryEntry[];
+  addReadingHistory: (entry: ReadingHistoryEntry) => void;
+  categoryReadCounts: Record<string, number>;
+  incrementCategoryReadCount: (categoryKey: string) => void;
+  unlockedBadges: string[];
+  unlockBadge: (id: string) => void;
+  unlockedRewards: string[];
+  unlockReward: (id: string) => void;
+  hasUsedTTS: boolean;
+  setHasUsedTTS: (v: boolean) => void;
 
   // Notifications
   notificationsEnabled: boolean;
@@ -297,6 +325,8 @@ export const useSettingsStore = create<SettingsState>()(
       // Audio
       ttsSpeed: 'normal',
       setTtsSpeed: (v) => set({ ttsSpeed: v }),
+      voiceGender: 'female',
+      setVoiceGender: (v) => set({ voiceGender: v }),
       autoPlay: false,
       setAutoPlay: (v) => set({ autoPlay: v }),
       autoPlayWPM: 250,
@@ -401,16 +431,46 @@ export const useSettingsStore = create<SettingsState>()(
       // Comprehension
       avgComprehension: 0,
       totalQuizzesTaken: 0,
+      perfectQuizzes: 0,
       updateComprehension: (score, totalQuestions) => {
         const state = get();
         const pct = totalQuestions > 0 ? (score / totalQuestions) * 100 : 0;
+        const isPerfect = score === totalQuestions && totalQuestions > 0;
         const newTotal = state.totalQuizzesTaken + 1;
+        const newPerfect = isPerfect ? state.perfectQuizzes + 1 : state.perfectQuizzes;
         const newAvg =
           (state.avgComprehension * state.totalQuizzesTaken + pct) / newTotal;
-        set({
+
+        const updates: Partial<SettingsState> = {
           avgComprehension: Math.round(newAvg),
           totalQuizzesTaken: newTotal,
-        });
+          perfectQuizzes: newPerfect,
+        };
+        set(updates);
+
+        // Unlock quiz badges
+        const unlockBadge = get().unlockBadge;
+
+        // First quiz
+        if (newTotal === 1) {
+          unlockBadge('quiz-first');
+        }
+        // Perfect score
+        if (isPerfect) {
+          unlockBadge('quiz-perfect');
+        }
+        // 10 quizzes
+        if (newTotal >= 10) {
+          unlockBadge('quiz-10');
+        }
+        // 25 quizzes
+        if (newTotal >= 25) {
+          unlockBadge('quiz-25');
+        }
+        // Scholar: 10+ quizzes with 80%+ average
+        if (newTotal >= 10 && Math.round(newAvg) >= 80) {
+          unlockBadge('quiz-scholar');
+        }
       },
 
       // Achievements
@@ -421,6 +481,51 @@ export const useSettingsStore = create<SettingsState>()(
             ? s.unlockedAchievements
             : [...s.unlockedAchievements, id],
         })),
+
+      // Reading History & Badge System
+      readingHistory: [],
+      addReadingHistory: (entry) =>
+        set((s) => {
+          // Keep only the last 50 entries
+          const updated = [entry, ...s.readingHistory].slice(0, 50);
+          return { readingHistory: updated };
+        }),
+      categoryReadCounts: {},
+      incrementCategoryReadCount: (categoryKey) =>
+        set((s) => ({
+          categoryReadCounts: {
+            ...s.categoryReadCounts,
+            [categoryKey]: (s.categoryReadCounts[categoryKey] ?? 0) + 1,
+          },
+        })),
+      unlockedBadges: [],
+      unlockBadge: (id) => {
+        const state = get();
+        if (state.unlockedBadges.includes(id)) return;
+
+        const badge = getBadgeById(id);
+        const updates: Partial<SettingsState> = {
+          unlockedBadges: [...state.unlockedBadges, id],
+        };
+
+        // If badge has a reward, unlock it too
+        if (badge?.reward) {
+          if (!state.unlockedRewards.includes(badge.reward.id)) {
+            updates.unlockedRewards = [...state.unlockedRewards, badge.reward.id];
+          }
+        }
+
+        set(updates);
+      },
+      unlockedRewards: [],
+      unlockReward: (id) =>
+        set((s) => ({
+          unlockedRewards: s.unlockedRewards.includes(id)
+            ? s.unlockedRewards
+            : [...s.unlockedRewards, id],
+        })),
+      hasUsedTTS: false,
+      setHasUsedTTS: (v) => set({ hasUsedTTS: v }),
 
       // Notifications
       notificationsEnabled: false,
@@ -537,6 +642,7 @@ export const useSettingsStore = create<SettingsState>()(
         hapticFeedback: true,
         breathingAnimation: true,
         ttsSpeed: 'normal',
+        voiceGender: 'female' as VoiceGender,
         autoPlay: false,
         autoPlayWPM: 250,
         totalWordsRead: 0,
@@ -550,7 +656,13 @@ export const useSettingsStore = create<SettingsState>()(
         chunkSize: 1 as 1 | 2 | 3,
         avgComprehension: 0,
         totalQuizzesTaken: 0,
+        perfectQuizzes: 0,
         unlockedAchievements: [],
+        readingHistory: [],
+        categoryReadCounts: {},
+        unlockedBadges: [],
+        unlockedRewards: [],
+        hasUsedTTS: false,
         notificationsEnabled: false,
         reminderHour: 20,
         reminderMinute: 0,
@@ -576,7 +688,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'articulate-settings',
-      version: 2,
+      version: 5,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -596,6 +708,22 @@ export const useSettingsStore = create<SettingsState>()(
           persisted.dailyWordGoal = persisted.dailyWordGoal ?? 100;
           persisted.dailyWordsToday = persisted.dailyWordsToday ?? 0;
           persisted.lastDailyResetDate = persisted.lastDailyResetDate ?? null;
+        }
+        if (version < 3) {
+          // v3: add voice gender
+          persisted.voiceGender = persisted.voiceGender ?? 'female';
+        }
+        if (version < 4) {
+          // v4: add reading history, badge system
+          persisted.readingHistory = persisted.readingHistory ?? [];
+          persisted.categoryReadCounts = persisted.categoryReadCounts ?? {};
+          persisted.unlockedBadges = persisted.unlockedBadges ?? [];
+          persisted.unlockedRewards = persisted.unlockedRewards ?? [];
+          persisted.hasUsedTTS = persisted.hasUsedTTS ?? false;
+        }
+        if (version < 5) {
+          // v5: add quiz achievements tracking
+          persisted.perfectQuizzes = persisted.perfectQuizzes ?? 0;
         }
         return persisted;
       },

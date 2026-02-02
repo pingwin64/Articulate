@@ -151,6 +151,27 @@ setSelectedCategoryKey(null);
 
 Free users: 1 custom text upload per day, 3 core categories, default styling. Daily upload resets at midnight local time. Track via `dailyUploadDate` in store. Daily word goal tracked via `dailyWordGoal` / `dailyWordsToday`.
 
+### 10. Native Module Version Mismatch (Worklets/Reanimated)
+
+**Error:** `[Worklets] Mismatch between JavaScript part and native part of Worklets (X.X.X vs Y.Y.Y)`
+
+This happens when the JS dependencies update but the native iOS build still has old compiled native code. Common after `git pull` or `npm install`.
+
+**Fix (run in order):**
+```bash
+rm -rf node_modules && npm install
+npx expo prebuild --clean
+npx expo run:ios
+```
+
+**When to do this:**
+- After pulling changes that updated `package.json` or `package-lock.json`
+- After any reanimated/worklets/gesture-handler version changes
+- When you see "Mismatch between JavaScript part and native part" errors
+- When the app shows a red error screen about native modules
+
+**Do NOT just run `npx expo start`** — that only starts Metro bundler and uses the existing native build. You must rebuild native code with `expo prebuild --clean` + `expo run:ios`.
+
 ## Navigation
 
 - **index** — Home (onboarding for new users)
@@ -192,6 +213,21 @@ When gating a feature for free users:
 
 Categories and texts are defined in `src/lib/data/categories.ts`. All content is bundled locally (no network fetches). Words are pre-split into `string[]` arrays.
 
+## Development Commands
+
+```bash
+# Start Metro bundler only (use if native build is up-to-date)
+npx expo start --ios
+
+# Full rebuild after pulling changes or updating dependencies
+rm -rf node_modules && npm install
+npx expo prebuild --clean
+npx expo run:ios
+
+# Open Xcode workspace (for native debugging)
+open ios/Articulate.xcworkspace
+```
+
 ## Common Patterns
 
 ### Theme-aware styling
@@ -216,3 +252,142 @@ const gesture = Gesture.Tap().onEnd(() => {
   runOnJS(handlePress)(); // bridge to JS thread for state updates
 });
 ```
+
+---
+
+## Lessons Learned (Common Bugs & Fixes)
+
+### 11. Unicode Escape Sequences in JSX
+
+**Error:** Unicode escape like `\u{1F512}` renders as literal text instead of emoji
+
+**Wrong:**
+```tsx
+<GlassButton title="Take Quiz  \u{1F512}" />  // Shows: Take Quiz  \u{1F512}
+```
+
+**Correct:**
+```tsx
+<GlassButton title="Take Quiz 🔒" />  // Shows: Take Quiz 🔒
+```
+
+Always use actual emoji characters in JSX strings, not escape sequences.
+
+### 12. Navigation with GlassCard - Never Use Link Wrapper
+
+**Problem:** Wrapping GlassCard with `<Link asChild><Pressable>` breaks touch events.
+
+GlassCard uses gesture-handler for tap detection. When `onPress` is undefined, no gesture handler is registered, and Link's touch propagation fails through animated layers.
+
+**Wrong:**
+```tsx
+<Link href="/screen" asChild>
+  <Pressable>
+    <CategoryCard category={cat} />  // NO onPress = broken!
+  </Pressable>
+</Link>
+```
+
+**Correct:**
+```tsx
+<CategoryCard
+  category={cat}
+  onPress={() => router.push('/screen')}  // Pass onPress directly
+/>
+```
+
+**Rule:** Always pass `onPress` directly to GlassCard-based components. Never rely on Link wrapper for navigation.
+
+### 13. headerLargeTitle Causes Scroll Issues
+
+**Problem:** Using `headerLargeTitle: true` in Stack.Screen options causes the content to start scrolled down, requiring user to scroll up to see the top.
+
+**Wrong:**
+```tsx
+<Stack.Screen
+  name="achievements"
+  options={{
+    headerLargeTitle: true,  // Content starts scrolled down!
+    ...
+  }}
+/>
+```
+
+**Correct:**
+```tsx
+<Stack.Screen
+  name="achievements"
+  options={{
+    title: 'Achievements',  // Use regular title instead
+    ...
+  }}
+/>
+```
+
+### 14. Adding Expo Packages with Native Code
+
+**Error:** "Cannot find native module 'ExpoXXX'" after npm install
+
+When adding expo packages that have native code (expo-store-review, expo-camera, etc.), you MUST rebuild native:
+
+```bash
+npm install expo-store-review  # JS only - not enough!
+npx expo prebuild --clean      # Rebuilds native iOS/Android
+npx expo run:ios               # Runs with new native code
+```
+
+**Packages requiring native rebuild:**
+- expo-store-review
+- expo-camera
+- expo-image-picker
+- expo-document-picker
+- Any package with native modules
+
+### 15. Progress Indicators - Only Show When Incomplete
+
+**UX Rule:** Progress wheels/rings should only appear for locked/incomplete items. When unlocked/complete, the progress indicator should disappear - not show as "100% complete".
+
+```tsx
+// Show progress ring only when NOT unlocked
+{!unlocked && (
+  <ProgressRing progress={progress} />
+)}
+```
+
+### 16. Achievements Screen Design Principles
+
+- **Badges only** - no History tab (history belongs in Profile)
+- Progress wheels show only for locked badges
+- Tier pills (BRONZE, SILVER, GOLD) show only for unlocked badges
+- Icons are muted (50% opacity) when locked, full color when unlocked
+
+### 17. Badge Nudge Navigation Pattern
+
+When showing "X texts to go →" for a badge, tapping should navigate to START reading, not to achievements:
+
+```tsx
+// Category badges → text selection for that category
+if (badge.category === 'category' && badge.categoryKey) {
+  router.push({ pathname: '/text-select', params: { categoryKey } });
+}
+// Text/word badges → navigate to a reading category
+else if (badge.category === 'texts' || badge.category === 'words') {
+  router.push({ pathname: '/text-select', params: { categoryKey: 'story' } });
+}
+```
+
+### 18. Locked Feature CTAs
+
+When showing locked feature prompts, be specific about what unlocks:
+
+**Wrong:** "Go Pro" (vague)
+**Correct:** "Unlock Unlimited Uploads" (specific benefit)
+
+Also include a clear dismiss option: "I'll wait until tomorrow"
+
+### 19. Content System Architecture
+
+- All 30 bundled texts are in `src/lib/data/categories.ts`
+- Content is static (no API/dynamic loading)
+- Custom user texts stored in Zustand/MMKV
+- To add variety, add more texts to categories.ts and rebuild app

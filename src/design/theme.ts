@@ -51,6 +51,8 @@ export interface BackgroundTheme {
   light: string;
   dark: string;
   darkOnly?: boolean;
+  // If set, this theme is locked until the reward is unlocked via achievements
+  rewardId?: string;
 }
 
 export const BackgroundThemes: BackgroundTheme[] = [
@@ -58,7 +60,10 @@ export const BackgroundThemes: BackgroundTheme[] = [
   { key: 'paper', label: 'Paper', light: '#FDFBF7', dark: '#1A1714' },
   { key: 'stone', label: 'Stone', light: '#F0EFED', dark: '#161618' },
   { key: 'sepia', label: 'Sepia', light: '#F5EDDC', dark: '#1D1508' },
-  { key: 'midnight', label: 'Midnight', light: '#0A0A12', dark: '#0A0A12', darkOnly: true },
+  // Reward themes - unlocked via achievements
+  { key: 'midnight', label: 'Midnight', light: '#0A0A12', dark: '#0A0A12', darkOnly: true, rewardId: 'streak-30-theme' },
+  { key: 'aurora', label: 'Aurora', light: '#0D1B2A', dark: '#0D1B2A', darkOnly: true, rewardId: 'streak-100-theme' },
+  { key: 'legendary', label: 'Legendary', light: '#1A0A2E', dark: '#1A0A2E', darkOnly: true, rewardId: 'streak-365-theme' },
 ];
 
 export const FontFamilies = {

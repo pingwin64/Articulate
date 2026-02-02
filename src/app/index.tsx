@@ -34,6 +34,7 @@ import { TimeGreeting } from '../components/TimeGreeting';
 import { ResumeCard } from '../components/ResumeCard';
 import { CategoryCard } from '../components/CategoryCard';
 import { Paywall } from '../components/Paywall';
+import { ALL_BADGES, type Badge } from '../lib/data/badges';
 import {
   Spacing,
   Springs,
@@ -272,8 +273,8 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
 // ─── Step 2: Make It Yours (Personalize) ─────────────────────
 
 function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
-  const { colors, isDark } = useTheme();
-  const { fontFamily, setFontFamily, wordColor, setWordColor } = useSettingsStore();
+  const { colors, isDark, glass } = useTheme();
+  const { fontFamily, setFontFamily, wordColor, setWordColor, voiceGender, setVoiceGender } = useSettingsStore();
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
 
   const previewScale = useSharedValue(1);
@@ -300,6 +301,13 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
     setWordColor(key);
     animatePreview();
   }, [hapticEnabled, setWordColor, animatePreview]);
+
+  const handleVoiceSelect = useCallback((gender: 'male' | 'female') => {
+    if (hapticEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setVoiceGender(gender);
+  }, [hapticEnabled, setVoiceGender]);
 
   const previewStyle = useAnimatedStyle(() => ({
     transform: [{ scale: previewScale.value }],
@@ -394,6 +402,50 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
             );
           })}
         </View>
+
+        {/* Voice selection */}
+        <Animated.View
+          entering={FadeIn.delay(350).duration(400)}
+          style={styles.voiceRow}
+        >
+          <View style={styles.voiceLabelRow}>
+            <Feather name="volume-2" size={14} color={colors.secondary} />
+            <Text style={[styles.voiceLabel, { color: colors.secondary }]}>
+              Voice
+            </Text>
+          </View>
+          <View style={styles.voiceButtons}>
+            {(['female', 'male'] as const).map((gender) => {
+              const isSelected = voiceGender === gender;
+              return (
+                <Pressable
+                  key={gender}
+                  onPress={() => handleVoiceSelect(gender)}
+                  style={[
+                    styles.voiceButton,
+                    {
+                      backgroundColor: isSelected
+                        ? isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'
+                        : glass.fill,
+                      borderColor: isSelected
+                        ? isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.15)'
+                        : glass.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.voiceButtonText,
+                      { color: isSelected ? colors.primary : colors.muted },
+                    ]}
+                  >
+                    {gender === 'female' ? 'Female' : 'Male'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Animated.View>
       </View>
       <View style={styles.onboardingBottom}>
         <GlassButton title="Continue" onPress={onNext} />
@@ -806,6 +858,8 @@ function Home() {
     isPremium,
     setIsPremium,
     resetAll,
+    unlockedBadges,
+    categoryReadCounts,
     lastReadDate,
     customTexts,
     removeCustomText,
@@ -931,24 +985,6 @@ function Home() {
 
   const setSelectedCategoryKey = useSettingsStore((s) => s.setSelectedCategoryKey);
 
-  const handleCategoryPress = (categoryKey: string) => {
-    if (!isPremium && !FREE_CATEGORIES.includes(categoryKey)) {
-      setPaywallContext('locked_category');
-      return;
-    }
-    const cat = categories.find((c) => c.key === categoryKey);
-    if (cat && cat.texts.length > 1) {
-      // FormSheet workaround: store categoryKey before navigation
-      setSelectedCategoryKey(categoryKey);
-      router.push(`/text-select?categoryKey=${encodeURIComponent(categoryKey)}`);
-    } else if (cat) {
-      router.push({
-        pathname: '/reading',
-        params: { categoryKey, textId: cat.texts[0]?.id ?? '' },
-      });
-    }
-  };
-
   const handleCustomTextOptions = (id: string) => {
     Alert.alert('Text Options', undefined, [
       {
@@ -970,7 +1006,9 @@ function Home() {
     <SafeAreaView style={styles.flex}>
       {/* Header */}
       <View style={styles.homeHeader}>
-        <View style={styles.flex} />
+        <Pressable onPress={() => router.push('/achievements')} style={styles.headerButton} accessibilityLabel="Open achievements" accessibilityRole="button">
+          <Feather name="award" size={20} color={colors.primary} />
+        </Pressable>
         <View style={styles.headerIcons}>
           {__DEV__ && (
             <>
@@ -1057,6 +1095,104 @@ function Home() {
               </Text>
             </View>
           )}
+          {/* Daily engagement: next badge progress */}
+          {(() => {
+            // Find the next badge to unlock
+            const nextBadge = ALL_BADGES.find((b) => {
+              if (unlockedBadges.includes(b.id)) return false;
+              // Check if it's progress-based
+              if (b.category === 'streak' && b.threshold) {
+                return currentStreak < b.threshold;
+              }
+              if (b.category === 'words' && b.threshold) {
+                return totalWordsRead < b.threshold;
+              }
+              if (b.category === 'texts' && b.threshold) {
+                return textsCompleted < b.threshold;
+              }
+              if (b.category === 'category' && b.categoryKey && b.threshold) {
+                return (categoryReadCounts[b.categoryKey] ?? 0) < b.threshold;
+              }
+              return false;
+            });
+
+            if (!nextBadge || !nextBadge.threshold) return null;
+
+            let current = 0;
+            let remaining = 0;
+            let unit = '';
+            if (nextBadge.category === 'streak') {
+              current = currentStreak;
+              remaining = nextBadge.threshold - current;
+              unit = remaining === 1 ? 'day' : 'days';
+            } else if (nextBadge.category === 'words') {
+              current = totalWordsRead;
+              remaining = nextBadge.threshold - current;
+              unit = 'words';
+            } else if (nextBadge.category === 'texts') {
+              current = textsCompleted;
+              remaining = nextBadge.threshold - current;
+              unit = remaining === 1 ? 'text' : 'texts';
+            } else if (nextBadge.category === 'category' && nextBadge.categoryKey) {
+              current = categoryReadCounts[nextBadge.categoryKey] ?? 0;
+              remaining = nextBadge.threshold - current;
+              unit = remaining === 1 ? 'text' : 'texts';
+            }
+
+            const progress = Math.min(100, (current / nextBadge.threshold) * 100);
+
+            // Navigate based on badge type - category badges go to text-select, others help user read
+            const handleBadgePress = () => {
+              if (nextBadge.category === 'category' && nextBadge.categoryKey) {
+                // Navigate to text selection for this category
+                setSelectedCategoryKey(nextBadge.categoryKey);
+                router.push({
+                  pathname: '/text-select',
+                  params: { categoryKey: nextBadge.categoryKey },
+                });
+              } else if (nextBadge.category === 'texts' || nextBadge.category === 'words') {
+                // User needs to read more - navigate to first available category
+                const firstCat = CORE_CATEGORIES[0];
+                if (firstCat) {
+                  setSelectedCategoryKey(firstCat.key);
+                  router.push({
+                    pathname: '/text-select',
+                    params: { categoryKey: firstCat.key },
+                  });
+                }
+              } else {
+                // Streak badges - just go to achievements
+                router.push('/achievements');
+              }
+            };
+
+            return (
+              <Pressable onPress={handleBadgePress} style={styles.nextBadgeCard}>
+                <View style={styles.nextBadgeHeader}>
+                  <Feather name={nextBadge.icon as any} size={16} color={colors.primary} />
+                  <Text style={[styles.nextBadgeName, { color: colors.primary }]}>
+                    {nextBadge.name}
+                  </Text>
+                </View>
+                <View style={[styles.nextBadgeProgressBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
+                  <View
+                    style={[
+                      styles.nextBadgeProgressFill,
+                      { backgroundColor: colors.primary, width: `${progress}%` },
+                    ]}
+                  />
+                </View>
+                <View style={styles.nextBadgeFooter}>
+                  <Text style={[styles.nextBadgeProgress, { color: colors.muted }]}>
+                    {current}/{nextBadge.threshold}
+                  </Text>
+                  <Text style={[styles.nextBadgeAction, { color: colors.secondary }]}>
+                    {formatNumber(remaining)} {unit} to go →
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })()}
         </Animated.View>
 
         {/* 3. Your Text hero card */}
@@ -1222,29 +1358,31 @@ function Home() {
             {CORE_CATEGORIES.map((cat, i) => {
               if (cat.texts.length === 1) {
                 return (
-                  <Link
+                  <CategoryCard
                     key={cat.key}
-                    href={{
-                      pathname: '/reading',
-                      params: { categoryKey: cat.key, textId: cat.texts[0]?.id ?? '' },
+                    category={cat}
+                    index={i}
+                    onPress={() => {
+                      router.push({
+                        pathname: '/reading',
+                        params: { categoryKey: cat.key, textId: cat.texts[0]?.id ?? '' },
+                      });
                     }}
-                    asChild
-                  >
-                    <Link.AppleZoom>
-                      <CategoryCard
-                        category={cat}
-                        index={i}
-                      />
-                    </Link.AppleZoom>
-                  </Link>
+                  />
                 );
               }
               return (
                 <CategoryCard
                   key={cat.key}
                   category={cat}
-                  onPress={() => handleCategoryPress(cat.key)}
                   index={i}
+                  onPress={() => {
+                    setSelectedCategoryKey(cat.key);
+                    router.push({
+                      pathname: '/text-select',
+                      params: { categoryKey: cat.key },
+                    });
+                  }}
                 />
               );
             })}
@@ -1265,13 +1403,33 @@ function Home() {
             <Animated.View entering={FadeIn.duration(300)} style={styles.categoryList}>
               {MORE_CATEGORIES.map((cat, i) => {
                 const isLocked = !isPremium && !FREE_CATEGORIES.includes(cat.key);
+
+                // Locked categories show paywall
+                if (isLocked) {
+                  return (
+                    <CategoryCard
+                      key={cat.key}
+                      category={cat}
+                      locked={true}
+                      index={i}
+                      onPress={() => setPaywallContext('locked_category')}
+                    />
+                  );
+                }
+
+                // Unlocked categories navigate
                 return (
                   <CategoryCard
                     key={cat.key}
                     category={cat}
-                    onPress={() => handleCategoryPress(cat.key)}
-                    locked={isLocked}
                     index={i}
+                    onPress={() => {
+                      setSelectedCategoryKey(cat.key);
+                      router.push({
+                        pathname: '/text-select',
+                        params: { categoryKey: cat.key },
+                      });
+                    }}
                   />
                 );
               })}
@@ -1437,6 +1595,38 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderCurve: 'continuous',
+  },
+  // Voice selection
+  voiceRow: {
+    width: '100%',
+    gap: 10,
+  },
+  voiceLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    justifyContent: 'center',
+  },
+  voiceLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    letterSpacing: 0.3,
+  },
+  voiceButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+  },
+  voiceButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+  },
+  voiceButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
   },
   // Daily Goal wheel picker
   goalSubtitle: {
@@ -1607,6 +1797,46 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '400',
     textAlign: 'center',
+  },
+  // Next badge card
+  nextBadgeCard: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    gap: 8,
+  },
+  nextBadgeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  nextBadgeName: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  nextBadgeProgressBar: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  nextBadgeProgressFill: {
+    height: 6,
+    borderRadius: 3,
+  },
+  nextBadgeFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  nextBadgeProgress: {
+    fontSize: 12,
+    fontWeight: '500',
+    fontVariant: ['tabular-nums'],
+  },
+  nextBadgeAction: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   // More to explore
   moreSection: {

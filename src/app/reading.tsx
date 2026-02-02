@@ -30,6 +30,7 @@ export default function ReadingScreen() {
     autoPlay,
     autoPlayWPM,
     ttsSpeed,
+    voiceGender,
     chunkSize,
     isPremium,
     setResumeData,
@@ -124,14 +125,16 @@ export default function ReadingScreen() {
   // TTS: speak current word when enabled
   useEffect(() => {
     if (ttsEnabled && currentWord) {
-      speakWord(currentWord, ttsSpeed);
+      speakWord(currentWord, ttsSpeed, voiceGender);
     }
-  }, [ttsEnabled, currentIndex, currentWord, ttsSpeed]);
+  }, [ttsEnabled, currentIndex, currentWord, ttsSpeed, voiceGender]);
 
   // TTS: cleanup on unmount
   useEffect(() => {
     return () => stopSpeaking();
   }, []);
+
+  const setHasUsedTTS = useSettingsStore((s) => s.setHasUsedTTS);
 
   const handleTtsToggle = () => {
     if (!isPremium) {
@@ -140,6 +143,9 @@ export default function ReadingScreen() {
     }
     if (ttsEnabled) {
       stopSpeaking();
+    } else {
+      // Track that user has used TTS for badge
+      setHasUsedTTS(true);
     }
     setTtsEnabled(!ttsEnabled);
   };

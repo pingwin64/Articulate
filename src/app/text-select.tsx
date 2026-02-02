@@ -40,63 +40,62 @@ export default function TextSelectScreen() {
 
   if (!category) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <ScrollView
+        style={[styles.container, { backgroundColor: colors.bg }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: 40 }]}
+        contentInsetAdjustmentBehavior="automatic"
+      >
         <Text style={[styles.title, { color: colors.primary }]}>Category not found</Text>
-      </View>
+      </ScrollView>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <ScrollView
-        style={styles.flex}
-        contentContainerStyle={styles.scrollContent}
-        contentInsetAdjustmentBehavior="automatic"
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={[styles.title, { color: colors.primary }]}>
-          {category.name}
-        </Text>
-        <Text style={[styles.subtitle, { color: colors.secondary }]}>
-          Choose a text to read
-        </Text>
-        <View style={styles.list}>
-          {category.texts.map((entry, i) => (
-            <Animated.View
-              key={entry.id}
-              entering={FadeIn.delay(i * 60).duration(300)}
-            >
-              <GlassCard onPress={() => handleTextSelect(entry.id)}>
-                <View style={styles.row}>
-                  <View style={styles.info}>
-                    <Text style={[styles.name, { color: colors.primary }]}>
-                      {entry.title}
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.bg }]}
+      contentContainerStyle={styles.scrollContent}
+      contentInsetAdjustmentBehavior="automatic"
+      showsVerticalScrollIndicator={false}
+    >
+      <Text style={[styles.title, { color: colors.primary }]}>
+        {category.name}
+      </Text>
+      <Text style={[styles.subtitle, { color: colors.secondary }]}>
+        Choose a text to read
+      </Text>
+      <View style={styles.list}>
+        {category.texts.map((entry, i) => (
+          <Animated.View
+            key={entry.id}
+            entering={FadeIn.delay(i * 60).duration(300)}
+          >
+            <GlassCard onPress={() => handleTextSelect(entry.id)}>
+              <View style={styles.row}>
+                <View style={styles.info}>
+                  <Text style={[styles.name, { color: colors.primary }]}>
+                    {entry.title}
+                  </Text>
+                  {entry.author && (
+                    <Text style={[styles.author, { color: colors.secondary }]}>
+                      {entry.author}
                     </Text>
-                    {entry.author && (
-                      <Text style={[styles.author, { color: colors.secondary }]}>
-                        {entry.author}
-                      </Text>
-                    )}
-                    <Text style={[styles.words, { color: colors.muted }]}>
-                      ~{entry.words.length} words
-                    </Text>
-                  </View>
-                  <Feather name="chevron-right" size={18} color={colors.muted} />
+                  )}
+                  <Text style={[styles.words, { color: colors.muted }]}>
+                    ~{entry.words.length} words
+                  </Text>
                 </View>
-              </GlassCard>
-            </Animated.View>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
+                <Feather name="chevron-right" size={18} color={colors.muted} />
+              </View>
+            </GlassCard>
+          </Animated.View>
+        ))}
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-  },
-  flex: {
     flex: 1,
   },
   scrollContent: {

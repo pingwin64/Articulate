@@ -20,6 +20,7 @@ import { GlassButton } from '../components/GlassButton';
 import { NumberRoll } from '../components/NumberRoll';
 import { Paywall } from '../components/Paywall';
 import { Spacing } from '../design/theme';
+import { ALL_BADGES, getBadgeById, type Badge } from '../lib/data/badges';
 
 export default function CompleteScreen() {
   const { colors, glass } = useTheme();
@@ -56,6 +57,12 @@ export default function CompleteScreen() {
     unlockedAchievements,
     addDailyWordsRead,
     resetDailyUploadIfNewDay,
+    addReadingHistory,
+    incrementCategoryReadCount,
+    categoryReadCounts,
+    unlockBadge,
+    unlockedBadges,
+    unlockReward,
   } = useSettingsStore();
 
   const { customTexts } = useSettingsStore();
@@ -77,8 +84,8 @@ export default function CompleteScreen() {
   const seconds = timeSpent % 60;
   const timeDisplay = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
 
-  // Track newly unlocked achievements for display
-  const [newAchievement, setNewAchievement] = React.useState<string | null>(null);
+  // Track newly unlocked badges for display
+  const [newBadge, setNewBadge] = React.useState<Badge | null>(null);
 
   // Checkmark animation
   const checkScale = useSharedValue(0);
@@ -89,6 +96,10 @@ export default function CompleteScreen() {
 
   // Paywall visibility (for first reading)
   const paywallOpacity = useSharedValue(0);
+
+  // Badge fly-in animation
+  const badgeScale = useSharedValue(0);
+  const badgeOpacity = useSharedValue(0);
 
   const didRun = useRef(false);
   useEffect(() => {
@@ -102,29 +113,93 @@ export default function CompleteScreen() {
     incrementTextsCompleted();
     updateStreak();
 
-    // Check achievement conditions
-    const checkAchievements = () => {
+    // Record reading history
+    const historyEntry = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+      categoryKey: params.categoryKey ?? 'custom',
+      textId: params.textId,
+      customTextId: params.customTextId,
+      title: displayName,
+      wordsRead,
+      completedAt: new Date().toISOString(),
+      wpm,
+    };
+    addReadingHistory(historyEntry);
+
+    // Increment category read count
+    if (params.categoryKey) {
+      incrementCategoryReadCount(params.categoryKey);
+    }
+
+    // Check and unlock badges
+    const checkBadges = () => {
       const state = useSettingsStore.getState();
-      const checks: { id: string; label: string; condition: boolean }[] = [
-        { id: 'first_read', label: 'First Read', condition: state.textsCompleted >= 1 },
-        { id: 'streak_7', label: '7-Day Streak', condition: state.currentStreak >= 7 },
-        { id: 'streak_30', label: '30-Day Streak', condition: state.currentStreak >= 30 },
-        { id: 'words_1k', label: '1,000 Words', condition: state.totalWordsRead >= 1000 },
-        { id: 'words_10k', label: '10,000 Words', condition: state.totalWordsRead >= 10000 },
-        { id: 'speed_reader', label: 'Speed Reader', condition: wpm > 300 },
-      ];
-      for (const check of checks) {
-        if (check.condition && !state.unlockedAchievements.includes(check.id)) {
-          unlockAchievement(check.id);
-          setNewAchievement(check.label);
-          if (hapticFeedback) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const newlyUnlocked: Badge[] = [];
+      const hour = new Date().getHours();
+
+      for (const badge of ALL_BADGES) {
+        if (state.unlockedBadges.includes(badge.id)) continue;
+
+        let shouldUnlock = false;
+
+        switch (badge.category) {
+          case 'special':
+            if (badge.id === 'first-steps' && state.textsCompleted >= 1) shouldUnlock = true;
+            if (badge.id === 'custom-creator' && params.customTextId) shouldUnlock = true;
+            if (badge.id === 'listener' && state.hasUsedTTS) shouldUnlock = true;
+            if (badge.id === 'speed-demon' && wpm >= 500) shouldUnlock = true;
+            if (badge.id === 'night-owl' && hour >= 0 && hour < 6) shouldUnlock = true;
+            if (badge.id === 'early-bird' && hour >= 4 && hour < 6) shouldUnlock = true;
+            break;
+
+          case 'streak':
+            if (badge.threshold && state.currentStreak >= badge.threshold) shouldUnlock = true;
+            break;
+
+          case 'words':
+            if (badge.threshold && state.totalWordsRead >= badge.threshold) shouldUnlock = true;
+            break;
+
+          case 'texts':
+            if (badge.threshold && state.textsCompleted >= badge.threshold) shouldUnlock = true;
+            break;
+
+          case 'category':
+            if (badge.categoryKey && badge.threshold) {
+              const count = state.categoryReadCounts[badge.categoryKey] ?? 0;
+              if (count >= badge.threshold) shouldUnlock = true;
+            }
+            break;
+        }
+
+        if (shouldUnlock) {
+          unlockBadge(badge.id);
+          newlyUnlocked.push(badge);
+
+          // Unlock reward if badge has one
+          if (badge.reward) {
+            unlockReward(badge.reward.id);
           }
-          break; // Show one achievement at a time
         }
       }
+
+      // Show first newly unlocked badge
+      if (newlyUnlocked.length > 0) {
+        setNewBadge(newlyUnlocked[0]);
+        if (hapticFeedback) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        // Animate badge fly-in
+        setTimeout(() => {
+          badgeScale.value = withSequence(
+            withSpring(1.2, { damping: 8, stiffness: 150 }),
+            withSpring(1, { damping: 12, stiffness: 200 })
+          );
+          badgeOpacity.value = withTiming(1, { duration: 300 });
+        }, 1600);
+      }
     };
-    checkAchievements();
+    checkBadges();
 
     // Animation sequence
     // T+200ms: checkmark
@@ -161,7 +236,7 @@ export default function CompleteScreen() {
       clearTimeout(t3);
       clearTimeout(t4);
     };
-  }, [wordsRead, incrementWordsRead, addDailyWordsRead, resetDailyUploadIfNewDay, incrementTextsCompleted, updateStreak, hapticFeedback, checkScale, checkOpacity, ctaOpacity, paywallOpacity, hasOnboarded]);
+  }, [wordsRead, wpm, displayName, params.categoryKey, params.textId, params.customTextId, incrementWordsRead, addDailyWordsRead, resetDailyUploadIfNewDay, incrementTextsCompleted, updateStreak, hapticFeedback, checkScale, checkOpacity, ctaOpacity, paywallOpacity, badgeScale, badgeOpacity, hasOnboarded, addReadingHistory, incrementCategoryReadCount, unlockBadge, unlockReward]);
 
   const checkAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: checkScale.value }],
@@ -174,6 +249,11 @@ export default function CompleteScreen() {
 
   const paywallAnimStyle = useAnimatedStyle(() => ({
     opacity: paywallOpacity.value,
+  }));
+
+  const badgeAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: badgeScale.value }],
+    opacity: badgeOpacity.value,
   }));
 
   const handleContinue = () => {
@@ -307,14 +387,14 @@ export default function CompleteScreen() {
               </Animated.View>
             )}
 
-            {/* Achievement badge */}
-            {newAchievement && (
-              <Animated.Text
-                entering={FadeIn.delay(1700).duration(400)}
-                style={[styles.milestoneText, { color: colors.secondary }]}
-              >
-                {newAchievement} unlocked
-              </Animated.Text>
+            {/* Badge unlock notification */}
+            {newBadge && (
+              <Animated.View style={[styles.badgeUnlock, badgeAnimStyle]}>
+                <Feather name="award" size={18} color={colors.primary} />
+                <Text style={[styles.badgeUnlockText, { color: colors.primary }]}>
+                  {newBadge.name}
+                </Text>
+              </Animated.View>
             )}
 
             {/* Milestone celebration */}
@@ -422,7 +502,7 @@ export default function CompleteScreen() {
                 />
               ) : (
                 <GlassButton
-                  title="Take Quiz  \u{1F512}"
+                  title="Take Quiz 🔒"
                   onPress={() => setPaywallContext('locked_quiz')}
                   variant="outline"
                 />
@@ -581,6 +661,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  badgeUnlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  badgeUnlockText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   tomorrowPreview: {
     fontSize: 13,
