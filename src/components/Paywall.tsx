@@ -540,14 +540,18 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                   <Text style={[styles.planName, { color: colors.primary }]}>
                     Lifetime
                   </Text>
-                  <Text style={[styles.planPrice, { color: colors.primary }]}>
+                  <Text
+                    style={[styles.planPrice, { color: colors.primary }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
                     {getPriceString('LIFETIME', '$19.99')}
                   </Text>
                   <Text style={[styles.planPeriod, { color: colors.secondary }]}>
                     one-time
                   </Text>
                   <Text style={[styles.planNote, { color: colors.muted }]}>
-                    Never pay again
+                    Pay once, done
                   </Text>
                 </Pressable>
               </View>
@@ -736,16 +740,18 @@ const styles = StyleSheet.create({
   },
   planRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
   },
   planCard: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 12,
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
     borderRadius: 16,
     borderCurve: 'continuous',
-    gap: 4,
+    gap: 2,
+    minHeight: 140,
   },
   bestValueBadge: {
     position: 'absolute',
@@ -761,22 +767,21 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   planName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    marginTop: 4,
   },
   planPrice: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
   },
   planPeriod: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '400',
   },
   planNote: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '400',
-    marginTop: 2,
+    textAlign: 'center',
   },
   savingsText: {
     fontSize: 13,
