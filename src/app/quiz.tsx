@@ -15,6 +15,7 @@ import { useSettingsStore } from '../lib/store/settings';
 import { QuizQuestionCard } from '../components/quiz/QuizQuestion';
 import { GlassButton } from '../components/GlassButton';
 import { GlassCard } from '../components/GlassCard';
+import { Paywall } from '../components/Paywall';
 import { getQuizForText } from '../lib/data/quizzes';
 import { generateQuizFromText } from '../lib/quiz-generator';
 import type { QuizQuestion } from '../lib/data/quizzes';
@@ -29,7 +30,16 @@ export default function QuizScreen() {
     customTextId?: string;
   }>();
 
-  const { customTexts, updateComprehension } = useSettingsStore();
+  const {
+    customTexts,
+    updateComprehension,
+    isPremium,
+    canUseFreeQuiz,
+    useFreeQuiz,
+    showPaywall,
+    setPaywallContext,
+    paywallContext,
+  } = useSettingsStore();
 
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
@@ -37,14 +47,26 @@ export default function QuizScreen() {
   const [finished, setFinished] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showQuizGate, setShowQuizGate] = useState(false);
 
+  // Check if free user can take quiz (1 per day)
   useEffect(() => {
-    loadQuestions();
+    if (!isPremium && !canUseFreeQuiz()) {
+      setShowQuizGate(true);
+      setLoading(false);
+    } else {
+      loadQuestions();
+    }
   }, []);
 
   const loadQuestions = async () => {
     setLoading(true);
     setError(null);
+
+    // Track free quiz usage for non-premium users
+    if (!isPremium) {
+      useFreeQuiz();
+    }
 
     if (params.customTextId) {
       // Custom text — use OpenAI
@@ -119,6 +141,41 @@ export default function QuizScreen() {
           </Text>
           <GlassButton title="Go Back" onPress={handleClose} />
         </SafeAreaView>
+      </View>
+    );
+  }
+
+  // Free user has used their daily quiz
+  if (showQuizGate) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.bg }]}>
+        <SafeAreaView style={styles.centered}>
+          <Animated.View entering={FadeIn.duration(400)} style={styles.gateContent}>
+            <Feather name="award" size={48} color={colors.primary} />
+            <Text style={[styles.gateTitle, { color: colors.primary }]}>
+              You've used your free quiz today
+            </Text>
+            <Text style={[styles.gateSubtitle, { color: colors.secondary }]}>
+              Come back tomorrow for another, or unlock unlimited quizzes with Pro
+            </Text>
+          </Animated.View>
+          <View style={styles.gateButtons}>
+            <GlassButton
+              title="Unlock Unlimited Quizzes"
+              onPress={() => setPaywallContext('locked_quiz')}
+            />
+            <Pressable onPress={handleClose} style={styles.gateDismiss}>
+              <Text style={[styles.gateDismissText, { color: colors.muted }]}>
+                I'll wait until tomorrow
+              </Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+        <Paywall
+          visible={showPaywall}
+          onDismiss={() => setPaywallContext(null)}
+          context={paywallContext}
+        />
       </View>
     );
   }
@@ -249,5 +306,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.lg,
     width: '100%',
+  },
+  // Quiz gate styles
+  gateContent: {
+    alignItems: 'center',
+    gap: 16,
+    paddingHorizontal: Spacing.lg,
+  },
+  gateTitle: {
+    fontSize: 22,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  gateSubtitle: {
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  gateButtons: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: 32,
+    width: '100%',
+    gap: 16,
+  },
+  gateDismiss: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  gateDismissText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

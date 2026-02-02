@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
@@ -11,14 +11,22 @@ interface CategoryCardProps {
   onPress?: () => void;
   locked?: boolean;
   index?: number;
+  showPreview?: boolean; // Show preview snippet for locked categories
 }
 
-export const CategoryCard = forwardRef<View, CategoryCardProps>(function CategoryCard({ category, onPress, locked, index = 0 }, ref) {
+export const CategoryCard = forwardRef<View, CategoryCardProps>(function CategoryCard({ category, onPress, locked, index = 0, showPreview = true }, ref) {
   const { colors, glass, isDark } = useTheme();
 
   const iconName = locked ? 'lock' : (category.icon as any);
   const totalWords = category.texts.reduce((sum, t) => sum + t.words.length, 0);
   const textCount = category.texts.length;
+
+  // Preview snippet for locked categories - show first text title
+  const previewText = useMemo(() => {
+    if (!locked || !showPreview || category.texts.length === 0) return null;
+    const firstText = category.texts[0];
+    return `Includes "${firstText.title}"${category.texts.length > 1 ? ` + ${category.texts.length - 1} more` : ''}`;
+  }, [locked, showPreview, category.texts]);
 
   return (
     <Animated.View ref={ref} entering={FadeIn.delay(index * 80).duration(400)}>
@@ -46,6 +54,11 @@ export const CategoryCard = forwardRef<View, CategoryCardProps>(function Categor
             <Text style={[styles.count, { color: colors.muted }]}>
               {textCount} {textCount === 1 ? 'text' : 'texts'} · ~{totalWords} words
             </Text>
+            {previewText && (
+              <Text style={[styles.preview, { color: colors.muted }]} numberOfLines={1}>
+                {previewText}
+              </Text>
+            )}
           </View>
           {locked ? (
             <Feather name="lock" size={14} color={colors.muted} />
@@ -84,6 +97,11 @@ const styles = StyleSheet.create({
   },
   count: {
     fontSize: 12,
+  },
+  preview: {
+    fontSize: 11,
+    fontStyle: 'italic',
+    marginTop: 2,
   },
   lockedContent: {
     opacity: 0.5,

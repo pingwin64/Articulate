@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef, useState } from 'react';
+import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { StyleSheet, View, Text, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -65,8 +65,11 @@ export default function ReadingScreen() {
   const currentWord = words.slice(currentIndex, currentIndex + chunkSize).join(' ');
   const progress = totalWords > 0 ? currentIndex / totalWords : 0;
 
-  // Derived state: completedWords from currentIndex
-  const completedWords = words.slice(0, currentIndex);
+  // Memoize completed words array to prevent SentenceTrail re-renders
+  const completedWords = useMemo(
+    () => words.slice(0, currentIndex),
+    [words, currentIndex]
+  );
 
   // Derived state: showHint from currentIndex (show for first 3 taps)
   const showHint = currentIndex < 3;

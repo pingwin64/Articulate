@@ -218,6 +218,8 @@ function BadgesTab() {
   const currentStreak = useSettingsStore((s) => s.currentStreak);
   const categoryReadCounts = useSettingsStore((s) => s.categoryReadCounts);
   const baselineWPM = useSettingsStore((s) => s.baselineWPM);
+  const totalQuizzesTaken = useSettingsStore((s) => s.totalQuizzesTaken);
+  const avgComprehension = useSettingsStore((s) => s.avgComprehension);
 
   const totalBadges = ALL_BADGES.length;
   const totalUnlocked = unlockedBadges.length;
@@ -227,6 +229,7 @@ function BadgesTab() {
   const streakBadges = getBadgesByCategory('streak');
   const wordBadges = getBadgesByCategory('words');
   const textBadges = getBadgesByCategory('texts');
+  const quizBadges = getBadgesByCategory('quiz');
   const categoryBadges = getBadgesByCategory('category');
 
   // Helper to get current/target values for a badge
@@ -240,6 +243,9 @@ function BadgesTab() {
         return { current: totalWordsRead, target: badge.threshold };
       case 'texts':
         return { current: textsCompleted, target: badge.threshold };
+      case 'quiz':
+        // Quiz badges track quizzes taken
+        return { current: totalQuizzesTaken, target: badge.threshold };
       case 'category':
         if (badge.categoryKey) {
           return {
@@ -346,6 +352,28 @@ function BadgesTab() {
         </Text>
         <View style={styles.badgeGrid}>
           {[...wordBadges, ...textBadges].map((badge, i) => {
+            const { current, target } = getBadgeProgress(badge);
+            return (
+              <BadgeGridCard
+                key={badge.id}
+                badge={badge}
+                unlocked={unlockedBadges.includes(badge.id)}
+                index={i}
+                currentValue={current}
+                targetValue={target}
+              />
+            );
+          })}
+        </View>
+      </View>
+
+      {/* Section: Quizzes */}
+      <View style={styles.sectionContainer}>
+        <Text style={[styles.sectionTitle, { color: colors.secondary }]}>
+          QUIZZES
+        </Text>
+        <View style={styles.badgeGrid}>
+          {quizBadges.map((badge, i) => {
             const { current, target } = getBadgeProgress(badge);
             return (
               <BadgeGridCard

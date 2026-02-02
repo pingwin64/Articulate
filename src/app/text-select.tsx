@@ -4,7 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
-import { categories } from '../lib/data/categories';
+import { categories, TextEntry } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { Feather } from '@expo/vector-icons';
 import { Spacing } from '../design/theme';
@@ -15,27 +15,41 @@ export default function TextSelectScreen() {
   const params = useLocalSearchParams<{ categoryKey: string }>();
   const selectedCategoryKey = useSettingsStore((s) => s.selectedCategoryKey);
   const setSelectedCategoryKey = useSettingsStore((s) => s.setSelectedCategoryKey);
+  const categoryReadCounts = useSettingsStore((s) => s.categoryReadCounts);
 
   // FormSheet workaround: params may be empty, fall back to store
   const categoryKey = params.categoryKey || selectedCategoryKey || undefined;
 
   const category = categories.find((c) => c.key === categoryKey);
+  const userReadsInCategory = categoryKey ? (categoryReadCounts[categoryKey] ?? 0) : 0;
+
+  // Check if a text is unlocked based on requiredReads
+  const isTextUnlocked = (entry: TextEntry): boolean => {
+    const required = entry.requiredReads ?? 0;
+    return userReadsInCategory >= required;
+  };
 
   // Clear store fallback on unmount (e.g. swipe dismiss)
   React.useEffect(() => {
     return () => { setSelectedCategoryKey(null); };
   }, [setSelectedCategoryKey]);
 
-  const handleTextSelect = (textId: string) => {
-    if (category) {
-      // Clear the store value after use
-      setSelectedCategoryKey(null);
-      router.dismiss();
-      // Use setTimeout to ensure the dismiss completes before pushing
-      setTimeout(() => {
-        router.push(`/reading?categoryKey=${encodeURIComponent(category.key)}&textId=${encodeURIComponent(textId)}`);
-      }, 0);
+  const handleTextSelect = (entry: TextEntry) => {
+    if (!category) return;
+
+    // Check if locked
+    if (!isTextUnlocked(entry)) {
+      // Don't navigate - text is locked
+      return;
     }
+
+    // Clear the store value after use
+    setSelectedCategoryKey(null);
+    router.dismiss();
+    // Use setTimeout to ensure the dismiss completes before pushing
+    setTimeout(() => {
+      router.push(`/reading?categoryKey=${encodeURIComponent(category.key)}&textId=${encodeURIComponent(entry.id)}`);
+    }, 0);
   };
 
   if (!category) {
@@ -64,31 +78,67 @@ export default function TextSelectScreen() {
         Choose a text to read
       </Text>
       <View style={styles.list}>
-        {category.texts.map((entry, i) => (
-          <Animated.View
-            key={entry.id}
-            entering={FadeIn.delay(i * 60).duration(300)}
-          >
-            <GlassCard onPress={() => handleTextSelect(entry.id)}>
-              <View style={styles.row}>
-                <View style={styles.info}>
-                  <Text style={[styles.name, { color: colors.primary }]}>
-                    {entry.title}
-                  </Text>
-                  {entry.author && (
-                    <Text style={[styles.author, { color: colors.secondary }]}>
-                      {entry.author}
-                    </Text>
+        {category.texts.map((entry, i) => {
+          const unlocked = isTextUnlocked(entry);
+          const readsNeeded = (entry.requiredReads ?? 0) - userReadsInCategory;
+
+          return (
+            <Animated.View
+              key={entry.id}
+              entering={FadeIn.delay(Math.min(i, 5) * 60).duration(300)}
+            >
+              <GlassCard
+                onPress={() => handleTextSelect(entry)}
+                style={!unlocked ? styles.lockedCard : undefined}
+              >
+                <View style={styles.row}>
+                  <View style={styles.info}>
+                    <View style={styles.titleRow}>
+                      <Text
+                        style={[
+                          styles.name,
+                          { color: unlocked ? colors.primary : colors.muted },
+                        ]}
+                      >
+                        {entry.title}
+                      </Text>
+                      {!unlocked && (
+                        <Feather
+                          name="lock"
+                          size={14}
+                          color={colors.muted}
+                          style={styles.lockIcon}
+                        />
+                      )}
+                    </View>
+                    {entry.author && (
+                      <Text
+                        style={[
+                          styles.author,
+                          { color: unlocked ? colors.secondary : colors.muted },
+                        ]}
+                      >
+                        {entry.author}
+                      </Text>
+                    )}
+                    {unlocked ? (
+                      <Text style={[styles.words, { color: colors.muted }]}>
+                        ~{entry.words.length} words
+                      </Text>
+                    ) : (
+                      <Text style={[styles.unlockHint, { color: colors.muted }]}>
+                        Read {readsNeeded} more to unlock
+                      </Text>
+                    )}
+                  </View>
+                  {unlocked && (
+                    <Feather name="chevron-right" size={18} color={colors.muted} />
                   )}
-                  <Text style={[styles.words, { color: colors.muted }]}>
-                    ~{entry.words.length} words
-                  </Text>
                 </View>
-                <Feather name="chevron-right" size={18} color={colors.muted} />
-              </View>
-            </GlassCard>
-          </Animated.View>
-        ))}
+              </GlassCard>
+            </Animated.View>
+          );
+        })}
       </View>
     </ScrollView>
   );
@@ -126,9 +176,18 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   name: {
     fontSize: 16,
     fontWeight: '600',
+    flexShrink: 1,
+  },
+  lockIcon: {
+    marginTop: 1,
   },
   author: {
     fontSize: 13,
@@ -138,5 +197,12 @@ const styles = StyleSheet.create({
   words: {
     fontSize: 12,
     fontWeight: '400',
+  },
+  unlockHint: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  lockedCard: {
+    opacity: 0.6,
   },
 });

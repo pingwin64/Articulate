@@ -224,6 +224,16 @@ export interface SettingsState {
   addDailyWordsRead: (count: number) => void;
   lastDailyResetDate: string | null;
 
+  // Free quiz per day (foot-in-door strategy)
+  freeQuizUsedToday: boolean;
+  lastFreeQuizDate: string | null;
+  useFreeQuiz: () => void;
+  canUseFreeQuiz: () => boolean;
+
+  // Badge upsell tracking
+  lastUnlockedBadgeId: string | null;
+  clearLastUnlockedBadge: () => void;
+
   // Computed helper
   trialDaysRemaining: () => number;
 
@@ -506,6 +516,7 @@ export const useSettingsStore = create<SettingsState>()(
         const badge = getBadgeById(id);
         const updates: Partial<SettingsState> = {
           unlockedBadges: [...state.unlockedBadges, id],
+          lastUnlockedBadgeId: id, // Track for badge-triggered upsells
         };
 
         // If badge has a reward, unlock it too
@@ -617,6 +628,27 @@ export const useSettingsStore = create<SettingsState>()(
         set((s) => ({ dailyWordsToday: s.dailyWordsToday + count })),
       lastDailyResetDate: null,
 
+      // Free quiz per day (foot-in-door strategy)
+      freeQuizUsedToday: false,
+      lastFreeQuizDate: null,
+      useFreeQuiz: () => {
+        const today = new Date().toDateString();
+        set({ freeQuizUsedToday: true, lastFreeQuizDate: today });
+      },
+      canUseFreeQuiz: () => {
+        const state = get();
+        const today = new Date().toDateString();
+        // Reset if new day
+        if (state.lastFreeQuizDate !== today) {
+          return true;
+        }
+        return !state.freeQuizUsedToday;
+      },
+
+      // Badge upsell tracking
+      lastUnlockedBadgeId: null,
+      clearLastUnlockedBadge: () => set({ lastUnlockedBadgeId: null }),
+
       // Computed helper
       trialDaysRemaining: () => {
         const state = get();
@@ -684,11 +716,14 @@ export const useSettingsStore = create<SettingsState>()(
         dailyWordGoal: 100,
         dailyWordsToday: 0,
         lastDailyResetDate: null,
+        freeQuizUsedToday: false,
+        lastFreeQuizDate: null,
+        lastUnlockedBadgeId: null,
       }),
     }),
     {
       name: 'articulate-settings',
-      version: 5,
+      version: 6,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -724,6 +759,12 @@ export const useSettingsStore = create<SettingsState>()(
         if (version < 5) {
           // v5: add quiz achievements tracking
           persisted.perfectQuizzes = persisted.perfectQuizzes ?? 0;
+        }
+        if (version < 6) {
+          // v6: add free quiz per day, badge upsell tracking
+          persisted.freeQuizUsedToday = persisted.freeQuizUsedToday ?? false;
+          persisted.lastFreeQuizDate = persisted.lastFreeQuizDate ?? null;
+          persisted.lastUnlockedBadgeId = persisted.lastUnlockedBadgeId ?? null;
         }
         return persisted;
       },

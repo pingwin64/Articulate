@@ -37,8 +37,10 @@ export function GlassSlider({
   const thumbX = useSharedValue(0);
   const lastSteppedValue = useRef(value);
 
-  const normalize = (v: number) =>
-    Math.max(0, Math.min(1, (v - minimumValue) / (maximumValue - minimumValue)));
+  const normalize = (v: number) => {
+    'worklet';
+    return Math.max(0, Math.min(1, (v - minimumValue) / (maximumValue - minimumValue)));
+  };
 
   const denormalize = (ratio: number) => {
     'worklet';

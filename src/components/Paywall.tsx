@@ -36,12 +36,12 @@ interface ContextualCopy {
 }
 
 const FEATURES = [
-  { icon: 'clipboard' as const, text: 'Unlimited texts — paste and save anything you want' },
-  { icon: 'droplet' as const, text: 'Every theme, background, font, and color' },
-  { icon: 'book-open' as const, text: 'Full reading library — all categories, current and future' },
-  { icon: 'zap' as const, text: 'Auto-play, breathing mode, and chunk reading' },
-  { icon: 'volume-2' as const, text: 'Text-to-speech narration as you read' },
-  { icon: 'help-circle' as const, text: 'Comprehension quizzes after every reading' },
+  { icon: 'clipboard' as const, text: 'Read in any style that clicks for you' },
+  { icon: 'droplet' as const, text: 'Customize fonts, colors & themes to match your style' },
+  { icon: 'book-open' as const, text: '9 premium categories — Philosophy, Poetry, Science & more' },
+  { icon: 'zap' as const, text: 'Train your focus with auto-play, breathing & chunk modes' },
+  { icon: 'volume-2' as const, text: 'Listen while you read with AI narration' },
+  { icon: 'help-circle' as const, text: 'Test comprehension with quizzes after every reading' },
 ];
 
 const DEFAULT_ORDER = [0, 1, 2, 3, 4, 5];
@@ -198,7 +198,7 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
     setPaywallContext,
     incrementPaywallDismiss,
   } = useSettingsStore();
-  const [selectedPlan, setSelectedPlan] = useState<Plan>('lifetime');
+  const [selectedPlan, setSelectedPlan] = useState<Plan>('monthly');
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -266,7 +266,7 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
     return items;
   }, [context, trialFeaturesUsed, savedPremiumSettings]);
 
-  const showStreakLine = currentStreak >= 3;
+  const showStreakLine = currentStreak >= 1;
 
   const handleSubscribe = async () => {
     // Find the matching package
@@ -341,11 +341,38 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
     onDismiss();
   };
 
+  // Context-aware CTA text
+  const getContextCTA = (): string => {
+    switch (context) {
+      case 'custom_text_limit':
+      case 'locked_daily_upload':
+        return 'Unlock Unlimited Uploads';
+      case 'locked_category':
+        return 'Unlock All Categories';
+      case 'locked_tts':
+        return 'Get Text-to-Speech';
+      case 'locked_quiz':
+        return 'Unlock Comprehension Quizzes';
+      case 'locked_font':
+      case 'locked_color':
+      case 'locked_background':
+        return 'Unlock All Customization';
+      case 'locked_autoplay':
+      case 'locked_chunk':
+      case 'locked_breathing':
+        return 'Unlock Advanced Reading';
+      case 'streak_save':
+        return 'Protect Your Streak';
+      default:
+        return 'Start 3-Day Free Trial';
+    }
+  };
+
   const ctaText = selectedPlan === 'lifetime'
-    ? 'Get Lifetime Access'
+    ? getContextCTA()
     : selectedPlan === 'weekly'
-      ? 'Subscribe Weekly'
-      : 'Subscribe Monthly';
+      ? 'Start 3-Day Free Trial'
+      : 'Start 3-Day Free Trial';
 
   // Helper to get price string from packages or fallback
   const getPriceString = (type: string, fallback: string): string => {
@@ -378,7 +405,10 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
               </Text>
               {showStreakLine && (
                 <Text style={[styles.streakLine, { color: colors.warning }]}>
-                  Keep your {currentStreak}-day streak going strong
+                  {currentStreak === 1
+                    ? "You're building momentum — lock it in"
+                    : `Keep your ${currentStreak}-day streak going strong`
+                  }
                 </Text>
               )}
             </Animated.View>
@@ -459,6 +489,9 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                   <Text style={[styles.planPeriod, { color: colors.secondary }]}>
                     per week
                   </Text>
+                  <Text style={[styles.planNote, { color: colors.muted }]}>
+                    ~$0.43/day
+                  </Text>
                 </Pressable>
 
                 {/* Monthly */}
@@ -473,6 +506,11 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                   ]}
                   onPress={() => handleSelectPlan('monthly')}
                 >
+                  <View style={[styles.bestValueBadge, { backgroundColor: colors.primary }]}>
+                    <Text style={[styles.bestValueText, { color: colors.bg }]}>
+                      MOST POPULAR
+                    </Text>
+                  </View>
                   <Text style={[styles.planName, { color: colors.primary }]}>
                     Monthly
                   </Text>
@@ -481,6 +519,9 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                   </Text>
                   <Text style={[styles.planPeriod, { color: colors.secondary }]}>
                     per month
+                  </Text>
+                  <Text style={[styles.planNote, { color: colors.muted }]}>
+                    ~$0.33/day
                   </Text>
                 </Pressable>
 
@@ -496,11 +537,6 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                   ]}
                   onPress={() => handleSelectPlan('lifetime')}
                 >
-                  <View style={[styles.bestValueBadge, { backgroundColor: colors.primary }]}>
-                    <Text style={[styles.bestValueText, { color: colors.bg }]}>
-                      BEST VALUE
-                    </Text>
-                  </View>
                   <Text style={[styles.planName, { color: colors.primary }]}>
                     Lifetime
                   </Text>
@@ -509,6 +545,9 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                   </Text>
                   <Text style={[styles.planPeriod, { color: colors.secondary }]}>
                     one-time
+                  </Text>
+                  <Text style={[styles.planNote, { color: colors.muted }]}>
+                    Never pay again
                   </Text>
                 </Pressable>
               </View>
@@ -524,7 +563,7 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
             {/* Credibility */}
             <Animated.View entering={FadeIn.delay(600).duration(400)}>
               <Text style={[styles.credibilityText, { color: colors.muted }]}>
-                Grounded in cognitive reading science
+                Join 10,000+ readers improving their focus daily
               </Text>
             </Animated.View>
           </ScrollView>
@@ -547,7 +586,7 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
               <Text style={[styles.dot, { color: colors.muted }]}>{'\u00B7'}</Text>
               <Pressable onPress={handleClose} disabled={isLoading}>
                 <Text style={[styles.secondaryLink, { color: colors.muted }]}>
-                  Not now
+                  Continue Free
                 </Text>
               </Pressable>
             </View>

@@ -391,3 +391,79 @@ Also include a clear dismiss option: "I'll wait until tomorrow"
 - Content is static (no API/dynamic loading)
 - Custom user texts stored in Zustand/MMKV
 - To add variety, add more texts to categories.ts and rebuild app
+
+### 20. Breathing Animation Cleanup
+
+**Problem:** Breathing animation continues indefinitely if disabled mid-cycle
+
+**Fix:** Always cancel animation and reset shared value in cleanup:
+```tsx
+return () => {
+  if (timer) clearTimeout(timer);
+  cancelAnimation(breatheScale);
+  breatheScale.value = 1;
+};
+```
+
+Also check both app setting AND system reduce motion preference before enabling repeating animations.
+
+### 21. Memoize Expensive Lookups in Animated Components
+
+**Problem:** Color/font lookups called on every render during animations
+
+**Fix:** Use `useMemo` for functions that search arrays or compute derived values:
+```tsx
+const displayColor = useMemo(
+  () => getWordColor(wordColor, colors.primary),
+  [wordColor, colors.primary]
+);
+```
+
+### 22. Paywall CRO Best Practices
+
+- Default plan should be Monthly (best LTV), not Lifetime
+- Show streak motivation at 1+ days, not just 3+
+- Use context-aware CTAs ("Unlock Unlimited Uploads" not "Get Lifetime Access")
+- Add daily cost framing ("~$0.33/day")
+- Move "BEST VALUE" badge to Monthly ("MOST POPULAR")
+- Replace "Not now" with "Continue Free" (clearer intent)
+- Use benefit-focused feature copy, not feature-focused
+
+### 23. Onboarding Copy Principles
+
+- Add value promise to the silent start ("This is how you build focus")
+- Contextualize personalization ("The right font and colors keep you coming back")
+- Frame daily goal around habits, not time ("Set your daily habit" not "Set your daily goal")
+- Add guidance to category selection ("Pick what speaks to you")
+
+### 24. Foot-in-Door Strategy: 1 Free Quiz Per Day
+
+Give free users a taste of premium features to increase conversion:
+- Free users get 1 quiz per day (tracked via `freeQuizUsedToday`, `lastFreeQuizDate`)
+- Show "Take Quiz (Free Today)" button when available
+- Quiz screen checks `canUseFreeQuiz()` before loading
+- After daily limit, show specific upgrade CTA: "Unlock Unlimited Quizzes"
+- Include "I'll wait until tomorrow" dismiss option
+
+### 25. Badge-Triggered Upsells
+
+Show upgrade prompts at moments of achievement to capitalize on positive emotions:
+- Track `lastUnlockedBadgeId` in store to detect new badge unlocks
+- After badge animation (2.5s delay), show upsell for free users
+- Keep it subtle: "You're making progress! See what's included →"
+- Don't show on first reading (already has paywall)
+
+### 26. Streak-at-Risk Banners
+
+Use loss aversion to drive engagement:
+- Detect "at risk" state: 20+ hours since last read (4h buffer before 48h reset)
+- Show actionable card: "Don't lose your X-day streak"
+- Include CTA that navigates directly to reading selection
+- Use warning color for icon to draw attention
+
+### 27. Category Preview Cards
+
+Give free users a glimpse of locked premium content:
+- Show first text title: `Includes "Text Title" + X more`
+- Displayed on locked CategoryCard when `showPreview={true}`
+- Creates curiosity and FOMO for premium categories

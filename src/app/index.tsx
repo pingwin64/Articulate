@@ -43,6 +43,7 @@ import {
   Radius,
 } from '../design/theme';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
+import { scheduleStreakAtRiskReminder } from '../lib/notifications';
 
 // ─── Onboarding Constants ────────────────────────────────────
 
@@ -254,7 +255,7 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
         <Animated.Text
           style={[styles.hintText, { color: colors.muted }, hintStyle]}
         >
-          Tap anywhere
+          This is how you build focus.{'\n'}Tap anywhere
         </Animated.Text>
       </View>
       <View style={styles.progressContainer}>
@@ -323,7 +324,13 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
           entering={FadeIn.duration(400)}
           style={[styles.personalizeTitle, { color: colors.primary }]}
         >
-          Make it yours.
+          Your reading space.
+        </Animated.Text>
+        <Animated.Text
+          entering={FadeIn.delay(100).duration(400)}
+          style={[styles.personalizeSubtitle, { color: colors.secondary }]}
+        >
+          The right font and colors keep you coming back.
         </Animated.Text>
 
         <View style={styles.previewArea}>
@@ -613,12 +620,12 @@ function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, 
 
 const GOAL_OPTIONS = [50, 100, 150, 200, 300, 500];
 const GOAL_LABELS: Record<number, string> = {
-  50: 'A gentle start',
-  100: 'Build a daily habit',
-  150: 'Steady progress',
-  200: 'Ambitious reader',
-  300: 'Dedicated learner',
-  500: 'Power reader',
+  50: 'A gentle start — build from here',
+  100: 'The sweet spot for habit-building',
+  150: 'Steady progress every day',
+  200: 'Ambitious — you\'re serious',
+  300: 'Dedicated learner mode',
+  500: 'Power reader — full commitment',
 };
 const GOAL_TIME: Record<number, string> = {
   50: '~5 min/day',
@@ -699,13 +706,13 @@ function OnboardingDailyGoal({ onNext }: { onNext: (goal: number) => void }) {
           entering={FadeIn.duration(400)}
           style={[styles.personalizeTitle, { color: colors.primary }]}
         >
-          Set your daily goal.
+          Set your daily habit.
         </Animated.Text>
         <Animated.Text
           entering={FadeIn.delay(100).duration(400)}
           style={[styles.goalSubtitle, { color: colors.secondary }]}
         >
-          How many words do you want to read each day?
+          How much focus time feels right for you?
         </Animated.Text>
 
         {/* Wheel picker */}
@@ -778,6 +785,12 @@ function OnboardingLaunch({ onNext }: { onNext: (categoryKey: string) => void })
           style={[styles.personalizeTitle, { color: colors.primary }]}
         >
           Your first reading.
+        </Animated.Text>
+        <Animated.Text
+          entering={FadeIn.delay(100).duration(400)}
+          style={[styles.personalizeSubtitle, { color: colors.secondary }]}
+        >
+          Pick what speaks to you. You'll want to come back.
         </Animated.Text>
         <View style={styles.levelCards}>
           {ONBOARDING_CATEGORIES.map((cat, i) => (
@@ -900,6 +913,14 @@ function Home() {
   const heroBorderStyle = useAnimatedStyle(() => ({
     borderColor: `rgba(${isDark ? '255,255,255' : '0,0,0'}, ${heroBorderOpacity.value})`,
   }));
+
+  // Check for streak at risk notification on mount
+  const { notificationsEnabled } = useSettingsStore();
+  useEffect(() => {
+    if (notificationsEnabled && currentStreak > 0) {
+      scheduleStreakAtRiskReminder(currentStreak, lastReadDate);
+    }
+  }, [notificationsEnabled, currentStreak, lastReadDate]);
 
   const toggleMore = useCallback(() => {
     setMoreExpanded((prev) => {
@@ -1270,9 +1291,32 @@ function Home() {
         {/* Streak at risk warning — Loss Aversion framing */}
         {isStreakAtRisk && (
           <Animated.View entering={FadeIn.duration(400)} style={styles.bannerSection}>
-            <Text style={[styles.streakHint, { color: colors.secondary }]}>
-              Your {currentStreak}-day streak expires tonight
-            </Text>
+            <GlassCard onPress={() => {
+              // Navigate to first available category to help user save streak
+              const firstCat = CORE_CATEGORIES[0];
+              if (firstCat) {
+                setSelectedCategoryKey(firstCat.key);
+                router.push({
+                  pathname: '/text-select',
+                  params: { categoryKey: firstCat.key },
+                });
+              }
+            }}>
+              <View style={styles.streakAtRiskBanner}>
+                <View style={styles.streakAtRiskContent}>
+                  <Feather name="alert-circle" size={18} color={colors.warning ?? colors.primary} />
+                  <View style={styles.streakAtRiskText}>
+                    <Text style={[styles.streakAtRiskTitle, { color: colors.primary }]}>
+                      Don't lose your {currentStreak}-day streak
+                    </Text>
+                    <Text style={[styles.streakAtRiskSubtitle, { color: colors.secondary }]}>
+                      Read one text to keep it going
+                    </Text>
+                  </View>
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.muted} />
+              </View>
+            </GlassCard>
           </Animated.View>
         )}
 
@@ -1556,6 +1600,13 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     textAlign: 'center',
     letterSpacing: -0.3,
+  },
+  personalizeSubtitle: {
+    fontSize: 15,
+    fontWeight: '400',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginTop: -20,
   },
   previewArea: {
     height: 80,
@@ -1871,11 +1922,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '400',
   },
-  // Streak hint
-  streakHint: {
+  // Streak at risk banner
+  streakAtRiskBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  streakAtRiskContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  streakAtRiskText: {
+    flex: 1,
+    gap: 2,
+  },
+  streakAtRiskTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  streakAtRiskSubtitle: {
     fontSize: 13,
     fontWeight: '400',
-    textAlign: 'center',
   },
   // Hero "Your Text" card
   heroCard: {

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, Pressable, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, Pressable, ScrollView, Share, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
@@ -21,6 +21,7 @@ import { NumberRoll } from '../components/NumberRoll';
 import { Paywall } from '../components/Paywall';
 import { Spacing } from '../design/theme';
 import { ALL_BADGES, getBadgeById, type Badge } from '../lib/data/badges';
+import { cancelStreakAtRiskReminder } from '../lib/notifications';
 
 export default function CompleteScreen() {
   const { colors, glass } = useTheme();
@@ -63,6 +64,9 @@ export default function CompleteScreen() {
     unlockBadge,
     unlockedBadges,
     unlockReward,
+    canUseFreeQuiz,
+    lastUnlockedBadgeId,
+    clearLastUnlockedBadge,
   } = useSettingsStore();
 
   const { customTexts } = useSettingsStore();
@@ -86,6 +90,8 @@ export default function CompleteScreen() {
 
   // Track newly unlocked badges for display
   const [newBadge, setNewBadge] = React.useState<Badge | null>(null);
+  // Badge-triggered upsell for free users
+  const [showBadgeUpsell, setShowBadgeUpsell] = React.useState(false);
 
   // Checkmark animation
   const checkScale = useSharedValue(0);
@@ -112,6 +118,9 @@ export default function CompleteScreen() {
     addDailyWordsRead(wordsRead);
     incrementTextsCompleted();
     updateStreak();
+
+    // Cancel any pending "streak at risk" notifications since user just read
+    cancelStreakAtRiskReminder();
 
     // Record reading history
     const historyEntry = {
@@ -197,6 +206,15 @@ export default function CompleteScreen() {
           );
           badgeOpacity.value = withTiming(1, { duration: 300 });
         }, 1600);
+
+        // Badge-triggered upsell for free users (after badge animation)
+        if (!isPremium && !hasOnboarded) {
+          // First reading already shows paywall, skip
+        } else if (!isPremium) {
+          setTimeout(() => {
+            setShowBadgeUpsell(true);
+          }, 2500);
+        }
       }
     };
     checkBadges();
@@ -280,6 +298,43 @@ export default function CompleteScreen() {
         ...(params.customTextId ? { customTextId: params.customTextId } : {}),
       },
     });
+  };
+
+  const handleShareProgress = async () => {
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    const streakText = currentStreak > 1 ? `${currentStreak}-day streak` : '';
+    const message = newBadge
+      ? `I just earned the "${newBadge.name}" badge on Articulate! ${streakText ? `(${streakText})` : ''}\n\nImprove your reading skills one word at a time.`
+      : `I just read ${wordsRead} words at ${wpm} WPM on Articulate! ${streakText ? `${streakText} and counting!` : ''}\n\nImprove your reading skills one word at a time.`;
+
+    try {
+      await Share.share({
+        message,
+        // URL would go here once app is in the App Store
+        // url: 'https://apps.apple.com/app/articulate',
+      });
+    } catch (error) {
+      // User cancelled or error occurred
+    }
+  };
+
+  const handleShareBadge = async () => {
+    if (!newBadge) return;
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    const tierText = newBadge.tier ? ` (${newBadge.tier.toUpperCase()})` : '';
+    const message = `I just unlocked "${newBadge.name}"${tierText} on Articulate!\n\n${newBadge.description}\n\nImprove your reading skills one word at a time.`;
+
+    try {
+      await Share.share({ message });
+    } catch (error) {
+      // User cancelled or error occurred
+    }
   };
 
   const handleSubscribe = () => {
@@ -389,23 +444,57 @@ export default function CompleteScreen() {
 
             {/* Badge unlock notification */}
             {newBadge && (
-              <Animated.View style={[styles.badgeUnlock, badgeAnimStyle]}>
-                <Feather name="award" size={18} color={colors.primary} />
-                <Text style={[styles.badgeUnlockText, { color: colors.primary }]}>
-                  {newBadge.name}
+              <Animated.View style={[styles.badgeUnlockContainer, badgeAnimStyle]}>
+                <View style={styles.badgeUnlock}>
+                  <Feather name="award" size={18} color={colors.primary} />
+                  <Text style={[styles.badgeUnlockText, { color: colors.primary }]}>
+                    {newBadge.name}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={handleShareBadge}
+                  style={({ pressed }) => [
+                    styles.shareBadgeButton,
+                    { opacity: pressed ? 0.6 : 1 },
+                  ]}
+                >
+                  <Feather name="share" size={16} color={colors.secondary} />
+                  <Text style={[styles.shareBadgeText, { color: colors.secondary }]}>
+                    Share
+                  </Text>
+                </Pressable>
+              </Animated.View>
+            )}
+
+            {/* Badge-triggered upsell for free users */}
+            {showBadgeUpsell && newBadge && (
+              <Animated.View entering={FadeIn.duration(400)} style={styles.badgeUpsellContainer}>
+                <Text style={[styles.badgeUpsellText, { color: colors.secondary }]}>
+                  You're making progress! Unlock all badges and premium features
                 </Text>
+                <Pressable
+                  onPress={() => {
+                    setShowBadgeUpsell(false);
+                    setPaywallContext('generic');
+                  }}
+                  style={styles.badgeUpsellLink}
+                >
+                  <Text style={[styles.badgeUpsellLinkText, { color: colors.primary }]}>
+                    See what's included →
+                  </Text>
+                </Pressable>
               </Animated.View>
             )}
 
             {/* Milestone celebration */}
             {(() => {
               const milestones: Record<number, string> = {
-                1: 'Your reading journey begins!',
-                5: 'Five texts down. You\'re building a habit.',
-                10: 'Double digits! Consistency is your superpower.',
-                25: 'Twenty-five texts. You\'re on fire.',
-                50: 'Fifty completed. That\'s dedication.',
-                100: 'One hundred texts. Legendary reader.',
+                1: 'Your reading habit starts here.',
+                5: '5 reads = habit forming. Keep it up.',
+                10: '10 done. You\'re in the top 5% of starters.',
+                25: '25 down. Your streak is real now.',
+                50: '50 completed! You\'ve read 10K+ words.',
+                100: '100 readings complete. You\'re a reading master.',
               };
               const msg = milestones[textsCompleted];
               if (!msg) return null;
@@ -422,14 +511,14 @@ export default function CompleteScreen() {
             {isFirstReading && (
               <Animated.View style={[styles.paywallSection, paywallAnimStyle]}>
                 <Text style={[styles.paywallHeadline, { color: colors.primary }]}>
-                  You just read {wordsRead} words
+                  You just unlocked focus.{'\n'}Now unlock everything.
                 </Text>
                 <View style={styles.featureList}>
                   {[
-                    'All typography styles & fonts',
-                    'Full color palette & themes',
-                    'Entire reading library',
-                    'Auto-play, breathing & chunk reading',
+                    'Read in any style that clicks for you',
+                    '9 premium categories (Philosophy, Poetry, Science & more)',
+                    'Listen while you read with AI narration',
+                    'Train your focus with breathing & chunk modes',
                   ].map((feature) => (
                     <View key={feature} style={styles.featureRow}>
                       <Feather name="check" size={16} color={colors.primary} />
@@ -440,7 +529,7 @@ export default function CompleteScreen() {
                   ))}
                 </View>
                 <Text style={[styles.credibilityText, { color: colors.muted }]}>
-                  Grounded in cognitive reading science
+                  Join 10,000+ readers improving their focus daily
                 </Text>
               </Animated.View>
             )}
@@ -453,7 +542,7 @@ export default function CompleteScreen() {
                   setPaywallContext('generic');
                 }}>
                   <Text style={[styles.nudgeText, { color: colors.secondary }]}>
-                    Enjoying Articulate? Go Pro for the full experience.
+                    {textsCompleted} reads done. Unlock unlimited uploads and 6 more categories.
                   </Text>
                 </Pressable>
               </Animated.View>
@@ -484,10 +573,10 @@ export default function CompleteScreen() {
         <Animated.View style={[styles.ctaContainer, ctaAnimStyle]}>
           {isFirstReading ? (
             <>
-              <GlassButton title="Try Free for 3 Days" onPress={handleSubscribe} />
+              <GlassButton title="Start 3-Day Free Trial" onPress={handleSubscribe} />
               <Pressable onPress={handleDismiss} style={styles.dismissButton}>
                 <Text style={[styles.dismissLink, { color: colors.muted }]}>
-                  Maybe later
+                  Continue Free
                 </Text>
               </Pressable>
             </>
@@ -500,6 +589,12 @@ export default function CompleteScreen() {
                   onPress={handleTakeQuiz}
                   variant="outline"
                 />
+              ) : canUseFreeQuiz() ? (
+                <GlassButton
+                  title="Take Quiz (Free Today)"
+                  onPress={handleTakeQuiz}
+                  variant="outline"
+                />
               ) : (
                 <GlassButton
                   title="Take Quiz 🔒"
@@ -507,11 +602,33 @@ export default function CompleteScreen() {
                   variant="outline"
                 />
               )}
-              <GlassButton
-                title="Read Again"
-                onPress={handleReadAgain}
-                variant="outline"
-              />
+              <View style={styles.secondaryActions}>
+                <Pressable
+                  onPress={handleReadAgain}
+                  style={({ pressed }) => [
+                    styles.secondaryButton,
+                    { opacity: pressed ? 0.6 : 1 },
+                  ]}
+                >
+                  <Feather name="refresh-cw" size={16} color={colors.secondary} />
+                  <Text style={[styles.secondaryButtonText, { color: colors.secondary }]}>
+                    Read Again
+                  </Text>
+                </Pressable>
+                <View style={[styles.actionDivider, { backgroundColor: colors.muted + '30' }]} />
+                <Pressable
+                  onPress={handleShareProgress}
+                  style={({ pressed }) => [
+                    styles.secondaryButton,
+                    { opacity: pressed ? 0.6 : 1 },
+                  ]}
+                >
+                  <Feather name="share" size={16} color={colors.secondary} />
+                  <Text style={[styles.secondaryButtonText, { color: colors.secondary }]}>
+                    Share
+                  </Text>
+                </Pressable>
+              </View>
             </>
           )}
         </Animated.View>
@@ -662,6 +779,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
   },
+  badgeUnlockContainer: {
+    alignItems: 'center',
+    gap: 8,
+  },
   badgeUnlock: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -673,11 +794,63 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  shareBadgeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+  },
+  shareBadgeText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
   tomorrowPreview: {
     fontSize: 13,
     fontWeight: '400',
     textAlign: 'center',
     fontStyle: 'italic',
     marginTop: 8,
+  },
+  secondaryActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+    paddingVertical: 8,
+  },
+  secondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  secondaryButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  actionDivider: {
+    width: 1,
+    height: 20,
+  },
+  // Badge upsell
+  badgeUpsellContainer: {
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  badgeUpsellText: {
+    fontSize: 14,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  badgeUpsellLink: {
+    paddingVertical: 4,
+  },
+  badgeUpsellLinkText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });
