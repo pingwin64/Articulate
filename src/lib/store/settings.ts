@@ -561,8 +561,11 @@ export const useSettingsStore = create<SettingsState>()(
           set({ paywallContext: null, showPaywall: false });
         } else {
           const state = get();
-          // Frequency limiting
-          if (!state.canShowPaywall()) return;
+          // Skip frequency limiting for intentional upgrade actions
+          const intentionalContexts: PaywallContext[] = ['settings_upgrade', 'locked_category', 'locked_quiz', 'locked_tts'];
+          const isIntentional = intentionalContexts.includes(ctx);
+          // Frequency limiting only for passive/proactive paywalls
+          if (!isIntentional && !state.canShowPaywall()) return;
           set({ paywallContext: ctx, showPaywall: true, lastPaywallShown: new Date().toISOString() });
         }
       },
