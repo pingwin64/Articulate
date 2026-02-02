@@ -44,6 +44,7 @@ import {
 } from '../design/theme';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
 import { scheduleStreakAtRiskReminder } from '../lib/notifications';
+import { speakWord } from '../lib/tts';
 
 // ─── Onboarding Constants ────────────────────────────────────
 
@@ -308,6 +309,8 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     setVoiceGender(gender);
+    // Preview the voice by saying "Articulate"
+    speakWord('Articulate', 'normal', gender);
   }, [hapticEnabled, setVoiceGender]);
 
   const previewStyle = useAnimatedStyle(() => ({
