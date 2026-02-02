@@ -1152,16 +1152,18 @@ const styles = StyleSheet.create({
   },
   swatchRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 10,
+    flexWrap: 'wrap',
+    gap: 8,
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   swatchContainer: {
     position: 'relative',
   },
   swatch: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderCurve: 'continuous',
     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
   },
