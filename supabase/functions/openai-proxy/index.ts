@@ -62,6 +62,10 @@ Deno.serve(async (req: Request) => {
       return await handleScanImage(body.imageData);
     }
 
+    if (action === "generate-text") {
+      return await handleGenerateText(body.level, body.category, body.wordCount);
+    }
+
     return json({ error: "Unknown action" }, 400);
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : "Internal error" }, 500);
@@ -219,6 +223,92 @@ async function handleScanImage(imageData: string) {
   }
 
   return json({ text });
+}
+
+async function handleGenerateText(
+  level: number,
+  category: string,
+  wordCount: number
+) {
+  if (!level || !category) {
+    return json({ error: "Missing level or category" }, 400);
+  }
+
+  const safeWordCount = Math.max(100, Math.min(wordCount || 300, 1000));
+
+  const tierDescriptions: Record<string, string> = {
+    beginner:
+      "Use common everyday vocabulary (top 3000 words). Short, simple sentences (8-12 words). Concrete, familiar topics.",
+    intermediate:
+      "Use standard vocabulary with occasional uncommon words. Compound sentences (12-18 words). Cultural and varied topics.",
+    advanced:
+      "Use rich, SAT-level vocabulary. Complex sentence structures (18-25 words). Abstract and philosophical topics requiring inference.",
+    expert:
+      "Use academic and literary vocabulary. Dense, multi-clause sentences (25+ words). Specialized topics with nuanced arguments.",
+    master:
+      "Use scholarly vocabulary across disciplines. Sophisticated prose with layered meaning. Paradoxes, ambiguity, and complex reasoning.",
+  };
+
+  const tier =
+    level <= 3
+      ? "beginner"
+      : level <= 6
+        ? "intermediate"
+        : level <= 9
+          ? "advanced"
+          : level <= 12
+            ? "expert"
+            : "master";
+
+  const prompt = `Generate a ${safeWordCount}-word reading passage about ${category}.
+Difficulty: Level ${level} (${tier}).
+${tierDescriptions[tier] ?? tierDescriptions.master}
+The text should be engaging, coherent, and educational. Return a JSON object with exactly two fields: "title" (a short title for the passage) and "text" (the passage text). No markdown, no extra commentary.`;
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a reading passage generator. Generate engaging, coherent reading passages at the specified difficulty level. Always respond with valid JSON containing 'title' and 'text' fields.",
+        },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.8,
+      max_tokens: 2000,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    return json(
+      { error: err?.error?.message ?? `OpenAI error: ${response.status}` },
+      response.status === 429 ? 429 : 502
+    );
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content ?? "";
+
+  try {
+    // Try to parse as JSON first
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return json({ title: parsed.title, text: parsed.text });
+    }
+    // Fallback: use raw content as text
+    return json({ title: category, text: content });
+  } catch {
+    return json({ title: category, text: content });
+  }
 }
 
 function json(data: unknown, status = 200) {

@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View, Text, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 import { categories, TextEntry } from '../lib/data/categories';
@@ -16,6 +17,8 @@ export default function TextSelectScreen() {
   const selectedCategoryKey = useSettingsStore((s) => s.selectedCategoryKey);
   const setSelectedCategoryKey = useSettingsStore((s) => s.setSelectedCategoryKey);
   const categoryReadCounts = useSettingsStore((s) => s.categoryReadCounts);
+
+  const [lockedMessage, setLockedMessage] = React.useState<string | null>(null);
 
   // FormSheet workaround: params may be empty, fall back to store
   const categoryKey = params.categoryKey || selectedCategoryKey || undefined;
@@ -34,12 +37,19 @@ export default function TextSelectScreen() {
     return () => { setSelectedCategoryKey(null); };
   }, [setSelectedCategoryKey]);
 
+  const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
+
   const handleTextSelect = (entry: TextEntry) => {
     if (!category) return;
 
     // Check if locked
     if (!isTextUnlocked(entry)) {
-      // Don't navigate - text is locked
+      const readsNeeded = (entry.requiredReads ?? 0) - userReadsInCategory;
+      if (hapticEnabled) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
+      setLockedMessage(`Complete ${readsNeeded} more ${readsNeeded === 1 ? 'reading' : 'readings'} to unlock`);
+      setTimeout(() => setLockedMessage(null), 2000);
       return;
     }
 
@@ -77,6 +87,14 @@ export default function TextSelectScreen() {
       <Text style={[styles.subtitle, { color: colors.secondary }]}>
         Choose a text to read
       </Text>
+      {lockedMessage && (
+        <Animated.View entering={FadeIn.duration(200)} style={styles.lockedToast}>
+          <Feather name="lock" size={14} color={colors.muted} />
+          <Text style={[styles.lockedToastText, { color: colors.secondary }]}>
+            {lockedMessage}
+          </Text>
+        </Animated.View>
+      )}
       <View style={styles.list}>
         {category.texts.map((entry, i) => {
           const unlocked = isTextUnlocked(entry);
@@ -204,5 +222,17 @@ const styles = StyleSheet.create({
   },
   lockedCard: {
     opacity: 0.6,
+  },
+  lockedToast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  lockedToastText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

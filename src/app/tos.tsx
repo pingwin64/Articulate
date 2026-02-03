@@ -93,7 +93,7 @@ export default function TermsOfServiceScreen() {
 
         <Section title="Third-Party Services">
           <Paragraph colors={colors}>
-            Certain features may use third-party services (such as OpenAI for quiz generation). Your use of these features is subject to the respective third-party terms. You are responsible for any API keys you provide and any associated costs.
+            Certain features use cloud processing (quiz generation, text extraction) powered by third-party services. Your use of these features is subject to our Privacy Policy.
           </Paragraph>
         </Section>
 

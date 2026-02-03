@@ -31,15 +31,6 @@
         "NSPrivacyCollectedDataTypes": []
       }
     },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.articulate.app"
-    },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"

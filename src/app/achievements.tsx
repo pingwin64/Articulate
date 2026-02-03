@@ -183,6 +183,13 @@ function BadgeGridCard({
           </Text>
         )}
 
+        {/* Reward hint for locked badges */}
+        {!unlocked && badge.reward && (
+          <Text style={[styles.rewardHint, { color: colors.muted }]}>
+            Unlocks {badge.reward.name}
+          </Text>
+        )}
+
         {/* Tier indicator for category badges - only shown when unlocked */}
         {badge.tier && unlocked && (
           <View
@@ -217,7 +224,6 @@ function BadgesTab() {
   const textsCompleted = useSettingsStore((s) => s.textsCompleted);
   const currentStreak = useSettingsStore((s) => s.currentStreak);
   const categoryReadCounts = useSettingsStore((s) => s.categoryReadCounts);
-  const baselineWPM = useSettingsStore((s) => s.baselineWPM);
   const totalQuizzesTaken = useSettingsStore((s) => s.totalQuizzesTaken);
   const avgComprehension = useSettingsStore((s) => s.avgComprehension);
 
@@ -257,7 +263,7 @@ function BadgesTab() {
       case 'special':
         // Special badges have unique conditions
         if (badge.id === 'speed-demon') {
-          return { current: baselineWPM ?? 0, target: 500 };
+          return { current: 0, target: 500 };
         }
         return {};
       default:
@@ -543,5 +549,12 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  rewardHint: {
+    fontSize: 9,
+    fontWeight: '500',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 4,
   },
 });

@@ -53,6 +53,7 @@ export default function PasteScreen() {
   const [text, setText] = useState(editingText?.text ?? '');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
+  const [textSource, setTextSource] = useState<'paste' | 'file' | 'url' | 'scan'>(editingText?.source ?? 'paste');
 
   const words = text.trim().split(/\s+/).filter(Boolean);
   const wordCount = text.trim() ? words.length : 0;
@@ -105,6 +106,9 @@ export default function PasteScreen() {
       text: trimmedText,
       wordCount,
       createdAt: new Date().toISOString(),
+      timesRead: 0,
+      source: textSource,
+      preview: trimmedText.slice(0, 120),
     };
     addCustomText(customText);
     return id;
@@ -186,6 +190,7 @@ export default function PasteScreen() {
       } else {
         setTitle(article.title);
         setText(article.text);
+        setTextSource('url');
       }
     } catch (error: any) {
       Alert.alert('Extraction Failed', error.message || "Couldn't extract article from that URL");
@@ -232,6 +237,7 @@ export default function PasteScreen() {
       } else {
         setTitle(parsed.title);
         setText(parsed.text);
+        setTextSource('file');
       }
     } catch (error: any) {
       Alert.alert('Import Failed', error.message || "Couldn't read that file");
@@ -283,6 +289,7 @@ export default function PasteScreen() {
 
       const scanned = await scanTextFromImage(asset.base64);
       setText(scanned.text);
+      setTextSource('scan');
 
       // Auto-generate title from first line if title is empty
       if (!title.trim()) {

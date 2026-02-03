@@ -63,10 +63,7 @@ export default function QuizScreen() {
     setLoading(true);
     setError(null);
 
-    // Track free quiz usage for non-premium users
-    if (!isPremium) {
-      useFreeQuiz();
-    }
+    let loadedQuestions: QuizQuestion[] = [];
 
     if (params.customTextId) {
       // Custom text — use OpenAI
@@ -77,21 +74,25 @@ export default function QuizScreen() {
         return;
       }
       try {
-        const generated = await generateQuizFromText(ct.text);
-        setQuestions(generated);
+        loadedQuestions = await generateQuizFromText(ct.text);
       } catch {
         setError('Failed to generate quiz. Check your API key and try again.');
+        setLoading(false);
+        return;
       }
     } else if (params.categoryKey && params.textId) {
       // Built-in text — use curated questions
-      const curated = getQuizForText(params.categoryKey, params.textId);
-      if (curated.length === 0) {
-        setError('No quiz available for this text.');
-      } else {
-        setQuestions(curated);
+      loadedQuestions = getQuizForText(params.categoryKey, params.textId);
+    }
+
+    if (loadedQuestions.length > 0) {
+      setQuestions(loadedQuestions);
+      // Only consume free quiz after successful load
+      if (!isPremium) {
+        useFreeQuiz();
       }
-    } else {
-      setError('No quiz available.');
+    } else if (!error) {
+      setError('No quiz available for this text.');
     }
     setLoading(false);
   };

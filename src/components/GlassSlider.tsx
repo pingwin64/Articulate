@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { StyleSheet, View, Text, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -49,6 +49,13 @@ export function GlassSlider({
   };
 
   const fraction = normalize(value);
+
+  // Sync thumb position when value prop changes externally
+  useEffect(() => {
+    if (trackWidth.value > 0) {
+      thumbX.value = normalize(value) * trackWidth.value;
+    }
+  }, [value]);
 
   const onLayout = (e: LayoutChangeEvent) => {
     trackWidth.value = e.nativeEvent.layout.width;

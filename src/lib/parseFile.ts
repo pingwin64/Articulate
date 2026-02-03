@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system';
+import JSZip from 'jszip';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
 
 interface ParsedFile {
@@ -112,14 +113,19 @@ async function parseDocx(uri: string): Promise<ParsedFile> {
     encoding: 'base64',
   });
 
-  const decoded = atob(base64);
+  // DOCX is a ZIP archive. Use JSZip to properly decompress and extract XML.
+  const zip = await JSZip.loadAsync(base64, { base64: true });
 
-  // DOCX is a ZIP containing XML. Text lives in <w:t> tags inside word/document.xml.
-  // Extract text runs and detect paragraph breaks via </w:p>.
+  const documentXml = zip.file('word/document.xml');
+  if (!documentXml) {
+    throw new Error('Invalid DOCX file: could not find word/document.xml');
+  }
+
+  const xmlContent = await documentXml.async('string');
+
+  // Extract text from <w:t> tags, using </w:p> as paragraph boundaries
   const paragraphs: string[] = [];
-
-  // Split by paragraph end markers, then extract <w:t> tags within each chunk
-  const chunks = decoded.split('</w:p>');
+  const chunks = xmlContent.split('</w:p>');
 
   for (const chunk of chunks) {
     const runs: string[] = [];

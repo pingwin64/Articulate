@@ -43,7 +43,7 @@ export default function PrivacyPolicyScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.lastUpdated, { color: colors.muted }]}>
-          Last updated: January 2026
+          Last updated: February 2026
         </Text>
 
         <Section title="Overview">
@@ -52,30 +52,51 @@ export default function PrivacyPolicyScreen() {
           </Paragraph>
         </Section>
 
-        <Section title="Information We Collect">
+        <Section title="Local Data">
           <Paragraph colors={colors}>
-            Articulate stores your reading preferences, statistics, and settings locally on your device. This includes your reading level, display preferences, and progress data.
+            Articulate stores your reading preferences, statistics, progress, and settings locally on your device using secure on-device storage (MMKV). This includes your reading level, display preferences, streak data, daily goals, and reading history.
           </Paragraph>
           <Paragraph colors={colors}>
-            We do not collect, transmit, or store any personal information on external servers. All your data stays on your device.
+            Articulate does not require an account or login. No user-identifying information is collected.
           </Paragraph>
         </Section>
 
-        <Section title="Data Storage">
+        <Section title="Cloud Processing">
           <Paragraph colors={colors}>
-            All app data is stored locally using secure on-device storage. Your reading history, settings, and preferences are never uploaded to any server.
+            Certain features send data to cloud services for processing. This data is processed in real-time and is not stored on any server:
+          </Paragraph>
+          <Paragraph colors={colors}>
+            {'\u2022'} Text extraction (OCR, PDF parsing): When you scan text from an image or import a PDF, the image or file data is sent to Supabase-hosted edge functions for processing via OpenAI's API. The extracted text is returned to your device and not retained server-side.
+          </Paragraph>
+          <Paragraph colors={colors}>
+            {'\u2022'} Quiz generation: When you take a comprehension quiz, the reading text is sent to Supabase-hosted edge functions, which use OpenAI as a third-party AI provider to generate quiz questions. The questions are returned to your device and not stored.
+          </Paragraph>
+          <Paragraph colors={colors}>
+            Transmitted text is processed and discarded — it is not stored, logged, or used for model training.
           </Paragraph>
         </Section>
 
         <Section title="Third-Party Services">
           <Paragraph colors={colors}>
-            Articulate may use third-party services for app functionality such as text-to-speech. These services process data locally on your device and do not collect personal information.
+            Articulate uses the following third-party services:
+          </Paragraph>
+          <Paragraph colors={colors}>
+            {'\u2022'} OpenAI: Provides AI-powered text extraction and quiz generation. Data sent to OpenAI is subject to OpenAI's API data usage policies.
+          </Paragraph>
+          <Paragraph colors={colors}>
+            {'\u2022'} RevenueCat: Manages subscription and purchase processing. RevenueCat receives an anonymous app user ID and purchase transaction data from Apple. RevenueCat does not receive your name, email, or other personal information from Articulate.
+          </Paragraph>
+          <Paragraph colors={colors}>
+            {'\u2022'} Apple App Store: Handles all payment processing. We do not collect, store, or have access to your payment information.
           </Paragraph>
         </Section>
 
-        <Section title="Analytics">
+        <Section title="Subscriptions & Payments">
           <Paragraph colors={colors}>
-            We may collect anonymous, aggregated usage statistics to improve the app experience. This data cannot be used to identify you personally.
+            Articulate offers optional in-app purchases and subscriptions processed through Apple's App Store. Payment processing is handled entirely by Apple. We do not collect, store, or have access to your payment information.
+          </Paragraph>
+          <Paragraph colors={colors}>
+            Subscription management, including cancellation and refunds, is handled through your App Store account settings.
           </Paragraph>
         </Section>
 
@@ -87,28 +108,16 @@ export default function PrivacyPolicyScreen() {
 
         <Section title="Your Rights (GDPR)">
           <Paragraph colors={colors}>
-            If you are in the European Economic Area, you have the right to access, rectify, and erase your personal data. Since all data is stored locally on your device, you have full control over it at all times.
+            If you are in the European Economic Area, you have the right to access, rectify, and erase your personal data. Since all persistent data is stored locally on your device, you have full control over it at all times.
           </Paragraph>
           <Paragraph colors={colors}>
-            You can delete all app data by uninstalling Articulate or by using the reset option within the app. No data is stored on external servers, so there is nothing to request from us.
+            You can delete all app data by using the "Reset All Data" option in Settings, or by uninstalling Articulate. No personal data is stored on external servers.
           </Paragraph>
         </Section>
 
         <Section title="California Privacy Rights (CCPA)">
           <Paragraph colors={colors}>
             If you are a California resident, please note that we do not sell, share, or disclose your personal information to third parties for monetary or other valuable consideration.
-          </Paragraph>
-          <Paragraph colors={colors}>
-            All data generated by your use of Articulate remains on your device and is not transmitted to any external service.
-          </Paragraph>
-        </Section>
-
-        <Section title="Subscriptions & Payments">
-          <Paragraph colors={colors}>
-            Articulate offers optional in-app purchases and subscriptions processed through Apple's App Store or Google Play. Payment processing is handled entirely by the respective platform. We do not collect, store, or have access to your payment information.
-          </Paragraph>
-          <Paragraph colors={colors}>
-            Subscription management, including cancellation and refunds, is handled through your App Store or Google Play account settings.
           </Paragraph>
         </Section>
 
@@ -120,7 +129,7 @@ export default function PrivacyPolicyScreen() {
 
         <Section title="Contact">
           <Paragraph colors={colors}>
-            If you have questions about this privacy policy, please contact us through the App Store.
+            If you have questions about this privacy policy, please contact us through the App Store or at support@articulate.app.
           </Paragraph>
         </Section>
       </ScrollView>

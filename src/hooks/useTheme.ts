@@ -6,14 +6,19 @@ export function useTheme() {
   const systemScheme = useColorScheme();
   const { themeMode, backgroundTheme } = useSettingsStore();
 
-  const mode: ThemeMode = themeMode === 'system'
-    ? (systemScheme ?? 'light')
+  let mode: ThemeMode = themeMode === 'system'
+    ? (systemScheme === 'dark' ? 'dark' : 'light')
     : themeMode === 'dark' ? 'dark' : 'light';
+
+  const bgTheme = BackgroundThemes.find((t) => t.key === backgroundTheme) ?? BackgroundThemes[0];
+
+  // Force dark mode for the entire color set when a darkOnly theme is active
+  if (bgTheme.darkOnly) {
+    mode = 'dark';
+  }
 
   const colors = Colors[mode];
   const glass = GlassStyles[mode];
-
-  const bgTheme = BackgroundThemes.find((t) => t.key === backgroundTheme) ?? BackgroundThemes[0];
   const bg = bgTheme.darkOnly ? bgTheme.dark : bgTheme[mode];
 
   return {

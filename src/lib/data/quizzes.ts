@@ -759,6 +759,21 @@ export const quizQuestions: QuizQuestion[] = [
   { id: 'q-mind-watts-1', categoryKey: 'mindfulness', textId: 'mindfulness-watts', question: 'How do you make sense of change?', options: ['Fight it', 'Plunge into it and join the dance', 'Avoid it', 'Ignore it'], correctIndex: 1 },
   { id: 'q-mind-watts-2', categoryKey: 'mindfulness', textId: 'mindfulness-watts', question: 'What are our private thoughts not?', options: ['Important', 'Actually our own', 'Meaningful', 'Real'], correctIndex: 1 },
   { id: 'q-mind-watts-3', categoryKey: 'mindfulness', textId: 'mindfulness-watts', question: 'How is muddy water best cleared?', options: ['By stirring', 'By leaving it alone', 'By filtering', 'By heating'], correctIndex: 1 },
+
+  // ─── Story: The Tortoise and the Hare ─────────────────────────
+  { id: 'q-story-tortoise-1', categoryKey: 'story', textId: 'story-tortoise', question: 'Who challenged the Hare to a race?', options: ['The Fox', 'The Tortoise', 'The Owl', 'The Rabbit'], correctIndex: 1 },
+  { id: 'q-story-tortoise-2', categoryKey: 'story', textId: 'story-tortoise', question: 'What did the Hare do during the race?', options: ['Ran the whole time', 'Took a nap', 'Got lost', 'Quit halfway'], correctIndex: 1 },
+  { id: 'q-story-tortoise-3', categoryKey: 'story', textId: 'story-tortoise', question: 'What is the moral of the story?', options: ['Speed is everything', 'Slow and steady wins the race', 'Never race anyone', 'Always take shortcuts'], correctIndex: 1 },
+
+  // ─── Story: The Gift of the Magi ──────────────────────────────
+  { id: 'q-story-magi-1', categoryKey: 'story', textId: 'story-gift-magi', question: 'How much money did Della have?', options: ['Three dollars', 'One dollar and eighty-seven cents', 'Five dollars', 'Ten cents'], correctIndex: 1 },
+  { id: 'q-story-magi-2', categoryKey: 'story', textId: 'story-gift-magi', question: 'What holiday was approaching?', options: ['Thanksgiving', 'Easter', 'Christmas', 'New Year'], correctIndex: 2 },
+  { id: 'q-story-magi-3', categoryKey: 'story', textId: 'story-gift-magi', question: 'How were the pennies saved?', options: ['From a piggy bank', 'One and two at a time by bargaining', 'By skipping meals', 'From a savings account'], correctIndex: 1 },
+
+  // ─── Story: The Tell-Tale Heart ───────────────────────────────
+  { id: 'q-story-tell-1', categoryKey: 'story', textId: 'story-tell-tale', question: 'What sense does the narrator claim was sharpened?', options: ['Sight', 'Taste', 'Hearing', 'Touch'], correctIndex: 2 },
+  { id: 'q-story-tell-2', categoryKey: 'story', textId: 'story-tell-tale', question: 'How does the narrator describe himself?', options: ['Calm and happy', 'Very dreadfully nervous', 'Bold and confident', 'Sleepy and tired'], correctIndex: 1 },
+  { id: 'q-story-tell-3', categoryKey: 'story', textId: 'story-tell-tale', question: 'What does the narrator insist he is not?', options: ['A criminal', 'Mad', 'Nervous', 'A storyteller'], correctIndex: 1 },
 ];
 
 export function getQuizForText(

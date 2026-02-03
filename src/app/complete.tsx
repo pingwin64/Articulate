@@ -13,7 +13,7 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { useSettingsStore } from '../lib/store/settings';
+import { useSettingsStore, getTierName } from '../lib/store/settings';
 import { categories } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
@@ -33,6 +33,11 @@ export default function CompleteScreen() {
     wordsRead: string;
     timeSpent: string;
   }>();
+
+  const levelUpAvailable = useSettingsStore((s) => s.levelUpAvailable);
+  const readingLevel = useSettingsStore((s) => s.readingLevel);
+  const acceptLevelUp = useSettingsStore((s) => s.acceptLevelUp);
+  const dismissLevelUp = useSettingsStore((s) => s.dismissLevelUp);
 
   const {
     hapticFeedback,
@@ -54,8 +59,6 @@ export default function CompleteScreen() {
     paywallContext,
     hasShownThirdReadingNudge,
     setHasShownThirdReadingNudge,
-    unlockAchievement,
-    unlockedAchievements,
     addDailyWordsRead,
     resetDailyUploadIfNewDay,
     addReadingHistory,
@@ -140,6 +143,41 @@ export default function CompleteScreen() {
       incrementCategoryReadCount(params.categoryKey);
     }
 
+    // Update custom text metadata
+    if (params.customTextId && customText) {
+      const { updateCustomText } = useSettingsStore.getState();
+      updateCustomText(params.customTextId, {
+        lastReadAt: new Date().toISOString(),
+        timesRead: (customText.timesRead ?? 0) + 1,
+      });
+    }
+
+    // Record weekly reading data for insights
+    const { recordWeeklyReading } = useSettingsStore.getState();
+    recordWeeklyReading(wordsRead, wpm);
+
+    // Increment texts completed at current level (for adaptive difficulty)
+    useSettingsStore.setState((s) => ({
+      textsCompletedAtLevel: s.textsCompletedAtLevel + 1,
+    }));
+
+    // Update weekly challenge progress
+    const { checkWeeklyChallenge, incrementWeeklyChallengeProgress } = useSettingsStore.getState();
+    checkWeeklyChallenge();
+    incrementWeeklyChallengeProgress('texts_read', 1);
+    incrementWeeklyChallengeProgress('words_total', wordsRead);
+
+    // Track unique categories for diverse challenge
+    if (params.categoryKey) {
+      const challengeState = useSettingsStore.getState();
+      if (!challengeState.weeklyCategoriesRead.includes(params.categoryKey)) {
+        useSettingsStore.setState({
+          weeklyCategoriesRead: [...challengeState.weeklyCategoriesRead, params.categoryKey],
+        });
+        incrementWeeklyChallengeProgress('categories_diverse', 1);
+      }
+    }
+
     // Check and unlock badges
     const checkBadges = () => {
       const state = useSettingsStore.getState();
@@ -159,6 +197,13 @@ export default function CompleteScreen() {
             if (badge.id === 'speed-demon' && wpm >= 500) shouldUnlock = true;
             if (badge.id === 'night-owl' && hour >= 0 && hour < 4) shouldUnlock = true;
             if (badge.id === 'early-bird' && hour >= 4 && hour < 8) shouldUnlock = true;
+            if (badge.id === 'challenge-first' && state.weeklyChallengesCompleted >= 1) shouldUnlock = true;
+            if (badge.id === 'challenge-10' && state.weeklyChallengesCompleted >= 10) shouldUnlock = true;
+            // Category Master: check if any category-*-gold badge is unlocked
+            if (badge.id === 'category-master') {
+              const hasGold = state.unlockedBadges.some((b: string) => b.endsWith('-gold'));
+              if (hasGold) shouldUnlock = true;
+            }
             break;
 
           case 'streak':
@@ -218,6 +263,10 @@ export default function CompleteScreen() {
       }
     };
     checkBadges();
+
+    // Check level-up eligibility (Phase 6: Adaptive Difficulty)
+    const { checkLevelUpEligibility } = useSettingsStore.getState();
+    checkLevelUpEligibility();
 
     // Animation sequence
     // T+200ms: checkmark
@@ -548,6 +597,41 @@ export default function CompleteScreen() {
               </Animated.View>
             )}
 
+            {/* Level-up prompt (Adaptive Difficulty) */}
+            {!isFirstReading && levelUpAvailable && (
+              <Animated.View entering={FadeIn.delay(1700).duration(400)} style={styles.levelUpSection}>
+                <Text style={[styles.levelUpTitle, { color: colors.primary }]}>
+                  You've mastered Level {readingLevel}.
+                </Text>
+                <Text style={[styles.levelUpSubtitle, { color: colors.secondary }]}>
+                  Ready for a new challenge?
+                </Text>
+                <View style={styles.levelUpActions}>
+                  <GlassButton
+                    title={`Level Up to ${readingLevel + 1}`}
+                    onPress={() => {
+                      if (hapticFeedback) {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      }
+                      if (!isPremium && readingLevel + 1 > 3) {
+                        setPaywallContext('locked_level_up');
+                      } else {
+                        acceptLevelUp();
+                      }
+                    }}
+                  />
+                  <Pressable
+                    onPress={dismissLevelUp}
+                    style={styles.levelUpDismiss}
+                  >
+                    <Text style={[styles.levelUpDismissText, { color: colors.muted }]}>
+                      Stay at Level {readingLevel}
+                    </Text>
+                  </Pressable>
+                </View>
+              </Animated.View>
+            )}
+
             {/* Tomorrow's preview — Commitment & Consistency */}
             {!isFirstReading && (() => {
               // Find next text in the same category
@@ -564,7 +648,14 @@ export default function CompleteScreen() {
                   );
                 }
               }
-              return null;
+              // Fallback for custom texts or end-of-category
+              return (
+                <Animated.View entering={FadeIn.delay(1900).duration(300)}>
+                  <Text style={[styles.tomorrowPreview, { color: colors.muted }]}>
+                    Keep your streak alive — read again tomorrow
+                  </Text>
+                </Animated.View>
+              );
             })()}
           </View>
         </ScrollView>
@@ -852,5 +943,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textDecorationLine: 'underline',
+  },
+  // Level-up prompt
+  levelUpSection: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+  },
+  levelUpTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  levelUpSubtitle: {
+    fontSize: 15,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  levelUpActions: {
+    width: '100%',
+    gap: 8,
+    marginTop: 8,
+  },
+  levelUpDismiss: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  levelUpDismissText: {
+    fontSize: 14,
+    fontWeight: '400',
   },
 });

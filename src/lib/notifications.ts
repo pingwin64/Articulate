@@ -1,5 +1,30 @@
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { createMMKV } from 'react-native-mmkv';
+
+// Persist notification IDs in MMKV to survive app restarts
+const notifStorage = createMMKV({ id: 'articulate-notifications' });
+
+function getDailyReminderId(): string | null {
+  return notifStorage.getString('dailyReminderId') ?? null;
+}
+function setDailyReminderId(id: string | null) {
+  if (id) {
+    notifStorage.set('dailyReminderId', id);
+  } else {
+    notifStorage.remove('dailyReminderId');
+  }
+}
+
+function getStreakAtRiskId(): string | null {
+  return notifStorage.getString('streakAtRiskId') ?? null;
+}
+function setStreakAtRiskId(id: string | null) {
+  if (id) {
+    notifStorage.set('streakAtRiskId', id);
+  } else {
+    notifStorage.remove('streakAtRiskId');
+  }
+}
 
 const STREAK_MESSAGES = [
   "Don't lose your {streak}-day streak! A quick read keeps it alive.",
@@ -32,13 +57,40 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   return status === 'granted';
 }
 
+/**
+ * Clean up orphaned notifications on app launch.
+ * Cancels any scheduled notifications that don't match our persisted IDs.
+ */
+export async function cleanupOrphanedNotifications(): Promise<void> {
+  try {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const knownIds = new Set<string>();
+    const dailyId = getDailyReminderId();
+    const riskId = getStreakAtRiskId();
+    if (dailyId) knownIds.add(dailyId);
+    if (riskId) knownIds.add(riskId);
+
+    for (const notif of scheduled) {
+      if (!knownIds.has(notif.identifier)) {
+        await Notifications.cancelScheduledNotificationAsync(notif.identifier);
+      }
+    }
+  } catch {
+    // Notification cleanup may fail on some devices
+  }
+}
+
 export async function scheduleStreakReminder(
   hour: number,
   minute: number,
   currentStreak: number
 ): Promise<void> {
-  // Cancel existing reminders first
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  // Cancel previous daily reminder by persisted ID
+  const prevId = getDailyReminderId();
+  if (prevId) {
+    await Notifications.cancelScheduledNotificationAsync(prevId).catch(() => {});
+    setDailyReminderId(null);
+  }
 
   const messages = currentStreak > 0 ? STREAK_MESSAGES : GENERIC_MESSAGES;
   const message = messages[Math.floor(Math.random() * messages.length)].replace(
@@ -46,7 +98,7 @@ export async function scheduleStreakReminder(
     String(currentStreak)
   );
 
-  await Notifications.scheduleNotificationAsync({
+  const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Articulate',
       body: message,
@@ -58,10 +110,13 @@ export async function scheduleStreakReminder(
       minute,
     },
   });
+  setDailyReminderId(id);
 }
 
 export async function cancelAllReminders(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
+  setDailyReminderId(null);
+  setStreakAtRiskId(null);
 }
 
 /**
@@ -88,6 +143,13 @@ export async function scheduleStreakAtRiskReminder(
     if (isSameDay) return;
   }
 
+  // Cancel any previous streak-at-risk notification by persisted ID
+  const prevId = getStreakAtRiskId();
+  if (prevId) {
+    await Notifications.cancelScheduledNotificationAsync(prevId).catch(() => {});
+    setStreakAtRiskId(null);
+  }
+
   // Check if it's past 8pm already
   const now = new Date();
   if (now.getHours() >= 20) {
@@ -98,7 +160,7 @@ export async function scheduleStreakAtRiskReminder(
       String(currentStreak)
     );
 
-    await Notifications.scheduleNotificationAsync({
+    const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Streak at Risk!',
         body: message,
@@ -106,6 +168,7 @@ export async function scheduleStreakAtRiskReminder(
       },
       trigger: null, // Immediate
     });
+    setStreakAtRiskId(id);
     return;
   }
 
@@ -122,7 +185,7 @@ export async function scheduleStreakAtRiskReminder(
   const secondsUntil8PM = Math.floor((eightPM.getTime() - now.getTime()) / 1000);
 
   if (secondsUntil8PM > 0) {
-    await Notifications.scheduleNotificationAsync({
+    const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Streak at Risk!',
         body: message,
@@ -133,6 +196,7 @@ export async function scheduleStreakAtRiskReminder(
         seconds: secondsUntil8PM,
       },
     });
+    setStreakAtRiskId(id);
   }
 }
 
@@ -140,12 +204,10 @@ export async function scheduleStreakAtRiskReminder(
  * Cancel streak at risk reminders (call when user completes a reading)
  */
 export async function cancelStreakAtRiskReminder(): Promise<void> {
-  // Get all scheduled notifications and cancel the streak risk ones
-  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-  for (const notification of scheduled) {
-    if (notification.content.title === 'Streak at Risk!') {
-      await Notifications.cancelScheduledNotificationAsync(notification.identifier);
-    }
+  const id = getStreakAtRiskId();
+  if (id) {
+    await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+    setStreakAtRiskId(null);
   }
 }
 

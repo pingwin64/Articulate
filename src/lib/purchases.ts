@@ -73,6 +73,26 @@ export async function restorePurchases(): Promise<boolean> {
   }
 }
 
+export const CONSUMABLE_PRODUCTS = {
+  STREAK_RESTORE_FREE: 'streak_restore_199',
+  STREAK_RESTORE_PRO: 'streak_restore_099',
+} as const;
+
+export async function purchaseConsumable(productId: string): Promise<boolean> {
+  if (!Purchases) return false;
+  try {
+    const products = await Purchases.getProducts([productId]);
+    if (products.length === 0) throw new Error(`Product ${productId} not found`);
+    await Purchases.purchaseStoreProduct(products[0]);
+    return true;
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'userCancelled' in error && error.userCancelled) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 export async function getOfferings(): Promise<PurchasesPackage[]> {
   if (!Purchases) return [];
   try {

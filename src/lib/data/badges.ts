@@ -179,6 +179,11 @@ const WORD_BADGES: Badge[] = [
     category: 'words',
     icon: 'archive',
     threshold: 50000,
+    reward: {
+      type: 'theme',
+      id: 'words-50k-theme',
+      name: 'Ember Theme',
+    },
   },
   {
     id: 'words-100k',
@@ -215,6 +220,11 @@ const TEXT_BADGES: Badge[] = [
     category: 'texts',
     icon: 'award',
     threshold: 100,
+    reward: {
+      type: 'color',
+      id: 'texts-100-color',
+      name: 'Depth Color',
+    },
   },
 ];
 
@@ -259,6 +269,11 @@ const QUIZ_BADGES: Badge[] = [
     category: 'quiz',
     tier: 'gold',
     icon: 'award',
+    reward: {
+      type: 'color',
+      id: 'quiz-scholar-color',
+      name: 'Scholar Ink Color',
+    },
   },
 ];
 
@@ -305,6 +320,39 @@ const SPECIAL_BADGES: Badge[] = [
     description: 'Read before 6am',
     category: 'special',
     icon: 'sunrise',
+  },
+  {
+    id: 'challenge-first',
+    name: 'Challenger',
+    description: 'Complete your first weekly challenge',
+    category: 'special',
+    icon: 'target',
+    threshold: 1,
+  },
+  {
+    id: 'challenge-10',
+    name: 'Challenge Veteran',
+    description: 'Complete 10 weekly challenges',
+    category: 'special',
+    icon: 'target',
+    threshold: 10,
+    reward: {
+      type: 'color',
+      id: 'challenge-10-color',
+      name: 'Dawn Color',
+    },
+  },
+  {
+    id: 'category-master',
+    name: 'Category Master',
+    description: 'Earn a Gold badge in any category',
+    category: 'special',
+    icon: 'award',
+    reward: {
+      type: 'theme',
+      id: 'category-master-theme',
+      name: 'Verdant Theme',
+    },
   },
 ];
 

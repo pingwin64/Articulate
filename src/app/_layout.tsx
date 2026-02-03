@@ -111,12 +111,48 @@ export default function RootLayout() {
           />
           <Stack.Screen name="paste" />
           <Stack.Screen
+            name="library"
+            options={{
+              animation: 'slide_from_right',
+              headerShown: true,
+              title: 'My Library',
+              headerBackTitle: 'Home',
+              headerStyle: { backgroundColor: colors.bg },
+              headerTintColor: colors.primary,
+              headerTitleStyle: { color: colors.primary },
+            }}
+          />
+          <Stack.Screen
+            name="insights"
+            options={{
+              animation: 'slide_from_right',
+              headerShown: true,
+              title: 'Reading Insights',
+              headerBackTitle: 'Home',
+              headerStyle: { backgroundColor: colors.bg },
+              headerTintColor: colors.primary,
+              headerTitleStyle: { color: colors.primary },
+            }}
+          />
+          <Stack.Screen
             name="achievements"
             options={{
               animation: 'slide_from_right',
               headerShown: true,
               title: 'Achievements',
               headerBackTitle: 'Profile',
+              headerStyle: { backgroundColor: colors.bg },
+              headerTintColor: colors.primary,
+              headerTitleStyle: { color: colors.primary },
+            }}
+          />
+          <Stack.Screen
+            name="word-bank"
+            options={{
+              animation: 'slide_from_right',
+              headerShown: true,
+              title: 'My Words',
+              headerBackTitle: 'Home',
               headerStyle: { backgroundColor: colors.bg },
               headerTintColor: colors.primary,
               headerTitleStyle: { color: colors.primary },

@@ -41,7 +41,9 @@ import {
   Radius,
 } from '../design/theme';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
-import type { ReadingLevel, TTSSpeed, PaywallContext, VoiceGender } from '../lib/store/settings';
+import type { TTSSpeed, PaywallContext, VoiceGender } from '../lib/store/settings';
+import { getTierName } from '../lib/store/settings';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   requestNotificationPermissions,
   scheduleStreakReminder,
@@ -300,6 +302,8 @@ export default function SettingsScreen() {
     notificationsEnabled, setNotificationsEnabled,
     reminderHour, reminderMinute, setReminderTime,
     reduceMotion, setReduceMotion,
+    dailyWordGoal, setDailyWordGoal,
+    resetAll,
   } = useSettingsStore(useShallow((s) => ({
     isPremium: s.isPremium,
     trialActive: s.trialActive,
@@ -330,6 +334,8 @@ export default function SettingsScreen() {
     notificationsEnabled: s.notificationsEnabled, setNotificationsEnabled: s.setNotificationsEnabled,
     reminderHour: s.reminderHour, reminderMinute: s.reminderMinute, setReminderTime: s.setReminderTime,
     reduceMotion: s.reduceMotion, setReduceMotion: s.setReduceMotion,
+    dailyWordGoal: s.dailyWordGoal, setDailyWordGoal: s.setDailyWordGoal,
+    resetAll: s.resetAll,
   })));
 
   // Peek animation state
@@ -429,8 +435,7 @@ export default function SettingsScreen() {
 
   const reminderTimeLabel = `${String(reminderHour).padStart(2, '0')}:${String(reminderMinute).padStart(2, '0')}`;
 
-  const readingLevelLabel = readingLevel === 'beginner' ? 'Beginner'
-    : readingLevel === 'intermediate' ? 'Intermediate' : 'Advanced';
+  const readingLevelLabel = getTierName(readingLevel);
 
   const formatNumber = (n: number) =>
     n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
@@ -447,12 +452,11 @@ export default function SettingsScreen() {
   const membershipBadgeColor = isPremium ? colors.primary
     : trialActive ? colors.warning : colors.muted;
 
-  const themeModes = ['Light', 'Dark'];
-  const themeIndex = themeMode === 'dark' ? 1 : 0;
+  const themeModes = ['Light', 'Dark', 'System'];
+  const themeIndex = themeMode === 'dark' ? 1 : themeMode === 'system' ? 2 : 0;
 
-  const readingLevels: ReadingLevel[] = ['beginner', 'intermediate', 'advanced'];
-  const readingLevelLabels = ['Beginner', 'Intermediate', 'Advanced'];
-  const readingLevelIndex = readingLevels.indexOf(readingLevel);
+  const textsCompletedAtLevel = useSettingsStore((s) => s.textsCompletedAtLevel);
+  const textsToNextLevel = Math.max(0, 8 - textsCompletedAtLevel);
 
   const ttsSpeeds: TTSSpeed[] = ['slow', 'normal', 'fast'];
   const ttsLabels = ['Slow', 'Normal', 'Fast'];
@@ -577,7 +581,7 @@ export default function SettingsScreen() {
                 options={themeModes}
                 selectedIndex={themeIndex}
                 onSelect={(i) =>
-                  setThemeMode(i === 0 ? 'light' : 'dark')
+                  setThemeMode(i === 0 ? 'light' : i === 1 ? 'dark' : 'system')
                 }
               />
             </SettingRow>
@@ -661,7 +665,7 @@ export default function SettingsScreen() {
               />
             </LockedSettingRow>
 
-            {/* Color picker - Pro only */}
+            {/* Color picker - Pro only (with reward colors visible to all) */}
             {isPremium || trialActive ? (
               <View style={styles.settingRowNoBorder}>
                 <Text style={[styles.settingLabel, { color: colors.primary }]}>
@@ -671,10 +675,24 @@ export default function SettingsScreen() {
                   {WordColors.map((wc) => {
                     const circleColor = wc.color ?? colors.primary;
                     const isSelected = wordColor === wc.key;
+                    const isRewardColor = 'rewardId' in wc && !!wc.rewardId;
+                    const isRewardUnlocked = isRewardColor ? unlockedRewards.includes((wc as any).rewardId) : true;
                     return (
                       <Pressable
                         key={wc.key}
-                        onPress={() => handleSetWordColor(wc.key as WordColorKey)}
+                        onPress={() => {
+                          if (isRewardColor && !isRewardUnlocked) {
+                            const rewardBadge = ALL_BADGES.find((b) => b.reward?.id === (wc as any).rewardId);
+                            const badgeName = rewardBadge?.name ?? 'a special';
+                            Alert.alert(
+                              `${wc.label} Color`,
+                              `Unlock this color by earning the ${badgeName} badge!`,
+                              [{ text: 'OK' }]
+                            );
+                          } else {
+                            handleSetWordColor(wc.key as WordColorKey);
+                          }
+                        }}
                         style={[
                           styles.colorCircle,
                           {
@@ -683,6 +701,7 @@ export default function SettingsScreen() {
                               ? colors.primary
                               : 'transparent',
                             borderWidth: isSelected ? 2 : 0,
+                            opacity: isRewardColor && !isRewardUnlocked ? 0.4 : 1,
                           },
                         ]}
                       >
@@ -693,6 +712,11 @@ export default function SettingsScreen() {
                               { borderColor: colors.bg },
                             ]}
                           />
+                        )}
+                        {isRewardColor && !isRewardUnlocked && (
+                          <View style={[styles.swatchLockOverlay, styles.swatchRewardLock, { bottom: -4, right: -4 }]}>
+                            <Feather name="award" size={8} color="#FFFFFF" />
+                          </View>
                         )}
                       </Pressable>
                     );
@@ -727,8 +751,8 @@ export default function SettingsScreen() {
                   const isRewardUnlocked = theme.rewardId ? unlockedRewards.includes(theme.rewardId) : false;
                   // Hybrid model: Pro users can access proAccessible reward themes
                   const canProAccess = isRewardTheme && theme.proAccessible && (isPremium || trialActive);
-                  // Theme is locked if: not premium AND (is reward theme that's not unlocked OR basic premium theme)
-                  const isPremiumLocked = !isDefault && !isPremium && !trialActive && !isRewardTheme;
+                  // Premium themes (paper/stone/sepia) use explicit flag
+                  const isPremiumLocked = theme.premium === true && !isPremium && !trialActive;
                   const isRewardLocked = isRewardTheme && !isRewardUnlocked && !canProAccess;
                   const isLocked = isPremiumLocked || isRewardLocked;
                   return (
@@ -806,16 +830,26 @@ export default function SettingsScreen() {
             </View>
             <View style={[styles.separator, { backgroundColor: glass.border }]} />
             <View style={styles.settingBlock}>
-              <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                Reading Level
-              </Text>
-              <View style={styles.segmentedControlWrapper}>
-                <GlassSegmentedControl
-                  options={readingLevelLabels}
-                  selectedIndex={readingLevelIndex}
-                  onSelect={(i) => setReadingLevel(readingLevels[i])}
-                />
+              <View style={styles.sliderHeader}>
+                <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                  Reading Level
+                </Text>
+                <Text style={[styles.sliderValue, { color: colors.muted }]}>
+                  Level {readingLevel} — {readingLevelLabel}
+                </Text>
               </View>
+              <GlassSlider
+                value={readingLevel}
+                minimumValue={1}
+                maximumValue={15}
+                step={1}
+                onValueChange={(v: number) => setReadingLevel(v)}
+                leftLabel="1"
+                rightLabel="15"
+              />
+              <Text style={{ fontSize: 12, fontWeight: '400', textAlign: 'center', marginTop: 4, color: colors.muted }}>
+                {textsToNextLevel > 0 ? `${textsCompletedAtLevel}/8 texts to next level` : 'Level up available!'}
+              </Text>
             </View>
             <View style={[styles.separator, { backgroundColor: glass.border }]} />
             <SettingRow label="Sentence Recap">
@@ -928,24 +962,49 @@ export default function SettingsScreen() {
             </SettingRow>
             {notificationsEnabled && (
               <SettingRow label="Reminder Time" noBorder>
-                <View style={styles.reminderTimeRow}>
-                  <Pressable
-                    onPress={() => {
-                      const newHour = (reminderHour + 1) % 24;
-                      handleSetReminderTime(newHour, reminderMinute);
-                    }}
-                    style={styles.timeButton}
-                  >
-                    <Text style={[styles.timeButtonText, { color: colors.primary }]}>
-                      {reminderTimeLabel}
-                    </Text>
-                  </Pressable>
-                </View>
+                <DateTimePicker
+                  value={(() => {
+                    const d = new Date();
+                    d.setHours(reminderHour, reminderMinute, 0, 0);
+                    return d;
+                  })()}
+                  mode="time"
+                  display="default"
+                  onChange={(_, selectedDate) => {
+                    if (selectedDate) {
+                      handleSetReminderTime(selectedDate.getHours(), selectedDate.getMinutes());
+                    }
+                  }}
+                />
               </SettingRow>
             )}
           </GlassCard>
 
-          {/* Section 6: About */}
+          {/* Section 6: Daily Goal */}
+          <SectionHeader title="Daily Goal" icon="crosshair" />
+          <GlassCard>
+            <View style={styles.settingBlock}>
+              <View style={styles.sliderHeader}>
+                <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                  Words per Day
+                </Text>
+                <Text style={[styles.sliderValue, { color: colors.muted }]}>
+                  {dailyWordGoal}
+                </Text>
+              </View>
+              <GlassSlider
+                value={dailyWordGoal}
+                minimumValue={50}
+                maximumValue={500}
+                step={50}
+                onValueChange={setDailyWordGoal}
+                leftLabel="50"
+                rightLabel="500"
+              />
+            </View>
+          </GlassCard>
+
+          {/* Section 7: About */}
           <SectionHeader title="About" icon="info" />
           <GlassCard>
             <Pressable
@@ -995,7 +1054,7 @@ export default function SettingsScreen() {
             </Pressable>
           </GlassCard>
 
-          {/* Section 7: Help */}
+          {/* Section 8: Help */}
           <SectionHeader title="Help" icon="help-circle" />
           <GlassCard>
             <Pressable
@@ -1026,6 +1085,38 @@ export default function SettingsScreen() {
                 Contact Support
               </Text>
               <Feather name="mail" size={18} color={colors.muted} />
+            </Pressable>
+          </GlassCard>
+
+          {/* Section 9: Data */}
+          <SectionHeader title="Data" icon="trash-2" />
+          <GlassCard>
+            <Pressable
+              onPress={() => {
+                Alert.alert(
+                  'Reset All Data',
+                  'This will erase all your reading progress, preferences, and settings. This cannot be undone.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Reset Everything',
+                      style: 'destructive',
+                      onPress: () => {
+                        resetAll();
+                        if (hapticFeedback) {
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        }
+                      },
+                    },
+                  ]
+                );
+              }}
+              style={styles.settingRowNoBorder}
+            >
+              <Text style={[styles.settingLabel, { color: '#FF3B30' }]}>
+                Reset All Data
+              </Text>
+              <Feather name="trash-2" size={18} color="#FF3B30" />
             </Pressable>
           </GlassCard>
 

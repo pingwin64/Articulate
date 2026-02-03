@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,6 +8,7 @@ import {
   Pressable,
   useWindowDimensions,
   Alert,
+  AccessibilityInfo,
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +20,7 @@ import Animated, {
   withTiming,
   withSpring,
   withDelay,
+  cancelAnimation,
   Easing,
   FadeIn,
 } from 'react-native-reanimated';
@@ -43,8 +45,12 @@ import {
   Radius,
 } from '../design/theme';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
-import { scheduleStreakAtRiskReminder } from '../lib/notifications';
+import { scheduleStreakAtRiskReminder, cleanupOrphanedNotifications } from '../lib/notifications';
 import { speakWord } from '../lib/tts';
+import { getDailyFeaturedText } from '../lib/data/featured';
+import { getCurrentChallenge, getCurrentWeekId, getDaysRemainingInWeek } from '../lib/data/challenges';
+import { StreakRestoreSheet } from '../components/StreakRestoreSheet';
+import { ReadingQueue } from '../components/ReadingQueue';
 
 // ─── Onboarding Constants ────────────────────────────────────
 
@@ -139,6 +145,7 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
 
   const [wordIndex, setWordIndex] = useState(-1);
   const [showHint, setShowHint] = useState(false);
+  const [systemReduceMotion, setSystemReduceMotion] = useState(false);
 
   const wordScale = useSharedValue(0.85);
   const wordOpacity = useSharedValue(0);
@@ -149,6 +156,10 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
   const glowOpacity = useSharedValue(0);
 
   useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setSystemReduceMotion);
+  }, []);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       setShowHint(true);
       hintOpacity.value = withTiming(1, { duration: 600 });
@@ -157,6 +168,7 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
   }, [hintOpacity]);
 
   useEffect(() => {
+    if (systemReduceMotion) return;
     breatheScale.value = withRepeat(
       withSequence(
         withTiming(1.015, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
@@ -165,7 +177,11 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
       -1,
       true
     );
-  }, [breatheScale]);
+    return () => {
+      cancelAnimation(breatheScale);
+      breatheScale.value = 1;
+    };
+  }, [breatheScale, systemReduceMotion]);
 
   const handleTap = useCallback(() => {
     const nextIndex = wordIndex + 1;
@@ -387,7 +403,7 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
         </View>
 
         <View style={styles.colorRow}>
-          {WordColors.map((c, i) => {
+          {WordColors.filter((c) => !('rewardId' in c && c.rewardId)).map((c, i) => {
             const dotColor = c.color ?? colors.primary;
             const isSelected = wordColor === c.key;
             return (
@@ -824,7 +840,7 @@ function OnboardingLaunch({ onNext }: { onNext: (categoryKey: string) => void })
 function Onboarding() {
   const [page, setPage] = useState(0);
   const router = useRouter();
-  const { setReadingLevel, setDailyWordGoal } = useSettingsStore();
+  const { setReadingLevel, setDailyWordGoal, setHasOnboarded } = useSettingsStore();
 
   const handleSilentStartDone = useCallback(() => {
     setPage(1);
@@ -840,13 +856,14 @@ function Onboarding() {
   }, [setDailyWordGoal]);
 
   const handleLaunch = useCallback((categoryKey: string) => {
-    setReadingLevel('intermediate');
+    setReadingLevel(5);
+    setHasOnboarded(true);
     const cat = categories.find((c) => c.key === categoryKey);
     router.replace({
       pathname: '/reading',
       params: { categoryKey, textId: cat?.texts[0]?.id ?? '' },
     });
-  }, [setReadingLevel, router]);
+  }, [setReadingLevel, setHasOnboarded, router]);
 
   return (
     <SafeAreaView style={styles.flex}>
@@ -894,7 +911,18 @@ function Home() {
     dailyWordGoal,
     dailyWordsToday,
     resetDailyUploadIfNewDay,
+    pendingStreakRestore,
+    streakFreezes,
+    streakFrozenTonight,
+    weeklyChallengeProgress,
+    weeklyChallengeCompleted,
+    refillStreakAllowancesIfNewMonth,
+    checkWeeklyChallenge,
+    activateStreakFreeze,
+    deactivateStreakFreeze,
   } = useSettingsStore();
+
+  const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
 
   const [moreExpanded, setMoreExpanded] = useState(false);
   const chevronRotation = useSharedValue(0);
@@ -917,9 +945,10 @@ function Home() {
     borderColor: `rgba(${isDark ? '255,255,255' : '0,0,0'}, ${heroBorderOpacity.value})`,
   }));
 
-  // Check for streak at risk notification on mount
+  // Clean up orphaned notifications and schedule streak at risk on mount
   const { notificationsEnabled } = useSettingsStore();
   useEffect(() => {
+    cleanupOrphanedNotifications();
     if (notificationsEnabled && currentStreak > 0) {
       scheduleStreakAtRiskReminder(currentStreak, lastReadDate);
     }
@@ -992,10 +1021,12 @@ function Home() {
     checkTrialExpired();
   }, [checkTrialExpired]);
 
-  // Reset daily counters if new day
+  // Reset daily counters if new day, refill streak allowances, check weekly challenge
   useEffect(() => {
     resetDailyUploadIfNewDay();
-  }, [resetDailyUploadIfNewDay]);
+    refillStreakAllowancesIfNewMonth();
+    checkWeeklyChallenge();
+  }, [resetDailyUploadIfNewDay, refillStreakAllowancesIfNewMonth, checkWeeklyChallenge]);
 
   // Streak "at risk" detection — warn at 20h (4-hour buffer before streak resets at 48h)
   const isStreakAtRisk = currentStreak > 0 && lastReadDate !== null && (() => {
@@ -1008,6 +1039,57 @@ function Home() {
   })();
 
   const setSelectedCategoryKey = useSettingsStore((s) => s.setSelectedCategoryKey);
+  const savedWords = useSettingsStore((s) => s.savedWords);
+
+  // ─── Shuffle (Surprise Me) ─────────────────────────────────
+  const shuffleRotation = useSharedValue(0);
+
+  const shuffleableTexts = useMemo(() => {
+    const results: { categoryKey: string; textId: string }[] = [];
+    for (const cat of categories) {
+      const isAccessible = isPremium || FREE_CATEGORIES.includes(cat.key);
+      if (!isAccessible) continue;
+      for (const text of cat.texts) {
+        const required = text.requiredReads ?? 0;
+        const completed = categoryReadCounts[cat.key] ?? 0;
+        if (completed >= required) {
+          results.push({ categoryKey: cat.key, textId: text.id });
+        }
+      }
+    }
+    return results;
+  }, [isPremium, categoryReadCounts]);
+
+  const handleShuffle = useCallback(() => {
+    if (shuffleableTexts.length === 0) return;
+    if (hapticEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    // Rotation animation (skip if reduceMotion)
+    if (!reduceMotion) {
+      shuffleRotation.value = 0;
+      shuffleRotation.value = withTiming(360, { duration: 400, easing: Easing.out(Easing.cubic) });
+      setTimeout(() => {
+        const pick = shuffleableTexts[Math.floor(Math.random() * shuffleableTexts.length)];
+        setSelectedCategoryKey(pick.categoryKey);
+        router.push({
+          pathname: '/reading',
+          params: { categoryKey: pick.categoryKey, textId: pick.textId },
+        });
+      }, 200);
+    } else {
+      const pick = shuffleableTexts[Math.floor(Math.random() * shuffleableTexts.length)];
+      setSelectedCategoryKey(pick.categoryKey);
+      router.push({
+        pathname: '/reading',
+        params: { categoryKey: pick.categoryKey, textId: pick.textId },
+      });
+    }
+  }, [shuffleableTexts, hapticEnabled, reduceMotion, shuffleRotation, setSelectedCategoryKey, router]);
+
+  const shuffleIconStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${shuffleRotation.value}deg` }],
+  }));
 
   const handleCustomTextOptions = (id: string) => {
     Alert.alert('Text Options', undefined, [
@@ -1025,6 +1107,46 @@ function Home() {
   };
 
   const formatNumber = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
+
+  // Memoize next badge calculation to avoid re-computing on every render
+  const nextBadgeData = useMemo(() => {
+    const nextBadge = ALL_BADGES.find((b) => {
+      if (unlockedBadges.includes(b.id)) return false;
+      if (b.category === 'streak' && b.threshold) return currentStreak < b.threshold;
+      if (b.category === 'words' && b.threshold) return totalWordsRead < b.threshold;
+      if (b.category === 'texts' && b.threshold) return textsCompleted < b.threshold;
+      if (b.category === 'category' && b.categoryKey && b.threshold) {
+        return (categoryReadCounts[b.categoryKey] ?? 0) < b.threshold;
+      }
+      return false;
+    });
+
+    if (!nextBadge || !nextBadge.threshold) return null;
+
+    let current = 0;
+    let remaining = 0;
+    let unit = '';
+    if (nextBadge.category === 'streak') {
+      current = currentStreak;
+      remaining = nextBadge.threshold - current;
+      unit = remaining === 1 ? 'day' : 'days';
+    } else if (nextBadge.category === 'words') {
+      current = totalWordsRead;
+      remaining = nextBadge.threshold - current;
+      unit = 'words';
+    } else if (nextBadge.category === 'texts') {
+      current = textsCompleted;
+      remaining = nextBadge.threshold - current;
+      unit = remaining === 1 ? 'text' : 'texts';
+    } else if (nextBadge.category === 'category' && nextBadge.categoryKey) {
+      current = categoryReadCounts[nextBadge.categoryKey] ?? 0;
+      remaining = nextBadge.threshold - current;
+      unit = remaining === 1 ? 'text' : 'texts';
+    }
+
+    const progress = Math.min(100, (current / nextBadge.threshold) * 100);
+    return { nextBadge, current, remaining, unit, progress };
+  }, [unlockedBadges, currentStreak, totalWordsRead, textsCompleted, categoryReadCounts]);
 
   return (
     <SafeAreaView style={styles.flex}>
@@ -1066,14 +1188,38 @@ function Home() {
         </View>
 
         {/* 2. Stats row */}
-        <Animated.View entering={FadeIn.delay(100).duration(400)} style={styles.bannerSection}>
-          <GlassCard>
+        <Animated.View entering={FadeIn.delay(100).duration(400)} style={styles.bannerSection} accessibilityLabel={`${currentStreak} day streak, ${formatNumber(totalWordsRead)} words read, ${textsCompleted} texts completed`}>
+          <GlassCard onPress={() => router.push('/insights')}>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Feather name="zap" size={14} color={colors.muted} />
-                <Text style={[styles.statValue, { color: colors.primary }]}>
-                  {currentStreak}
-                </Text>
+                <View style={styles.streakValueRow}>
+                  <Text style={[styles.statValue, { color: colors.primary }]}>
+                    {currentStreak}
+                  </Text>
+                  {isPremium && (
+                    <Pressable
+                      onPress={() => {
+                        if (hapticEnabled) {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        }
+                        if (streakFrozenTonight) {
+                          deactivateStreakFreeze();
+                        } else {
+                          activateStreakFreeze();
+                        }
+                      }}
+                      style={styles.freezeIcon}
+                      hitSlop={8}
+                    >
+                      <Feather
+                        name="shield"
+                        size={14}
+                        color={streakFrozenTonight ? colors.primary : colors.muted}
+                      />
+                    </Pressable>
+                  )}
+                </View>
                 <Text style={[styles.statLabel, { color: colors.muted }]}>
                   {currentStreak === 1 ? 'day' : 'days'}
                 </Text>
@@ -1120,108 +1266,67 @@ function Home() {
             </View>
           )}
           {/* Daily engagement: next badge progress */}
-          {(() => {
-            // Find the next badge to unlock
-            const nextBadge = ALL_BADGES.find((b) => {
-              if (unlockedBadges.includes(b.id)) return false;
-              // Check if it's progress-based
-              if (b.category === 'streak' && b.threshold) {
-                return currentStreak < b.threshold;
-              }
-              if (b.category === 'words' && b.threshold) {
-                return totalWordsRead < b.threshold;
-              }
-              if (b.category === 'texts' && b.threshold) {
-                return textsCompleted < b.threshold;
-              }
-              if (b.category === 'category' && b.categoryKey && b.threshold) {
-                return (categoryReadCounts[b.categoryKey] ?? 0) < b.threshold;
-              }
-              return false;
-            });
-
-            if (!nextBadge || !nextBadge.threshold) return null;
-
-            let current = 0;
-            let remaining = 0;
-            let unit = '';
-            if (nextBadge.category === 'streak') {
-              current = currentStreak;
-              remaining = nextBadge.threshold - current;
-              unit = remaining === 1 ? 'day' : 'days';
-            } else if (nextBadge.category === 'words') {
-              current = totalWordsRead;
-              remaining = nextBadge.threshold - current;
-              unit = 'words';
-            } else if (nextBadge.category === 'texts') {
-              current = textsCompleted;
-              remaining = nextBadge.threshold - current;
-              unit = remaining === 1 ? 'text' : 'texts';
-            } else if (nextBadge.category === 'category' && nextBadge.categoryKey) {
-              current = categoryReadCounts[nextBadge.categoryKey] ?? 0;
-              remaining = nextBadge.threshold - current;
-              unit = remaining === 1 ? 'text' : 'texts';
-            }
-
-            const progress = Math.min(100, (current / nextBadge.threshold) * 100);
-
-            // Navigate based on badge type - category badges go to text-select, others help user read
-            const handleBadgePress = () => {
-              if (nextBadge.category === 'category' && nextBadge.categoryKey) {
-                // Navigate to text selection for this category
-                setSelectedCategoryKey(nextBadge.categoryKey);
-                router.push({
-                  pathname: '/text-select',
-                  params: { categoryKey: nextBadge.categoryKey },
-                });
-              } else if (nextBadge.category === 'texts' || nextBadge.category === 'words') {
-                // User needs to read more - navigate to first available category
-                const firstCat = CORE_CATEGORIES[0];
-                if (firstCat) {
-                  setSelectedCategoryKey(firstCat.key);
+          {nextBadgeData && (
+            <Pressable
+              onPress={() => {
+                const { nextBadge } = nextBadgeData;
+                if (nextBadge.category === 'category' && nextBadge.categoryKey) {
+                  setSelectedCategoryKey(nextBadge.categoryKey);
                   router.push({
                     pathname: '/text-select',
-                    params: { categoryKey: firstCat.key },
+                    params: { categoryKey: nextBadge.categoryKey },
                   });
+                } else if (nextBadge.category === 'texts' || nextBadge.category === 'words') {
+                  const firstCat = CORE_CATEGORIES[0];
+                  if (firstCat) {
+                    setSelectedCategoryKey(firstCat.key);
+                    router.push({
+                      pathname: '/text-select',
+                      params: { categoryKey: firstCat.key },
+                    });
+                  }
+                } else {
+                  router.push('/achievements');
                 }
-              } else {
-                // Streak badges - just go to achievements
-                router.push('/achievements');
-              }
-            };
+              }}
+              style={styles.nextBadgeCard}
+              accessibilityLabel={`Next badge: ${nextBadgeData.nextBadge.name}, ${formatNumber(nextBadgeData.remaining)} ${nextBadgeData.unit} to go`}
+              accessibilityRole="button"
+            >
+              <View style={styles.nextBadgeHeader}>
+                <Feather name={nextBadgeData.nextBadge.icon as any} size={16} color={colors.primary} />
+                <Text style={[styles.nextBadgeName, { color: colors.primary }]}>
+                  {nextBadgeData.nextBadge.name}
+                </Text>
+              </View>
+              <View style={[styles.nextBadgeProgressBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
+                <View
+                  style={[
+                    styles.nextBadgeProgressFill,
+                    { backgroundColor: colors.primary, width: `${nextBadgeData.progress}%` },
+                  ]}
+                />
+              </View>
+              <View style={styles.nextBadgeFooter}>
+                <Text style={[styles.nextBadgeProgress, { color: colors.muted }]}>
+                  {nextBadgeData.current}/{nextBadgeData.nextBadge.threshold}
+                </Text>
+                <Text style={[styles.nextBadgeAction, { color: colors.secondary }]}>
+                  {formatNumber(nextBadgeData.remaining)} {nextBadgeData.unit} to go →
+                </Text>
+              </View>
+            </Pressable>
+          )}
+        </Animated.View>
 
-            return (
-              <Pressable onPress={handleBadgePress} style={styles.nextBadgeCard}>
-                <View style={styles.nextBadgeHeader}>
-                  <Feather name={nextBadge.icon as any} size={16} color={colors.primary} />
-                  <Text style={[styles.nextBadgeName, { color: colors.primary }]}>
-                    {nextBadge.name}
-                  </Text>
-                </View>
-                <View style={[styles.nextBadgeProgressBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
-                  <View
-                    style={[
-                      styles.nextBadgeProgressFill,
-                      { backgroundColor: colors.primary, width: `${progress}%` },
-                    ]}
-                  />
-                </View>
-                <View style={styles.nextBadgeFooter}>
-                  <Text style={[styles.nextBadgeProgress, { color: colors.muted }]}>
-                    {current}/{nextBadge.threshold}
-                  </Text>
-                  <Text style={[styles.nextBadgeAction, { color: colors.secondary }]}>
-                    {formatNumber(remaining)} {unit} to go →
-                  </Text>
-                </View>
-              </Pressable>
-            );
-          })()}
+        {/* 2b. Reading Queue (UP NEXT) */}
+        <Animated.View entering={FadeIn.delay(130).duration(400)} style={styles.bannerSection}>
+          <ReadingQueue />
         </Animated.View>
 
         {/* 3. Your Text hero card */}
         <Animated.View entering={FadeIn.delay(150).duration(400)} style={styles.bannerSection}>
-          <Pressable onPress={() => router.push('/paste')}>
+          <Pressable onPress={() => router.push('/paste')} accessibilityLabel="Your Text — paste, scan, or import any text" accessibilityRole="button">
             <Animated.View style={[styles.heroCard, { backgroundColor: glass.fill }, heroBorderStyle]}>
               <View
                 style={[
@@ -1293,7 +1398,7 @@ function Home() {
 
         {/* Streak at risk warning — Loss Aversion framing */}
         {isStreakAtRisk && (
-          <Animated.View entering={FadeIn.duration(400)} style={styles.bannerSection}>
+          <Animated.View entering={FadeIn.duration(400)} style={styles.bannerSection} accessibilityLabel={`Streak at risk: ${currentStreak}-day streak. Read one text to keep it going`} accessibilityRole="button">
             <GlassCard onPress={() => {
               // Navigate to first available category to help user save streak
               const firstCat = CORE_CATEGORIES[0];
@@ -1345,15 +1450,137 @@ function Home() {
           </View>
         )}
 
-        {/* (Your Text card moved above banners) */}
+        {/* 5. Combined Activity card (Daily Featured + Weekly Challenge) */}
+        {(() => {
+          const featured = getDailyFeaturedText();
+          const challenge = getCurrentChallenge();
+          const weekId = getCurrentWeekId();
+          const weekNum = weekId.split('-W')[1];
+          const daysLeft = getDaysRemainingInWeek();
+
+          // Lock check: free user + (premium category OR requiredReads not met)
+          const isLocked = !isPremium && (
+            featured.isPremium ||
+            (featured.text.requiredReads ?? 0) > (categoryReadCounts[featured.category.key] ?? 0)
+          );
+
+          const progressFraction = challenge.target > 0
+            ? Math.min(1, weeklyChallengeProgress / challenge.target)
+            : 0;
+
+          return (
+            <Animated.View entering={FadeIn.delay(250).duration(400)} style={styles.bannerSection}>
+              <GlassCard>
+                <View style={styles.activityCard}>
+                  {/* Top: Daily Featured */}
+                  <View>
+                    <Text style={[styles.activityLabel, { color: colors.muted }]}>
+                      TODAY'S PICK
+                    </Text>
+                    <Pressable
+                      onPress={() => {
+                        if (isLocked) {
+                          setPaywallContext('locked_category');
+                        } else {
+                          setSelectedCategoryKey(featured.category.key);
+                          router.push({
+                            pathname: '/reading',
+                            params: {
+                              categoryKey: featured.category.key,
+                              textId: featured.text.id,
+                            },
+                          });
+                        }
+                      }}
+                      style={styles.featuredRow}
+                    >
+                      <View style={[
+                        styles.featuredIconCircle,
+                        {
+                          backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                          borderColor: glass.border,
+                        },
+                      ]}>
+                        <Feather name={featured.category.icon as any} size={18} color={colors.primary} />
+                      </View>
+                      <View style={styles.featuredTextGroup}>
+                        <Text style={[styles.featuredTitle, { color: colors.primary }]} numberOfLines={1}>
+                          {featured.text.title}
+                        </Text>
+                        <Text style={[styles.featuredMeta, { color: colors.muted }]} numberOfLines={1}>
+                          {featured.text.author ? `${featured.text.author} · ` : ''}{featured.category.name} · ~{featured.text.words.length}w
+                        </Text>
+                      </View>
+                      <Feather
+                        name={isLocked ? 'lock' : 'chevron-right'}
+                        size={16}
+                        color={colors.muted}
+                      />
+                    </Pressable>
+                  </View>
+
+                  {/* Divider */}
+                  <View style={[styles.activityDivider, { backgroundColor: glass.border }]} />
+
+                  {/* Bottom: Weekly Challenge */}
+                  <View>
+                    <Text style={[styles.activityLabel, { color: colors.muted }]}>
+                      WEEK {weekNum} CHALLENGE
+                    </Text>
+                    {weeklyChallengeCompleted ? (
+                      <View style={styles.challengeRow}>
+                        <Feather name="check-circle" size={16} color={colors.success} />
+                        <Text style={[styles.challengeDescription, { color: colors.success }]}>
+                          Challenge Complete
+                        </Text>
+                      </View>
+                    ) : (
+                      <>
+                        <Text style={[styles.challengeDescription, { color: colors.primary }]}>
+                          {challenge.description}
+                        </Text>
+                        <View style={styles.challengeRow}>
+                          <View style={[styles.challengeProgressBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
+                            <View style={[
+                              styles.challengeProgressFill,
+                              {
+                                backgroundColor: colors.primary,
+                                width: `${progressFraction * 100}%`,
+                              },
+                            ]} />
+                          </View>
+                          <Text style={[styles.challengeProgressText, { color: colors.muted }]}>
+                            {weeklyChallengeProgress}/{challenge.target}
+                          </Text>
+                          <Text style={[styles.challengeProgressText, { color: colors.muted }]}>
+                            {daysLeft}d left
+                          </Text>
+                        </View>
+                      </>
+                    )}
+                  </View>
+                </View>
+              </GlassCard>
+            </Animated.View>
+          );
+        })()}
 
         {/* 6. My Texts section */}
         {customTexts.length > 0 && (
           <View style={styles.myTextsSection}>
-            <Text style={[styles.sectionTitle, { color: colors.secondary }]}>
-              MY TEXTS
-            </Text>
-            {customTexts.map((ct, i) => (
+            <View style={styles.myTextsHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.secondary }]}>
+                MY TEXTS
+              </Text>
+              {customTexts.length > 3 && (
+                <Pressable onPress={() => router.push('/library')}>
+                  <Text style={[styles.seeAllLink, { color: colors.secondary }]}>
+                    See All ({customTexts.length})
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+            {customTexts.slice(0, 3).map((ct, i) => (
               <Animated.View
                 key={ct.id}
                 entering={FadeIn.delay(i * 80).duration(300)}
@@ -1399,7 +1626,77 @@ function Home() {
           </View>
         )}
 
-        {/* 7. Core category cards (Story, Article, Speech) */}
+        {/* 7a. Surprise Me (Shuffle) card */}
+        {shuffleableTexts.length > 0 && (
+          <Animated.View entering={FadeIn.delay(280).duration(400)} style={styles.bannerSection}>
+            <GlassCard onPress={handleShuffle}>
+              <View style={styles.shuffleContent}>
+                <View
+                  style={[
+                    styles.shuffleIconCircle,
+                    {
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                      borderColor: glass.border,
+                    },
+                  ]}
+                >
+                  <Animated.View style={shuffleIconStyle}>
+                    <Feather name="shuffle" size={20} color={colors.primary} />
+                  </Animated.View>
+                </View>
+                <View style={styles.shuffleTextGroup}>
+                  <Text style={[styles.shuffleTitle, { color: colors.primary }]}>
+                    Surprise Me
+                  </Text>
+                  <Text style={[styles.shuffleSubtitle, { color: colors.muted }]}>
+                    Random text from your categories
+                  </Text>
+                </View>
+                <Feather name="play" size={18} color={colors.muted} />
+              </View>
+            </GlassCard>
+          </Animated.View>
+        )}
+
+        {/* 7b. My Words card (word bank) */}
+        {savedWords.length > 0 && (
+          <Animated.View entering={FadeIn.delay(300).duration(400)} style={styles.bannerSection}>
+            <GlassCard
+              onPress={() => {
+                if (!isPremium) {
+                  setPaywallContext('locked_word_bank');
+                  return;
+                }
+                router.push('/word-bank');
+              }}
+            >
+              <View style={styles.shuffleContent}>
+                <View
+                  style={[
+                    styles.shuffleIconCircle,
+                    {
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                      borderColor: glass.border,
+                    },
+                  ]}
+                >
+                  <Feather name="bookmark" size={20} color={colors.primary} />
+                </View>
+                <View style={styles.shuffleTextGroup}>
+                  <Text style={[styles.shuffleTitle, { color: colors.primary }]}>
+                    My Words
+                  </Text>
+                  <Text style={[styles.shuffleSubtitle, { color: colors.muted }]}>
+                    {savedWords.length} saved
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.muted} />
+              </View>
+            </GlassCard>
+          </Animated.View>
+        )}
+
+        {/* 7c. Core category cards (Story, Article, Speech) */}
         <View style={styles.categoriesSection}>
           <View style={styles.categoryList}>
             {CORE_CATEGORIES.map((cat, i) => {
@@ -1487,6 +1784,9 @@ function Home() {
         {/* 9. Bottom spacer */}
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Streak Restore Sheet (modal) */}
+      <StreakRestoreSheet />
 
       {/* Paywall */}
       <Paywall
@@ -1996,6 +2296,15 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     gap: 8,
   },
+  myTextsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  seeAllLink: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
   customTextRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2030,5 +2339,103 @@ const styles = StyleSheet.create({
     width: 32,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // Streak value row with freeze icon
+  streakValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  freezeIcon: {
+    marginLeft: 4,
+  },
+  // Combined Activity card
+  activityCard: {
+    gap: Spacing.sm,
+  },
+  activityDivider: {
+    height: 0.5,
+    marginVertical: Spacing.sm,
+  },
+  activityLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  featuredRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  featuredIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 0.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  featuredTextGroup: {
+    flex: 1,
+    gap: 2,
+  },
+  featuredTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  featuredMeta: {
+    fontSize: 12,
+  },
+  challengeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  challengeDescription: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  challengeProgressBar: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  challengeProgressFill: {
+    height: 4,
+    borderRadius: 2,
+  },
+  challengeProgressText: {
+    fontSize: 11,
+    fontVariant: ['tabular-nums'],
+  },
+  // Shuffle / My Words card
+  shuffleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  shuffleIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    borderWidth: 0.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shuffleTextGroup: {
+    flex: 1,
+    gap: 2,
+  },
+  shuffleTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  shuffleSubtitle: {
+    fontSize: 12,
   },
 });

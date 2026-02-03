@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { createMMKV } from 'react-native-mmkv';
 import type { FontFamilyKey, WordColorKey } from '../../design/theme';
 import { getBadgeById } from '../data/badges';
+import { getISOWeekId } from '../date';
 
 const storage = createMMKV({ id: 'articulate-mmkv' });
 
@@ -19,9 +20,30 @@ const mmkvStorage = {
   },
 };
 
-export type ReadingLevel = 'beginner' | 'intermediate' | 'advanced';
 export type TTSSpeed = 'slow' | 'normal' | 'fast';
 export type VoiceGender = 'male' | 'female';
+
+// Legacy type kept for backward compatibility during migration
+export type ReadingLevel = 'beginner' | 'intermediate' | 'advanced';
+
+// Tier names for the numeric level system
+export function getTierName(level: number): string {
+  if (level <= 3) return 'Beginner';
+  if (level <= 6) return 'Intermediate';
+  if (level <= 9) return 'Advanced';
+  if (level <= 12) return 'Expert';
+  if (level <= 15) return 'Master';
+  return 'Scholar';
+}
+
+export function getTierKey(level: number): string {
+  if (level <= 3) return 'beginner';
+  if (level <= 6) return 'intermediate';
+  if (level <= 9) return 'advanced';
+  if (level <= 12) return 'expert';
+  if (level <= 15) return 'master';
+  return 'scholar';
+}
 
 export type PaywallContext =
   | 'post_onboarding' | 'locked_category' | 'custom_text_limit'
@@ -29,7 +51,19 @@ export type PaywallContext =
   | 'locked_background' | 'locked_autoplay' | 'locked_chunk'
   | 'locked_breathing' | 'locked_tts' | 'locked_quiz'
   | 'locked_daily_upload' | 'locked_scan' | 'streak_save' | 'goal_almost'
-  | 'trial_expired' | 'settings_upgrade' | 'generic';
+  | 'trial_expired' | 'settings_upgrade' | 'locked_insights'
+  | 'locked_level_up' | 'locked_definition' | 'locked_word_bank' | 'generic';
+
+export interface SavedWord {
+  id: string;
+  word: string;
+  syllables?: string;
+  partOfSpeech?: string;
+  definition?: string;
+  savedAt: string;
+  sourceText?: string;
+  sourceCategory?: string;
+}
 
 export interface SavedPremiumSettings {
   fontFamily: FontFamilyKey;
@@ -44,6 +78,17 @@ export interface CustomText {
   title: string;
   text: string;
   wordCount: number;
+  createdAt: string;
+  lastReadAt?: string;
+  timesRead: number;
+  collectionId?: string;
+  source?: 'paste' | 'file' | 'url' | 'scan';
+  preview?: string;
+}
+
+export interface TextCollection {
+  id: string;
+  name: string;
   createdAt: string;
 }
 
@@ -98,9 +143,16 @@ export interface SettingsState {
   wordColor: WordColorKey;
   setWordColor: (v: WordColorKey) => void;
 
-  // Reading
-  readingLevel: ReadingLevel;
-  setReadingLevel: (v: ReadingLevel) => void;
+  // Reading — Adaptive Difficulty (numeric levels)
+  readingLevel: number;
+  setReadingLevel: (v: number) => void;
+  readingLevelTier: string;
+  textsCompletedAtLevel: number;
+  recentQuizScoresAtLevel: number[];
+  levelUpAvailable: boolean;
+  checkLevelUpEligibility: () => void;
+  acceptLevelUp: () => void;
+  dismissLevelUp: () => void;
   sentenceRecap: boolean;
   setSentenceRecap: (v: boolean) => void;
   hapticFeedback: boolean;
@@ -142,9 +194,11 @@ export interface SettingsState {
   updateCustomText: (id: string, updates: Partial<CustomText>) => void;
   removeCustomText: (id: string) => void;
 
-  // Baseline WPM
-  baselineWPM: number | null;
-  setBaselineWPM: (v: number) => void;
+  // Text Collections (Phase 3)
+  textCollections: TextCollection[];
+  addCollection: (collection: TextCollection) => void;
+  removeCollection: (id: string) => void;
+  assignTextToCollection: (textId: string, collectionId: string | undefined) => void;
 
   // Chunk Reading
   chunkSize: 1 | 2 | 3;
@@ -155,10 +209,6 @@ export interface SettingsState {
   totalQuizzesTaken: number;
   perfectQuizzes: number;
   updateComprehension: (score: number, totalQuestions: number) => void;
-
-  // Achievements
-  unlockedAchievements: string[];
-  unlockAchievement: (id: string) => void;
 
   // Reading History & Badge System
   readingHistory: ReadingHistoryEntry[];
@@ -182,8 +232,6 @@ export interface SettingsState {
   // Accessibility
   reduceMotion: boolean;
   setReduceMotion: (v: boolean) => void;
-  highContrast: boolean;
-  setHighContrast: (v: boolean) => void;
 
   // Paywall
   showPaywall: boolean;
@@ -233,6 +281,46 @@ export interface SettingsState {
   // Badge upsell tracking
   lastUnlockedBadgeId: string | null;
   clearLastUnlockedBadge: () => void;
+
+  // Streak Freeze & Restore
+  streakFreezes: number;
+  streakRestores: number;
+  lastStreakRefillDate: string | null;
+  streakFrozenTonight: boolean;
+  streakFreezeActivatedDate: string | null;
+  pendingStreakRestore: { previousStreak: number; breakDate: string } | null;
+  refillStreakAllowancesIfNewMonth: () => void;
+  activateStreakFreeze: () => boolean;
+  deactivateStreakFreeze: () => void;
+  useStreakRestore: () => void;
+  dismissStreakRestore: () => void;
+  addPurchasedRestore: () => void;
+
+  // Weekly Challenge
+  weeklyChallengeWeek: string | null;
+  weeklyChallengeProgress: number;
+  weeklyChallengeCompleted: boolean;
+  weeklyChallengesCompleted: number;
+  weeklyCategoriesRead: string[];
+  checkWeeklyChallenge: () => void;
+  incrementWeeklyChallengeProgress: (type: string, amount: number) => void;
+
+  // Reading Insights (Phase 4)
+  weeklyWordCounts: Record<string, number>;
+  weeklyReadingDays: Record<string, string[]>;
+  weeklyAvgWPM: Record<string, number>;
+  longestStreak: number;
+  dailyReadingLog: Record<string, number>;
+  recordWeeklyReading: (words: number, wpm: number) => void;
+
+  // Favorite Words (Phase 7)
+  favoriteWords: string[];
+  toggleFavoriteWord: (word: string) => void;
+
+  // Saved Words (Word Bank)
+  savedWords: SavedWord[];
+  addSavedWord: (word: SavedWord) => void;
+  removeSavedWord: (id: string) => void;
 
   // Computed helper
   trialDaysRemaining: () => number;
@@ -322,9 +410,40 @@ export const useSettingsStore = create<SettingsState>()(
       wordColor: 'default',
       setWordColor: (v) => set({ wordColor: v }),
 
-      // Reading
-      readingLevel: 'intermediate',
-      setReadingLevel: (v) => set({ readingLevel: v }),
+      // Reading — Adaptive Difficulty
+      readingLevel: 5,
+      setReadingLevel: (v) => set({ readingLevel: v, readingLevelTier: getTierName(v) }),
+      readingLevelTier: 'Intermediate',
+      textsCompletedAtLevel: 0,
+      recentQuizScoresAtLevel: [],
+      levelUpAvailable: false,
+      checkLevelUpEligibility: () => {
+        const state = get();
+        const textsNeeded = 8;
+        const minQuizzes = 3;
+        const minAvgScore = 70;
+        const hasVolume = state.textsCompletedAtLevel >= textsNeeded;
+        const scores = state.recentQuizScoresAtLevel;
+        const recentScores = scores.slice(-minQuizzes);
+        const hasComprehension = recentScores.length >= minQuizzes
+          && (recentScores.reduce((a, b) => a + b, 0) / recentScores.length) >= minAvgScore;
+        const isReady = hasVolume && hasComprehension;
+        if (isReady !== state.levelUpAvailable) {
+          set({ levelUpAvailable: isReady });
+        }
+      },
+      acceptLevelUp: () => {
+        const state = get();
+        const newLevel = state.readingLevel + 1;
+        set({
+          readingLevel: newLevel,
+          readingLevelTier: getTierName(newLevel),
+          textsCompletedAtLevel: 0,
+          recentQuizScoresAtLevel: [],
+          levelUpAvailable: false,
+        });
+      },
+      dismissLevelUp: () => set({ levelUpAvailable: false }),
       sentenceRecap: false,
       setSentenceRecap: (v) => set({ sentenceRecap: v }),
       hapticFeedback: true,
@@ -373,7 +492,8 @@ export const useSettingsStore = create<SettingsState>()(
         const elapsed = now - lastReadMs;
 
         if (elapsed < HOURS_24) {
-          // Within same 24h window — already counted, no change
+          // Within same 24h window — still update lastReadDate so it's always fresh
+          set({ lastReadDate: new Date(now).toISOString() });
           return;
         }
 
@@ -384,11 +504,31 @@ export const useSettingsStore = create<SettingsState>()(
             lastReadDate: new Date(now).toISOString(),
           });
         } else {
-          // >48h: streak broken, reset
-          set({
-            currentStreak: 1,
-            lastReadDate: new Date(now).toISOString(),
-          });
+          // >48h gap — check freeze first (only honor if activated within last 48h)
+          const freezeStillValid = state.streakFrozenTonight
+            && state.streakFreezeActivatedDate
+            && (now - new Date(state.streakFreezeActivatedDate).getTime()) < HOURS_48;
+          if (freezeStillValid) {
+            // Freeze saved the streak — consume it, increment, continue
+            set({
+              streakFreezes: Math.max(0, state.streakFreezes - 1),
+              streakFrozenTonight: false,
+              streakFreezeActivatedDate: null,
+              currentStreak: state.currentStreak + 1,
+              lastReadDate: new Date(now).toISOString(),
+            });
+          } else {
+            // Streak broken — set pending restore (don't reset yet)
+            set({
+              pendingStreakRestore: {
+                previousStreak: state.currentStreak,
+                breakDate: new Date(now).toISOString(),
+              },
+              streakFrozenTonight: false,
+              streakFreezeActivatedDate: null,
+              // DON'T update currentStreak or lastReadDate yet
+            });
+          }
         }
       },
 
@@ -430,9 +570,23 @@ export const useSettingsStore = create<SettingsState>()(
           customTexts: s.customTexts.filter((t) => t.id !== id),
         })),
 
-      // Baseline WPM
-      baselineWPM: null,
-      setBaselineWPM: (v) => set({ baselineWPM: v }),
+      // Text Collections
+      textCollections: [],
+      addCollection: (collection) =>
+        set((s) => ({ textCollections: [...s.textCollections, collection] })),
+      removeCollection: (id) =>
+        set((s) => ({
+          textCollections: s.textCollections.filter((c) => c.id !== id),
+          customTexts: s.customTexts.map((t) =>
+            t.collectionId === id ? { ...t, collectionId: undefined } : t
+          ),
+        })),
+      assignTextToCollection: (textId, collectionId) =>
+        set((s) => ({
+          customTexts: s.customTexts.map((t) =>
+            t.id === textId ? { ...t, collectionId } : t
+          ),
+        })),
 
       // Chunk Reading
       chunkSize: 1,
@@ -468,6 +622,7 @@ export const useSettingsStore = create<SettingsState>()(
         // Perfect score
         if (isPerfect) {
           unlockBadge('quiz-perfect');
+          get().incrementWeeklyChallengeProgress('quiz_perfect', 1);
         }
         // 10 quizzes
         if (newTotal >= 10) {
@@ -482,15 +637,6 @@ export const useSettingsStore = create<SettingsState>()(
           unlockBadge('quiz-scholar');
         }
       },
-
-      // Achievements
-      unlockedAchievements: [],
-      unlockAchievement: (id) =>
-        set((s) => ({
-          unlockedAchievements: s.unlockedAchievements.includes(id)
-            ? s.unlockedAchievements
-            : [...s.unlockedAchievements, id],
-        })),
 
       // Reading History & Badge System
       readingHistory: [],
@@ -549,8 +695,6 @@ export const useSettingsStore = create<SettingsState>()(
       // Accessibility
       reduceMotion: false,
       setReduceMotion: (v) => set({ reduceMotion: v }),
-      highContrast: false,
-      setHighContrast: (v) => set({ highContrast: v }),
 
       // Paywall
       showPaywall: false,
@@ -562,8 +706,9 @@ export const useSettingsStore = create<SettingsState>()(
         } else {
           const state = get();
           // Skip frequency limiting for intentional upgrade actions
-          const intentionalContexts: PaywallContext[] = ['settings_upgrade', 'locked_category', 'locked_quiz', 'locked_tts'];
-          const isIntentional = intentionalContexts.includes(ctx);
+          // All locked_* contexts are intentional taps; also settings_upgrade, custom_text_limit, trial_expired
+          const isIntentional = ctx.startsWith('locked_') || ctx === 'settings_upgrade'
+            || ctx === 'custom_text_limit' || ctx === 'trial_expired';
           // Frequency limiting only for passive/proactive paywalls
           if (!isIntentional && !state.canShowPaywall()) return;
           set({ paywallContext: ctx, showPaywall: true, lastPaywallShown: new Date().toISOString() });
@@ -641,8 +786,9 @@ export const useSettingsStore = create<SettingsState>()(
       canUseFreeQuiz: () => {
         const state = get();
         const today = new Date().toDateString();
-        // Reset if new day
+        // Reset state if new day (consistent with resetDailyUploadIfNewDay pattern)
         if (state.lastFreeQuizDate !== today) {
+          set({ freeQuizUsedToday: false, lastFreeQuizDate: today });
           return true;
         }
         return !state.freeQuizUsedToday;
@@ -651,6 +797,175 @@ export const useSettingsStore = create<SettingsState>()(
       // Badge upsell tracking
       lastUnlockedBadgeId: null,
       clearLastUnlockedBadge: () => set({ lastUnlockedBadgeId: null }),
+
+      // Streak Freeze & Restore
+      streakFreezes: 0,
+      streakRestores: 0,
+      lastStreakRefillDate: null,
+      streakFrozenTonight: false,
+      streakFreezeActivatedDate: null,
+      pendingStreakRestore: null,
+
+      refillStreakAllowancesIfNewMonth: () => {
+        const state = get();
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        if (state.lastStreakRefillDate !== currentMonth) {
+          const updates: Partial<SettingsState> = { lastStreakRefillDate: currentMonth };
+          if (state.isPremium) {
+            updates.streakFreezes = 2;
+            updates.streakRestores = 3;
+          }
+          set(updates);
+        }
+      },
+
+      activateStreakFreeze: () => {
+        const state = get();
+        if (state.isPremium && state.streakFreezes > 0 && !state.streakFrozenTonight) {
+          set({
+            streakFrozenTonight: true,
+            streakFreezeActivatedDate: new Date().toISOString(),
+          });
+          return true;
+        }
+        return false;
+      },
+
+      deactivateStreakFreeze: () => set({ streakFrozenTonight: false, streakFreezeActivatedDate: null }),
+
+      useStreakRestore: () => {
+        const state = get();
+        if (!state.pendingStreakRestore) return;
+        set({
+          streakRestores: Math.max(0, state.streakRestores - 1),
+          currentStreak: state.pendingStreakRestore.previousStreak,
+          lastReadDate: new Date().toISOString(),
+          pendingStreakRestore: null,
+        });
+      },
+
+      dismissStreakRestore: () => {
+        set({
+          currentStreak: 1,
+          lastReadDate: new Date().toISOString(),
+          pendingStreakRestore: null,
+        });
+      },
+
+      addPurchasedRestore: () =>
+        set((s) => ({ streakRestores: s.streakRestores + 1 })),
+
+      // Weekly Challenge
+      weeklyChallengeWeek: null,
+      weeklyChallengeProgress: 0,
+      weeklyChallengeCompleted: false,
+      weeklyChallengesCompleted: 0,
+      weeklyCategoriesRead: [],
+
+      checkWeeklyChallenge: () => {
+        const { getCurrentWeekId } = require('../data/challenges');
+        const currentWeek = getCurrentWeekId();
+        const state = get();
+        if (state.weeklyChallengeWeek !== currentWeek) {
+          set({
+            weeklyChallengeWeek: currentWeek,
+            weeklyChallengeProgress: 0,
+            weeklyChallengeCompleted: false,
+            weeklyCategoriesRead: [],
+          });
+        }
+      },
+
+      incrementWeeklyChallengeProgress: (type: string, amount: number) => {
+        const { getCurrentChallenge, getCurrentWeekId } = require('../data/challenges');
+        const state = get();
+        const currentWeek = getCurrentWeekId();
+        if (state.weeklyChallengeWeek !== currentWeek) return;
+        if (state.weeklyChallengeCompleted) return;
+
+        const challenge = getCurrentChallenge();
+        if (challenge.type !== type) return;
+
+        const newProgress = state.weeklyChallengeProgress + amount;
+        const updates: Partial<SettingsState> = {
+          weeklyChallengeProgress: newProgress,
+        };
+        if (newProgress >= challenge.target) {
+          updates.weeklyChallengeCompleted = true;
+          updates.weeklyChallengesCompleted = state.weeklyChallengesCompleted + 1;
+        }
+        set(updates);
+      },
+
+      // Reading Insights
+      weeklyWordCounts: {},
+      weeklyReadingDays: {},
+      weeklyAvgWPM: {},
+      longestStreak: 0,
+      dailyReadingLog: {},
+      recordWeeklyReading: (words, wpm) => {
+        const state = get();
+        const now = new Date();
+        const dayKey = now.toISOString().slice(0, 10);
+
+        // Get ISO week key (YYYY-WNN)
+        const weekKey = getISOWeekId(now);
+
+        // Update weekly word count
+        const newWeeklyWordCounts = { ...state.weeklyWordCounts };
+        newWeeklyWordCounts[weekKey] = (newWeeklyWordCounts[weekKey] ?? 0) + words;
+
+        // Update weekly reading days
+        const newWeeklyReadingDays = { ...state.weeklyReadingDays };
+        const days = newWeeklyReadingDays[weekKey] ?? [];
+        if (!days.includes(dayKey)) {
+          newWeeklyReadingDays[weekKey] = [...days, dayKey];
+        }
+
+        // Update weekly avg WPM (running average)
+        const newWeeklyAvgWPM = { ...state.weeklyAvgWPM };
+        const existingWPM = newWeeklyAvgWPM[weekKey];
+        newWeeklyAvgWPM[weekKey] = existingWPM
+          ? Math.round((existingWPM + wpm) / 2)
+          : wpm;
+
+        // Update daily reading log
+        const newDailyLog = { ...state.dailyReadingLog };
+        newDailyLog[dayKey] = (newDailyLog[dayKey] ?? 0) + words;
+
+        // Update longest streak
+        const newLongest = Math.max(state.longestStreak, state.currentStreak);
+
+        set({
+          weeklyWordCounts: newWeeklyWordCounts,
+          weeklyReadingDays: newWeeklyReadingDays,
+          weeklyAvgWPM: newWeeklyAvgWPM,
+          dailyReadingLog: newDailyLog,
+          longestStreak: newLongest,
+        });
+      },
+
+      // Favorite Words
+      favoriteWords: [],
+      toggleFavoriteWord: (word) =>
+        set((s) => ({
+          favoriteWords: s.favoriteWords.includes(word)
+            ? s.favoriteWords.filter((w) => w !== word)
+            : [...s.favoriteWords, word],
+        })),
+
+      // Saved Words (Word Bank)
+      savedWords: [],
+      addSavedWord: (word) =>
+        set((s) => {
+          // Prevent duplicates by word text
+          if (s.savedWords.some((w) => w.word === word.word)) return s;
+          return { savedWords: [...s.savedWords, word] };
+        }),
+      removeSavedWord: (id) =>
+        set((s) => ({
+          savedWords: s.savedWords.filter((w) => w.id !== id),
+        })),
 
       // Computed helper
       trialDaysRemaining: () => {
@@ -672,7 +987,11 @@ export const useSettingsStore = create<SettingsState>()(
         wordSize: 48,
         wordBold: false,
         wordColor: 'default',
-        readingLevel: 'intermediate',
+        readingLevel: 5,
+        readingLevelTier: 'Intermediate',
+        textsCompletedAtLevel: 0,
+        recentQuizScoresAtLevel: [],
+        levelUpAvailable: false,
         sentenceRecap: false,
         hapticFeedback: true,
         breathingAnimation: true,
@@ -687,12 +1006,11 @@ export const useSettingsStore = create<SettingsState>()(
         resumeData: null,
         resumePoints: {},
         customTexts: [],
-        baselineWPM: null,
+        textCollections: [],
         chunkSize: 1 as 1 | 2 | 3,
         avgComprehension: 0,
         totalQuizzesTaken: 0,
         perfectQuizzes: 0,
-        unlockedAchievements: [],
         readingHistory: [],
         categoryReadCounts: {},
         unlockedBadges: [],
@@ -702,7 +1020,6 @@ export const useSettingsStore = create<SettingsState>()(
         reminderHour: 20,
         reminderMinute: 0,
         reduceMotion: false,
-        highContrast: false,
         showPaywall: false,
         paywallContext: null,
         trialFeaturesUsed: [],
@@ -722,11 +1039,29 @@ export const useSettingsStore = create<SettingsState>()(
         freeQuizUsedToday: false,
         lastFreeQuizDate: null,
         lastUnlockedBadgeId: null,
+        streakFreezes: 0,
+        streakRestores: 0,
+        lastStreakRefillDate: null,
+        streakFrozenTonight: false,
+        streakFreezeActivatedDate: null,
+        pendingStreakRestore: null,
+        weeklyChallengeWeek: null,
+        weeklyChallengeProgress: 0,
+        weeklyChallengeCompleted: false,
+        weeklyChallengesCompleted: 0,
+        weeklyCategoriesRead: [],
+        weeklyWordCounts: {},
+        weeklyReadingDays: {},
+        weeklyAvgWPM: {},
+        longestStreak: 0,
+        dailyReadingLog: {},
+        favoriteWords: [],
+        savedWords: [],
       }),
     }),
     {
       name: 'articulate-settings',
-      version: 6,
+      version: 10,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -768,6 +1103,72 @@ export const useSettingsStore = create<SettingsState>()(
           persisted.freeQuizUsedToday = persisted.freeQuizUsedToday ?? false;
           persisted.lastFreeQuizDate = persisted.lastFreeQuizDate ?? null;
           persisted.lastUnlockedBadgeId = persisted.lastUnlockedBadgeId ?? null;
+        }
+        if (version < 7) {
+          // v7: streak freeze/restore, weekly challenge
+          persisted.streakFreezes = persisted.streakFreezes ?? 0;
+          persisted.streakRestores = persisted.streakRestores ?? 0;
+          persisted.lastStreakRefillDate = persisted.lastStreakRefillDate ?? null;
+          persisted.streakFrozenTonight = persisted.streakFrozenTonight ?? false;
+          persisted.pendingStreakRestore = persisted.pendingStreakRestore ?? null;
+          persisted.weeklyChallengeWeek = persisted.weeklyChallengeWeek ?? null;
+          persisted.weeklyChallengeProgress = persisted.weeklyChallengeProgress ?? 0;
+          persisted.weeklyChallengeCompleted = persisted.weeklyChallengeCompleted ?? false;
+          persisted.weeklyChallengesCompleted = persisted.weeklyChallengesCompleted ?? 0;
+          persisted.weeklyCategoriesRead = persisted.weeklyCategoriesRead ?? [];
+        }
+        if (version < 8) {
+          // v8: streak freeze expiration, remove unused fields
+          persisted.streakFreezeActivatedDate = persisted.streakFreezeActivatedDate ?? null;
+          // Clear stale streak freeze (no activation date = indefinite, clear it)
+          if (persisted.streakFrozenTonight && !persisted.streakFreezeActivatedDate) {
+            persisted.streakFrozenTonight = false;
+          }
+          // Remove unused fields
+          delete persisted.baselineWPM;
+          delete persisted.highContrast;
+          delete persisted.unlockedAchievements;
+        }
+        if (version < 9) {
+          // v9: Theme restructuring — reset free users off premium themes
+          // Premium themes now have explicit `premium: true` flag
+          const premiumThemeKeys = ['paper', 'stone', 'sepia'];
+          if (!persisted.isPremium && !persisted.trialActive &&
+              premiumThemeKeys.includes(persisted.backgroundTheme)) {
+            persisted.backgroundTheme = 'default';
+          }
+          // Initialize new fields for phases 3-7
+          // Custom library enhancements
+          if (Array.isArray(persisted.customTexts)) {
+            persisted.customTexts = persisted.customTexts.map((ct: any) => ({
+              ...ct,
+              timesRead: ct.timesRead ?? 0,
+              source: ct.source ?? 'paste',
+              preview: ct.preview ?? (ct.text ? ct.text.slice(0, 120) : ''),
+            }));
+          }
+          persisted.textCollections = persisted.textCollections ?? [];
+          // Reading insights
+          persisted.weeklyWordCounts = persisted.weeklyWordCounts ?? {};
+          persisted.weeklyReadingDays = persisted.weeklyReadingDays ?? {};
+          persisted.weeklyAvgWPM = persisted.weeklyAvgWPM ?? {};
+          persisted.longestStreak = persisted.longestStreak ?? (persisted.currentStreak ?? 0);
+          persisted.dailyReadingLog = persisted.dailyReadingLog ?? {};
+          // Adaptive difficulty — convert string readingLevel to numeric
+          const levelMap: Record<string, number> = { beginner: 2, intermediate: 5, advanced: 8 };
+          if (typeof persisted.readingLevel === 'string') {
+            persisted.readingLevel = levelMap[persisted.readingLevel] ?? 5;
+          }
+          persisted.readingLevelTier = persisted.readingLevelTier ?? 'intermediate';
+          persisted.textsCompletedAtLevel = persisted.textsCompletedAtLevel ?? 0;
+          persisted.recentQuizScoresAtLevel = persisted.recentQuizScoresAtLevel ?? [];
+          persisted.levelUpAvailable = persisted.levelUpAvailable ?? false;
+          // Favorite words
+          persisted.favoriteWords = persisted.favoriteWords ?? [];
+        }
+        if (version < 10) {
+          // v10: add saved words (word bank)
+          persisted.savedWords = persisted.savedWords ?? [];
         }
         return persisted;
       },

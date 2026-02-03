@@ -51,6 +51,8 @@ export interface BackgroundTheme {
   light: string;
   dark: string;
   darkOnly?: boolean;
+  // If true, this theme requires Pro subscription (paper, stone, sepia)
+  premium?: boolean;
   // If set, this theme is locked until the reward is unlocked via achievements
   rewardId?: string;
   // If true, Pro users can access this reward theme without earning the badge
@@ -59,13 +61,16 @@ export interface BackgroundTheme {
 
 export const BackgroundThemes: BackgroundTheme[] = [
   { key: 'default', label: 'Default', light: '#FFFFFF', dark: '#000000' },
-  { key: 'paper', label: 'Paper', light: '#FDFBF7', dark: '#1A1714' },
-  { key: 'stone', label: 'Stone', light: '#F0EFED', dark: '#161618' },
-  { key: 'sepia', label: 'Sepia', light: '#F5EDDC', dark: '#1D1508' },
+  { key: 'paper', label: 'Paper', light: '#FDFBF7', dark: '#1A1714', premium: true },
+  { key: 'stone', label: 'Stone', light: '#F0EFED', dark: '#161618', premium: true },
+  { key: 'sepia', label: 'Sepia', light: '#F5EDDC', dark: '#1D1508', premium: true },
   // Reward themes - unlocked via achievements
   { key: 'midnight', label: 'Midnight', light: '#0A0A12', dark: '#0A0A12', darkOnly: true, rewardId: 'streak-30-theme', proAccessible: true },
   { key: 'aurora', label: 'Aurora', light: '#0D1B2A', dark: '#0D1B2A', darkOnly: true, rewardId: 'streak-100-theme' },
   { key: 'legendary', label: 'Legendary', light: '#1A0A2E', dark: '#1A0A2E', darkOnly: true, rewardId: 'streak-365-theme' },
+  // Reward themes - unlocked via non-streak achievements
+  { key: 'ember', label: 'Ember', light: '#1C1210', dark: '#1C1210', darkOnly: true, rewardId: 'words-50k-theme' },
+  { key: 'verdant', label: 'Verdant', light: '#0B1A0F', dark: '#0B1A0F', darkOnly: true, rewardId: 'category-master-theme' },
 ];
 
 export const FontFamilies = {
@@ -153,6 +158,10 @@ export const WordColors = [
   { key: 'forest', label: 'Forest', color: '#28A745' },
   { key: 'amber', label: 'Amber', color: '#FF9500' },
   { key: 'violet', label: 'Violet', color: '#AF52DE' },
+  // Reward colors - unlocked via achievements
+  { key: 'scholar-ink', label: 'Scholar Ink', color: '#1B4332', rewardId: 'quiz-scholar-color' },
+  { key: 'depth', label: 'Depth', color: '#4A0E4E', rewardId: 'texts-100-color' },
+  { key: 'dawn', label: 'Dawn', color: '#C4651A', rewardId: 'challenge-10-color' },
 ] as const;
 
 export type WordColorKey = (typeof WordColors)[number]['key'];

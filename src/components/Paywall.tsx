@@ -162,6 +162,18 @@ function getContextualCopy(context: PaywallContext | null): ContextualCopy {
         subheadline: 'Unlock all fonts, colors, themes, and reading tools.',
         featureOrder: [1, 0, 2, 3, 4, 5],
       };
+    case 'locked_insights':
+      return {
+        headline: 'See your full progress',
+        subheadline: 'Track your reading journey with weekly charts and trends.',
+        featureOrder: [0, 2, 1, 3, 4, 5],
+      };
+    case 'locked_level_up':
+      return {
+        headline: 'Keep leveling up',
+        subheadline: 'Unlock advanced reading levels with AI-generated content.',
+        featureOrder: [2, 0, 1, 3, 4, 5],
+      };
     case 'generic':
     default:
       return {
@@ -296,14 +308,23 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
         setIsLoading(false);
       }
     } else {
-      // Fallback: no packages loaded (dev/simulator)
-      if (hapticFeedback) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (__DEV__) {
+        // Dev/simulator fallback: grant premium for testing
+        if (hapticFeedback) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        setIsPremium(true);
+        onSubscribe?.();
+        setPaywallContext(null);
+        onDismiss();
+      } else {
+        // Production: offerings failed to load, show error
+        Alert.alert(
+          'Unable to Load',
+          'Unable to load subscription options. Please try again.',
+          [{ text: 'OK' }]
+        );
       }
-      setIsPremium(true);
-      onSubscribe?.();
-      setPaywallContext(null);
-      onDismiss();
     }
   };
 
@@ -341,6 +362,8 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
     onDismiss();
   };
 
+  const TRIAL_DAYS = 3; // Sync with RevenueCat offering
+
   // Context-aware CTA text
   const getContextCTA = (): string => {
     switch (context) {
@@ -364,20 +387,27 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
       case 'streak_save':
         return 'Protect Your Streak';
       default:
-        return 'Start 3-Day Free Trial';
+        return 'Unlock the Full Experience';
     }
   };
 
   const ctaText = selectedPlan === 'lifetime'
     ? getContextCTA()
-    : selectedPlan === 'weekly'
-      ? 'Start 3-Day Free Trial'
-      : 'Start 3-Day Free Trial';
+    : `Start ${TRIAL_DAYS}-Day Free Trial — ${getContextCTA()}`;
 
   // Helper to get price string from packages or fallback
   const getPriceString = (type: string, fallback: string): string => {
     const pkg = packages.find((p) => p.packageType === type);
     return pkg?.product?.priceString ?? fallback;
+  };
+
+  // Compute daily cost from package price (avoids hardcoded strings)
+  const getDailyRate = (type: string, days: number, fallback: string): string => {
+    const pkg = packages.find((p) => p.packageType === type);
+    if (pkg?.product?.price) {
+      return `~$${(pkg.product.price / days).toFixed(2)}/day`;
+    }
+    return fallback;
   };
 
   const content = (
@@ -490,7 +520,7 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                     per week
                   </Text>
                   <Text style={[styles.planNote, { color: colors.muted }]}>
-                    ~$0.43/day
+                    {getDailyRate('WEEKLY', 7, '~$0.43/day')}
                   </Text>
                 </Pressable>
 
@@ -521,7 +551,7 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                     per month
                   </Text>
                   <Text style={[styles.planNote, { color: colors.muted }]}>
-                    ~$0.33/day
+                    {getDailyRate('MONTHLY', 30, '~$0.33/day')}
                   </Text>
                 </Pressable>
 
@@ -574,6 +604,12 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
 
           {/* CTAs */}
           <Animated.View entering={FadeIn.delay(700).duration(300)} style={styles.ctaContainer}>
+            {/* App Store required subscription disclosure */}
+            <Text style={[styles.subscriptionTerms, { color: colors.muted }]}>
+              {selectedPlan !== 'lifetime'
+                ? `Auto-renews ${selectedPlan === 'weekly' ? 'weekly' : 'monthly'}. Cancel anytime.`
+                : 'One-time purchase. No subscription.'}
+            </Text>
             {isLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="small" color={colors.primary} />
@@ -812,6 +848,12 @@ const styles = StyleSheet.create({
   },
   dot: {
     fontSize: 14,
+  },
+  subscriptionTerms: {
+    fontSize: 12,
+    fontWeight: '400',
+    textAlign: 'center',
+    lineHeight: 16,
   },
   loadingContainer: {
     height: 48,
