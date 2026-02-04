@@ -502,12 +502,8 @@ export default function SettingsScreen() {
             )}
           </View>
 
-          {/* Hero: Live Word Preview or Upgrade CTA */}
-          {isPremium || trialActive ? (
-            <GlassCard>
-              <WordPreview />
-            </GlassCard>
-          ) : (
+          {/* Upgrade CTA for free users */}
+          {!isPremium && !trialActive && (
             <SettingsUpgradeCTA onPress={() => setPaywallContext('settings_upgrade')} />
           )}
 
@@ -602,15 +598,11 @@ export default function SettingsScreen() {
           {/* Section 1: Appearance */}
           <SectionHeader title="Appearance" icon="eye" />
           <GlassCard>
-            <SettingRow label="Theme">
-              <GlassSegmentedControl
-                options={themeModes}
-                selectedIndex={themeIndex}
-                onSelect={(i) =>
-                  setThemeMode(i === 0 ? 'light' : i === 1 ? 'dark' : 'system')
-                }
-              />
-            </SettingRow>
+            {/* Live Word Preview - shows font and color */}
+            <View style={styles.wordPreviewContainer}>
+              <WordPreview />
+            </View>
+            <View style={[styles.separator, { backgroundColor: glass.border }]} />
 
             {/* Font picker - Pro only */}
             {isPremium || trialActive ? (
@@ -693,11 +685,11 @@ export default function SettingsScreen() {
 
             {/* Color picker - Pro only (with reward colors visible to all) */}
             {isPremium || trialActive ? (
-              <View style={styles.settingRowNoBorder}>
+              <View style={styles.settingBlock}>
                 <Text style={[styles.settingLabel, { color: colors.primary }]}>
                   Color
                 </Text>
-                <View style={styles.colorRow}>
+                <View style={styles.colorRowBlock}>
                   {WordColors.map((wc) => {
                     const circleColor = wc.color ?? colors.primary;
                     const isSelected = wordColor === wc.key;
@@ -761,6 +753,7 @@ export default function SettingsScreen() {
                 <View />
               </LockedSettingRow>
             )}
+            <View style={[styles.separator, { backgroundColor: glass.border }]} />
 
             {/* Background swatches — visible to all users */}
             <View style={styles.settingRowNoBorder}>
@@ -1314,6 +1307,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginTop: 10,
+  },
+  colorRowBlock: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 12,
+  },
+  wordPreviewContainer: {
+    paddingVertical: 8,
   },
   colorCircle: {
     width: 28,

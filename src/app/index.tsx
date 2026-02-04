@@ -1431,13 +1431,13 @@ function Home() {
                   style={({ pressed }) => [
                     styles.heroActionButton,
                     styles.heroActionPrimary,
-                    { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
+                    { backgroundColor: '#000000', opacity: pressed ? 0.8 : 1 },
                   ]}
                   accessibilityRole="button"
                   accessibilityLabel="Paste text"
                 >
-                  <Feather name="clipboard" size={14} color={isDark ? '#000' : '#fff'} />
-                  <Text style={[styles.heroActionText, { color: isDark ? '#000' : '#fff' }]}>
+                  <Feather name="clipboard" size={14} color="#FFFFFF" />
+                  <Text style={[styles.heroActionText, { color: '#FFFFFF' }]}>
                     Paste
                   </Text>
                 </Pressable>
@@ -1449,13 +1449,13 @@ function Home() {
                   style={({ pressed }) => [
                     styles.heroActionButton,
                     styles.heroActionPrimary,
-                    { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
+                    { backgroundColor: '#000000', opacity: pressed ? 0.8 : 1 },
                   ]}
                   accessibilityRole="button"
                   accessibilityLabel="Scan text"
                 >
-                  <Feather name="camera" size={14} color={isDark ? '#000' : '#fff'} />
-                  <Text style={[styles.heroActionText, { color: isDark ? '#000' : '#fff' }]}>
+                  <Feather name="camera" size={14} color="#FFFFFF" />
+                  <Text style={[styles.heroActionText, { color: '#FFFFFF' }]}>
                     Scan
                   </Text>
                 </Pressable>
@@ -1467,13 +1467,13 @@ function Home() {
                   style={({ pressed }) => [
                     styles.heroActionButton,
                     styles.heroActionPrimary,
-                    { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
+                    { backgroundColor: '#000000', opacity: pressed ? 0.8 : 1 },
                   ]}
                   accessibilityRole="button"
                   accessibilityLabel="Import a file"
                 >
-                  <Feather name="upload" size={14} color={isDark ? '#000' : '#fff'} />
-                  <Text style={[styles.heroActionText, { color: isDark ? '#000' : '#fff' }]}>
+                  <Feather name="upload" size={14} color="#FFFFFF" />
+                  <Text style={[styles.heroActionText, { color: '#FFFFFF' }]}>
                     Import
                   </Text>
                 </Pressable>
