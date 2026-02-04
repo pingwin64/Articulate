@@ -1448,17 +1448,14 @@ function Home() {
                   }}
                   style={({ pressed }) => [
                     styles.heroActionButton,
-                    {
-                      borderColor: glass.border,
-                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                      opacity: pressed ? 0.7 : 1,
-                    },
+                    styles.heroActionPrimary,
+                    { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
                   ]}
                   accessibilityRole="button"
                   accessibilityLabel="Scan text"
                 >
-                  <Feather name="camera" size={14} color={colors.primary} />
-                  <Text style={[styles.heroActionText, { color: colors.primary }]}>
+                  <Feather name="camera" size={14} color={isDark ? '#000' : '#fff'} />
+                  <Text style={[styles.heroActionText, { color: isDark ? '#000' : '#fff' }]}>
                     Scan
                   </Text>
                 </Pressable>
@@ -1469,17 +1466,14 @@ function Home() {
                   }}
                   style={({ pressed }) => [
                     styles.heroActionButton,
-                    {
-                      borderColor: glass.border,
-                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                      opacity: pressed ? 0.7 : 1,
-                    },
+                    styles.heroActionPrimary,
+                    { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
                   ]}
                   accessibilityRole="button"
                   accessibilityLabel="Import a file"
                 >
-                  <Feather name="upload" size={14} color={colors.primary} />
-                  <Text style={[styles.heroActionText, { color: colors.primary }]}>
+                  <Feather name="upload" size={14} color={isDark ? '#000' : '#fff'} />
+                  <Text style={[styles.heroActionText, { color: isDark ? '#000' : '#fff' }]}>
                     Import
                   </Text>
                 </Pressable>
