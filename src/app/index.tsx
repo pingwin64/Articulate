@@ -36,6 +36,7 @@ import { TimeGreeting } from '../components/TimeGreeting';
 import { ResumeCard } from '../components/ResumeCard';
 import { CategoryCard } from '../components/CategoryCard';
 import { Paywall } from '../components/Paywall';
+import { LevelProgress } from '../components/LevelProgress';
 import { ALL_BADGES, type Badge } from '../lib/data/badges';
 import {
   Spacing,
@@ -50,7 +51,6 @@ import { speakWord } from '../lib/tts';
 import { getDailyFeaturedText } from '../lib/data/featured';
 import { getCurrentChallenge, getCurrentWeekId, getDaysRemainingInWeek } from '../lib/data/challenges';
 import { StreakRestoreSheet } from '../components/StreakRestoreSheet';
-import { ReadingQueue } from '../components/ReadingQueue';
 
 // ─── Onboarding Constants ────────────────────────────────────
 
@@ -292,7 +292,7 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
 
 function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
   const { colors, isDark, glass } = useTheme();
-  const { fontFamily, setFontFamily, wordColor, setWordColor, voiceGender, setVoiceGender } = useSettingsStore();
+  const { fontFamily, setFontFamily, voiceGender, setVoiceGender } = useSettingsStore();
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
 
   const previewScale = useSharedValue(1);
@@ -312,14 +312,6 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
     animatePreview();
   }, [hapticEnabled, setFontFamily, animatePreview]);
 
-  const handleColorSelect = useCallback((key: WordColorKey) => {
-    if (hapticEnabled) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    setWordColor(key);
-    animatePreview();
-  }, [hapticEnabled, setWordColor, animatePreview]);
-
   const handleVoiceSelect = useCallback((gender: 'male' | 'female') => {
     if (hapticEnabled) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -333,7 +325,6 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
     transform: [{ scale: previewScale.value }],
   }));
 
-  const resolvedColor = WordColors.find((c) => c.key === wordColor)?.color ?? colors.primary;
   const fontConfig = FontFamilies[fontFamily];
 
   return (
@@ -349,7 +340,7 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
           entering={FadeIn.delay(100).duration(400)}
           style={[styles.personalizeSubtitle, { color: colors.secondary }]}
         >
-          The right font and colors keep you coming back.
+          The right font and voice keep you coming back.
         </Animated.Text>
 
         <View style={styles.previewArea}>
@@ -357,7 +348,7 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
             style={[
               styles.previewWord,
               {
-                color: resolvedColor,
+                color: colors.primary,
                 fontFamily: fontConfig.regular,
               },
               previewStyle,
@@ -397,33 +388,6 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
                     {font.label}
                   </Text>
                 </GlassCard>
-              </Animated.View>
-            );
-          })}
-        </View>
-
-        <View style={styles.colorRow}>
-          {WordColors.filter((c) => !('rewardId' in c && c.rewardId)).map((c, i) => {
-            const dotColor = c.color ?? colors.primary;
-            const isSelected = wordColor === c.key;
-            return (
-              <Animated.View
-                key={c.key}
-                entering={FadeIn.delay(i * 60).duration(400)}
-              >
-                <Pressable
-                  onPress={() => handleColorSelect(c.key)}
-                  style={[
-                    styles.colorDot,
-                    {
-                      backgroundColor: dotColor,
-                      borderWidth: isSelected ? 2.5 : 0,
-                      borderColor: isSelected
-                        ? isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.3)'
-                        : 'transparent',
-                    },
-                  ]}
-                />
               </Animated.View>
             );
           })}
@@ -840,7 +804,7 @@ function OnboardingLaunch({ onNext }: { onNext: (categoryKey: string) => void })
 function Onboarding() {
   const [page, setPage] = useState(0);
   const router = useRouter();
-  const { setReadingLevel, setDailyWordGoal, setHasOnboarded } = useSettingsStore();
+  const { setReadingLevel, setIsFirstReading } = useSettingsStore();
 
   const handleSilentStartDone = useCallback(() => {
     setPage(1);
@@ -850,28 +814,24 @@ function Onboarding() {
     setPage(2);
   }, []);
 
-  const handleGoalSet = useCallback((goal: number) => {
-    setDailyWordGoal(goal);
-    setPage(3);
-  }, [setDailyWordGoal]);
-
   const handleLaunch = useCallback((categoryKey: string) => {
+    // Set default level and mark as first reading
+    // hasOnboarded will be set after calibration in complete.tsx
     setReadingLevel(5);
-    setHasOnboarded(true);
+    setIsFirstReading(true);
     const cat = categories.find((c) => c.key === categoryKey);
     router.replace({
       pathname: '/reading',
       params: { categoryKey, textId: cat?.texts[0]?.id ?? '' },
     });
-  }, [setReadingLevel, setHasOnboarded, router]);
+  }, [setReadingLevel, setIsFirstReading, router]);
 
   return (
     <SafeAreaView style={styles.flex}>
       {page === 0 && <OnboardingSilentStart onNext={handleSilentStartDone} />}
       {page === 1 && <OnboardingPersonalize onNext={handlePersonalizeDone} />}
-      {page === 2 && <OnboardingDailyGoal onNext={handleGoalSet} />}
-      {page === 3 && <OnboardingLaunch onNext={handleLaunch} />}
-      <PageDots total={4} current={page} />
+      {page === 2 && <OnboardingLaunch onNext={handleLaunch} />}
+      <PageDots total={3} current={page} />
     </SafeAreaView>
   );
 }
@@ -880,7 +840,6 @@ function Onboarding() {
 
 const FREE_CATEGORIES = ['story', 'article', 'speech'];
 const CORE_CATEGORIES = categories.filter((c) => FREE_CATEGORIES.includes(c.key));
-const MORE_CATEGORIES = categories.filter((c) => !FREE_CATEGORIES.includes(c.key));
 
 function Home() {
   const { colors, isDark, glass } = useTheme();
@@ -895,7 +854,7 @@ function Home() {
     categoryReadCounts,
     lastReadDate,
     customTexts,
-    removeCustomText,
+    favoriteTexts,
     checkTrialExpired,
     trialActive,
     trialStartDate,
@@ -924,9 +883,6 @@ function Home() {
 
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
 
-  const [moreExpanded, setMoreExpanded] = useState(false);
-  const chevronRotation = useSharedValue(0);
-
   // Breathing border animation for "Your Text" hero card
   const heroBorderOpacity = useSharedValue(0.25);
   useEffect(() => {
@@ -953,18 +909,6 @@ function Home() {
       scheduleStreakAtRiskReminder(currentStreak, lastReadDate);
     }
   }, [notificationsEnabled, currentStreak, lastReadDate]);
-
-  const toggleMore = useCallback(() => {
-    setMoreExpanded((prev) => {
-      const next = !prev;
-      chevronRotation.value = withSpring(next ? 1 : 0, Springs.default);
-      return next;
-    });
-  }, [chevronRotation]);
-
-  const chevronStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${chevronRotation.value * 180}deg` }],
-  }));
 
   // Trial countdown
   const daysLeft = trialDaysRemaining();
@@ -1091,21 +1035,6 @@ function Home() {
     transform: [{ rotate: `${shuffleRotation.value}deg` }],
   }));
 
-  const handleCustomTextOptions = (id: string) => {
-    Alert.alert('Text Options', undefined, [
-      {
-        text: 'Edit',
-        onPress: () => router.push({ pathname: '/paste', params: { editTextId: id } }),
-      },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => removeCustomText(id),
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  };
-
   const formatNumber = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
 
   // Memoize next badge calculation to avoid re-computing on every render
@@ -1187,7 +1116,12 @@ function Home() {
           <TimeGreeting />
         </View>
 
-        {/* 2. Stats row */}
+        {/* 2. Level Progress */}
+        <View style={styles.bannerSection}>
+          <LevelProgress />
+        </View>
+
+        {/* 3. Stats row */}
         <Animated.View entering={FadeIn.delay(100).duration(400)} style={styles.bannerSection} accessibilityLabel={`${currentStreak} day streak, ${formatNumber(totalWordsRead)} words read, ${textsCompleted} texts completed`}>
           <GlassCard onPress={() => router.push('/insights')}>
             <View style={styles.statsRow}>
@@ -1317,11 +1251,6 @@ function Home() {
               </View>
             </Pressable>
           )}
-        </Animated.View>
-
-        {/* 2b. Reading Queue (UP NEXT) */}
-        <Animated.View entering={FadeIn.delay(130).duration(400)} style={styles.bannerSection}>
-          <ReadingQueue />
         </Animated.View>
 
         {/* 3. Your Text hero card */}
@@ -1565,66 +1494,49 @@ function Home() {
           );
         })()}
 
-        {/* 6. My Texts section */}
-        {customTexts.length > 0 && (
-          <View style={styles.myTextsSection}>
-            <View style={styles.myTextsHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.secondary }]}>
-                MY TEXTS
-              </Text>
-              {customTexts.length > 3 && (
-                <Pressable onPress={() => router.push('/library')}>
-                  <Text style={[styles.seeAllLink, { color: colors.secondary }]}>
-                    See All ({customTexts.length})
-                  </Text>
-                </Pressable>
-              )}
-            </View>
-            {customTexts.slice(0, 3).map((ct, i) => (
-              <Animated.View
-                key={ct.id}
-                entering={FadeIn.delay(i * 80).duration(300)}
-                style={styles.customTextCardWrapper}
+        {/* 6. My Library card */}
+        <Animated.View entering={FadeIn.delay(260).duration(400)} style={styles.bannerSection}>
+          <GlassCard onPress={() => {
+            if (customTexts.length > 0 || favoriteTexts.length > 0) {
+              router.push('/library');
+            } else {
+              // Empty state - guide to reading
+              const firstCat = CORE_CATEGORIES[0];
+              if (firstCat) {
+                setSelectedCategoryKey(firstCat.key);
+                router.push({
+                  pathname: '/text-select',
+                  params: { categoryKey: firstCat.key },
+                });
+              }
+            }
+          }}>
+            <View style={styles.shuffleContent}>
+              <View
+                style={[
+                  styles.shuffleIconCircle,
+                  {
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                    borderColor: glass.border,
+                  },
+                ]}
               >
-                <Link
-                  href={{
-                    pathname: '/reading',
-                    params: { customTextId: ct.id },
-                  }}
-                  asChild
-                >
-                  <Link.AppleZoom>
-                    <GlassCard>
-                      <View style={styles.customTextRow}>
-                        <View style={styles.customTextInfo}>
-                          <Text
-                            style={[styles.customTextTitle, { color: colors.primary }]}
-                            numberOfLines={1}
-                          >
-                            {ct.title}
-                          </Text>
-                          <Text style={[styles.customTextCount, { color: colors.muted }]}>
-                            ~{ct.wordCount} words
-                          </Text>
-                        </View>
-                        {/* Spacer for the absolutely positioned options button */}
-                        <View style={styles.moreButton} />
-                      </View>
-                    </GlassCard>
-                  </Link.AppleZoom>
-                </Link>
-                {/* Options button positioned outside Link to avoid gesture conflicts */}
-                <Pressable
-                  onPress={() => handleCustomTextOptions(ct.id)}
-                  style={styles.moreButtonOverlay}
-                  hitSlop={8}
-                >
-                  <Feather name="more-vertical" size={18} color={colors.muted} />
-                </Pressable>
-              </Animated.View>
-            ))}
-          </View>
-        )}
+                <Feather name="folder" size={20} color={colors.primary} />
+              </View>
+              <View style={styles.shuffleTextGroup}>
+                <Text style={[styles.shuffleTitle, { color: colors.primary }]}>
+                  My Library
+                </Text>
+                <Text style={[styles.shuffleSubtitle, { color: colors.muted }]}>
+                  {customTexts.length + favoriteTexts.length > 0
+                    ? `${customTexts.length + favoriteTexts.length} saved ${customTexts.length + favoriteTexts.length === 1 ? 'text' : 'texts'}`
+                    : 'Tap ♡ while reading to save texts'}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={colors.muted} />
+            </View>
+          </GlassCard>
+        </Animated.View>
 
         {/* 7a. Surprise Me (Shuffle) card */}
         {shuffleableTexts.length > 0 && (
@@ -1659,112 +1571,109 @@ function Home() {
         )}
 
         {/* 7b. My Words card (word bank) */}
-        {savedWords.length > 0 && (
-          <Animated.View entering={FadeIn.delay(300).duration(400)} style={styles.bannerSection}>
-            <GlassCard
-              onPress={() => {
+        <Animated.View entering={FadeIn.delay(300).duration(400)} style={styles.bannerSection}>
+          <GlassCard
+            onPress={() => {
+              if (savedWords.length > 0) {
                 if (!isPremium) {
                   setPaywallContext('locked_word_bank');
                   return;
                 }
                 router.push('/word-bank');
-              }}
-            >
-              <View style={styles.shuffleContent}>
-                <View
-                  style={[
-                    styles.shuffleIconCircle,
-                    {
-                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                      borderColor: glass.border,
-                    },
-                  ]}
-                >
-                  <Feather name="bookmark" size={20} color={colors.primary} />
-                </View>
-                <View style={styles.shuffleTextGroup}>
-                  <Text style={[styles.shuffleTitle, { color: colors.primary }]}>
-                    My Words
-                  </Text>
-                  <Text style={[styles.shuffleSubtitle, { color: colors.muted }]}>
-                    {savedWords.length} saved
-                  </Text>
-                </View>
-                <Feather name="chevron-right" size={18} color={colors.muted} />
-              </View>
-            </GlassCard>
-          </Animated.View>
-        )}
-
-        {/* 7c. Core category cards (Story, Article, Speech) */}
-        <View style={styles.categoriesSection}>
-          <View style={styles.categoryList}>
-            {CORE_CATEGORIES.map((cat, i) => {
-              if (cat.texts.length === 1) {
-                return (
-                  <CategoryCard
-                    key={cat.key}
-                    category={cat}
-                    index={i}
-                    onPress={() => {
-                      router.push({
-                        pathname: '/reading',
-                        params: { categoryKey: cat.key, textId: cat.texts[0]?.id ?? '' },
-                      });
-                    }}
-                  />
-                );
+              } else {
+                // Empty state - guide to reading
+                const firstCat = CORE_CATEGORIES[0];
+                if (firstCat) {
+                  setSelectedCategoryKey(firstCat.key);
+                  router.push({
+                    pathname: '/text-select',
+                    params: { categoryKey: firstCat.key },
+                  });
+                }
               }
-              return (
-                <CategoryCard
-                  key={cat.key}
-                  category={cat}
-                  index={i}
-                  onPress={() => {
-                    setSelectedCategoryKey(cat.key);
-                    router.push({
-                      pathname: '/text-select',
-                      params: { categoryKey: cat.key },
-                    });
-                  }}
-                />
-              );
-            })}
-          </View>
-        </View>
+            }}
+          >
+            <View style={styles.shuffleContent}>
+              <View
+                style={[
+                  styles.shuffleIconCircle,
+                  {
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                    borderColor: glass.border,
+                  },
+                ]}
+              >
+                <Feather name="bookmark" size={20} color={colors.primary} />
+              </View>
+              <View style={styles.shuffleTextGroup}>
+                <Text style={[styles.shuffleTitle, { color: colors.primary }]}>
+                  My Words
+                </Text>
+                <Text style={[styles.shuffleSubtitle, { color: colors.muted }]}>
+                  {savedWords.length > 0
+                    ? `${savedWords.length} saved`
+                    : 'Tap words while reading to save'}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={colors.muted} />
+            </View>
+          </GlassCard>
+        </Animated.View>
 
-        {/* 8. "More to explore" expandable section */}
-        <View style={styles.moreSection}>
-          <Pressable onPress={toggleMore} style={styles.moreHeader}>
-            <Text style={[styles.moreHeaderText, { color: colors.secondary }]}>
-              More to explore
-            </Text>
-            <Animated.View style={chevronStyle}>
-              <Feather name="chevron-down" size={18} color={colors.secondary} />
-            </Animated.View>
-          </Pressable>
-          {moreExpanded && (
-            <Animated.View entering={FadeIn.duration(300)} style={styles.categoryList}>
-              {MORE_CATEGORIES.map((cat, i) => {
-                const isLocked = !isPremium && !FREE_CATEGORIES.includes(cat.key);
+        {/* 7c. All Categories */}
+        <View style={styles.categoriesSection}>
+          <Text style={[styles.sectionTitle, { color: colors.secondary }]}>
+            CATEGORIES
+          </Text>
+          <View style={styles.categoryList}>
+            {categories.map((cat, i) => {
+              const isLocked = !isPremium && !FREE_CATEGORIES.includes(cat.key);
 
-                // Locked categories show paywall
-                if (isLocked) {
-                  return (
+              // Locked categories show paywall
+              if (isLocked) {
+                return (
+                  <Animated.View
+                    key={cat.key}
+                    entering={FadeIn.delay(i * 60).duration(300)}
+                  >
                     <CategoryCard
-                      key={cat.key}
                       category={cat}
                       locked={true}
                       index={i}
                       onPress={() => setPaywallContext('locked_category')}
                     />
-                  );
-                }
+                  </Animated.View>
+                );
+              }
 
-                // Unlocked categories navigate
+              // Single-text categories navigate directly to reading
+              if (cat.texts.length === 1) {
                 return (
-                  <CategoryCard
+                  <Animated.View
                     key={cat.key}
+                    entering={FadeIn.delay(i * 60).duration(300)}
+                  >
+                    <CategoryCard
+                      category={cat}
+                      index={i}
+                      onPress={() => {
+                        router.push({
+                          pathname: '/reading',
+                          params: { categoryKey: cat.key, textId: cat.texts[0]?.id ?? '' },
+                        });
+                      }}
+                    />
+                  </Animated.View>
+                );
+              }
+
+              // Multi-text categories navigate to text selection
+              return (
+                <Animated.View
+                  key={cat.key}
+                  entering={FadeIn.delay(i * 60).duration(300)}
+                >
+                  <CategoryCard
                     category={cat}
                     index={i}
                     onPress={() => {
@@ -1775,10 +1684,10 @@ function Home() {
                       });
                     }}
                   />
-                );
-              })}
-            </Animated.View>
-          )}
+                </Animated.View>
+              );
+            })}
+          </View>
         </View>
 
         {/* 9. Bottom spacer */}
@@ -1864,10 +1773,14 @@ const styles = StyleSheet.create({
   },
   hintText: {
     position: 'absolute',
-    bottom: 120,
-    fontSize: 15,
-    fontWeight: '300',
+    bottom: 140,
+    left: 0,
+    right: 0,
+    fontSize: 16,
+    fontWeight: '400',
     letterSpacing: 0.3,
+    textAlign: 'center',
+    lineHeight: 24,
   },
   shimmerGlow: {
     position: 'absolute',
@@ -2192,21 +2105,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
-  // More to explore
-  moreSection: {
-    marginTop: Spacing.md,
-  },
-  moreHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  moreHeaderText: {
-    fontSize: 15,
-    fontWeight: '500',
-    letterSpacing: 0.2,
-  },
   // Trial banner
   trialBanner: {
     flexDirection: 'row',
@@ -2285,60 +2183,12 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     marginTop: 2,
   },
-  // Custom texts
+  // Section header
   sectionTitle: {
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 0.8,
     marginBottom: 10,
-  },
-  myTextsSection: {
-    marginTop: Spacing.md,
-    gap: 8,
-  },
-  myTextsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  seeAllLink: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  customTextRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  customTextInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  customTextTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  customTextCount: {
-    fontSize: 12,
-    fontWeight: '400',
-  },
-  moreButton: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  customTextCardWrapper: {
-    position: 'relative',
-  },
-  moreButtonOverlay: {
-    position: 'absolute',
-    right: 16,
-    top: 0,
-    bottom: 0,
-    width: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   // Streak value row with freeze icon
   streakValueRow: {

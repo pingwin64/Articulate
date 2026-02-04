@@ -277,6 +277,56 @@ const QUIZ_BADGES: Badge[] = [
   },
 ];
 
+// Level badges (4) - progression milestones
+const LEVEL_BADGES: Badge[] = [
+  {
+    id: 'level-5',
+    name: 'Rising Reader',
+    description: 'Reach Level 5',
+    category: 'special',
+    tier: 'bronze',
+    icon: 'trending-up',
+    threshold: 5,
+  },
+  {
+    id: 'level-10',
+    name: 'Vocabulary Builder',
+    description: 'Reach Level 10',
+    category: 'special',
+    tier: 'silver',
+    icon: 'bar-chart-2',
+    threshold: 10,
+    reward: {
+      type: 'color',
+      id: 'level-10-color',
+      name: 'Sage Color',
+    },
+  },
+  {
+    id: 'level-15',
+    name: 'Articulate Master',
+    description: 'Reach Level 15',
+    category: 'special',
+    tier: 'gold',
+    icon: 'award',
+    threshold: 15,
+    reward: {
+      type: 'theme',
+      id: 'level-15-theme',
+      name: 'Transcendent Theme',
+    },
+  },
+  {
+    id: 'level-prestige',
+    name: 'Legendary',
+    description: 'Reach prestige level (beyond 15)',
+    category: 'special',
+    tier: 'gold',
+    icon: 'star',
+    threshold: 16,
+  },
+];
+
 // Special badges (6+)
 const SPECIAL_BADGES: Badge[] = [
   {
@@ -364,6 +414,7 @@ export const ALL_BADGES: Badge[] = [
   ...TEXT_BADGES,
   ...QUIZ_BADGES,
   ...SPECIAL_BADGES,
+  ...LEVEL_BADGES,
 ];
 
 // Helper to get badge by ID

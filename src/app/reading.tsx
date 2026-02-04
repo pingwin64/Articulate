@@ -1,10 +1,20 @@
 import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react';
-import { StyleSheet, View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, Pressable, ActivityIndicator, Dimensions } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { Feather } from '@expo/vector-icons';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 import type { SavedWord } from '../lib/store/settings';
@@ -55,6 +65,35 @@ export default function ReadingScreen() {
   const [definitionLoading, setDefinitionLoading] = useState(false);
   const [definitionError, setDefinitionError] = useState<string | null>(null);
   const definitionCache = useRef<Record<string, WordDefinition>>({});
+
+  // Definition card animation
+  const cardScale = useSharedValue(0);
+  const cardOpacity = useSharedValue(0);
+  const backdropOpacity = useSharedValue(0);
+
+  const cardAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: cardScale.value }],
+    opacity: cardOpacity.value,
+  }));
+
+  const backdropAnimStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
+  }));
+
+  const openDefinitionCard = useCallback(() => {
+    setShowDefinition(true);
+    backdropOpacity.value = withTiming(1, { duration: 200 });
+    cardScale.value = withSpring(1, { damping: 20, stiffness: 300 });
+    cardOpacity.value = withTiming(1, { duration: 150 });
+  }, [backdropOpacity, cardScale, cardOpacity]);
+
+  const closeDefinitionCard = useCallback(() => {
+    backdropOpacity.value = withTiming(0, { duration: 150 });
+    cardScale.value = withSpring(0.8, { damping: 20, stiffness: 300 });
+    cardOpacity.value = withTiming(0, { duration: 150 }, () => {
+      runOnJS(setShowDefinition)(false);
+    });
+  }, [backdropOpacity, cardScale, cardOpacity]);
 
   // Word bank reading mode
   const wordBankWords = params.wordBankWords
@@ -191,7 +230,9 @@ export default function ReadingScreen() {
       const saved = savedWords.find((w) => w.word === singleWord);
       if (saved) removeSavedWord(saved.id);
     } else {
-      const cached = definitionCache.current[singleWord];
+      // Try context-aware cache first, then fall back to word-only cache
+      const cacheKey = `${singleWord}:${currentIndex}`;
+      const cached = definitionCache.current[cacheKey] || definitionCache.current[singleWord];
       const newWord: SavedWord = {
         id: `${singleWord}-${Date.now()}`,
         word: singleWord,
@@ -207,6 +248,13 @@ export default function ReadingScreen() {
   };
 
   // ─── Definition Popup ──────────────────────────────────────
+  // Get surrounding words for context (5 words before and after)
+  const getContextSentence = useCallback(() => {
+    const start = Math.max(0, currentIndex - 5);
+    const end = Math.min(words.length, currentIndex + 6);
+    return words.slice(start, end).join(' ');
+  }, [words, currentIndex]);
+
   const handleDefinitionTap = async () => {
     if (!isPremium) {
       setPaywallContext('locked_definition');
@@ -217,22 +265,26 @@ export default function ReadingScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
 
-    // Check cache first
-    if (definitionCache.current[singleWord]) {
-      setDefinitionData(definitionCache.current[singleWord]);
+    // Get context for this specific position
+    const context = getContextSentence();
+    const cacheKey = `${singleWord}:${currentIndex}`;
+
+    // Check cache first (includes position for context-aware caching)
+    if (definitionCache.current[cacheKey]) {
+      setDefinitionData(definitionCache.current[cacheKey]);
       setDefinitionError(null);
-      setShowDefinition(true);
+      openDefinitionCard();
       return;
     }
 
     setDefinitionData(null);
     setDefinitionError(null);
     setDefinitionLoading(true);
-    setShowDefinition(true);
+    openDefinitionCard();
 
     try {
-      const data = await fetchDefinition(singleWord);
-      definitionCache.current[singleWord] = data;
+      const data = await fetchDefinition(singleWord, context);
+      definitionCache.current[cacheKey] = data;
       setDefinitionData(data);
     } catch (err: any) {
       setDefinitionError(err.message ?? 'Failed to fetch definition');
@@ -243,11 +295,14 @@ export default function ReadingScreen() {
 
   const handleRetryDefinition = async () => {
     if (!singleWord) return;
+    const context = getContextSentence();
+    const cacheKey = `${singleWord}:${currentIndex}`;
+
     setDefinitionError(null);
     setDefinitionLoading(true);
     try {
-      const data = await fetchDefinition(singleWord);
-      definitionCache.current[singleWord] = data;
+      const data = await fetchDefinition(singleWord, context);
+      definitionCache.current[cacheKey] = data;
       setDefinitionData(data);
     } catch (err: any) {
       setDefinitionError(err.message ?? 'Failed to fetch definition');
@@ -329,11 +384,8 @@ export default function ReadingScreen() {
 
             <ArticulateProgress progress={progress} />
 
-            <View style={styles.headerActions}>
-              <Pressable onPress={handleDefinitionTap} style={styles.headerIconButton} accessibilityLabel="Word definition" accessibilityRole="button" hitSlop={8}>
-                <Feather name="help-circle" size={18} color={colors.muted} />
-              </Pressable>
-            </View>
+            {/* Empty spacer for layout balance */}
+            <View style={styles.headerButton} />
           </View>
 
           {/* Word counter */}
@@ -382,75 +434,110 @@ export default function ReadingScreen() {
 
         {/* Definition Card Popup */}
         {showDefinition && (
-          <Animated.View
-            entering={FadeIn.duration(200)}
-            exiting={FadeOut.duration(150)}
-            style={styles.definitionOverlay}
-          >
-            <Pressable style={styles.definitionBackdrop} onPress={() => setShowDefinition(false)} />
+          <View style={styles.definitionOverlay}>
+            {/* Animated backdrop */}
+            <Animated.View style={[styles.definitionBackdrop, backdropAnimStyle]}>
+              <Pressable style={StyleSheet.absoluteFill} onPress={closeDefinitionCard} />
+            </Animated.View>
+
+            {/* Animated card */}
             <Animated.View
-              entering={FadeIn.duration(200)}
               style={[
                 styles.definitionCard,
+                cardAnimStyle,
                 {
-                  backgroundColor: isDark ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)',
+                  backgroundColor: isDark ? 'rgba(28,28,30,0.98)' : 'rgba(255,255,255,0.98)',
                   borderColor: glass.border,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: isDark ? 0.4 : 0.15,
+                  shadowRadius: 24,
                 },
               ]}
             >
               {/* Close button */}
-              <Pressable onPress={() => setShowDefinition(false)} style={styles.definitionClose} hitSlop={8}>
-                <Feather name="x" size={16} color={colors.muted} />
+              <Pressable onPress={closeDefinitionCard} style={styles.definitionClose} hitSlop={12}>
+                <Feather name="x" size={18} color={colors.muted} />
               </Pressable>
 
+              {/* Loading state */}
               {definitionLoading && (
                 <View style={styles.definitionCenter}>
-                  <ActivityIndicator size="small" color={colors.muted} />
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.definitionLoadingText, { color: colors.muted }]}>
+                    Looking up "{singleWord}"...
+                  </Text>
                 </View>
               )}
 
+              {/* Error state */}
               {definitionError && !definitionLoading && (
                 <View style={styles.definitionCenter}>
-                  <Text style={[styles.definitionErrorText, { color: colors.muted }]}>
+                  <Feather name="alert-circle" size={32} color={colors.muted} />
+                  <Text style={[styles.definitionErrorText, { color: colors.secondary }]}>
                     {definitionError}
                   </Text>
-                  <Pressable onPress={handleRetryDefinition} style={[styles.retryButton, { borderColor: glass.border }]}>
-                    <Text style={[styles.retryButtonText, { color: colors.primary }]}>Retry</Text>
+                  <Pressable
+                    onPress={handleRetryDefinition}
+                    style={[styles.retryButton, { backgroundColor: colors.primary + '15' }]}
+                  >
+                    <Text style={[styles.retryButtonText, { color: colors.primary }]}>Try Again</Text>
                   </Pressable>
                 </View>
               )}
 
+              {/* Definition content */}
               {definitionData && !definitionLoading && (
                 <View style={styles.definitionContent}>
-                  <Text style={[styles.definitionWord, { color: colors.primary }]}>
-                    {definitionData.word}
-                  </Text>
+                  {/* Word header */}
+                  <View style={styles.definitionHeader}>
+                    <Text style={[styles.definitionWord, { color: colors.primary }]}>
+                      {definitionData.word}
+                    </Text>
+                    <View style={[styles.posBadge, { backgroundColor: colors.primary + '12' }]}>
+                      <Text style={[styles.posBadgeText, { color: colors.primary }]}>
+                        {definitionData.partOfSpeech}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Syllables */}
                   <Text style={[styles.definitionSyllables, { color: colors.muted }]}>
                     {definitionData.syllables}
                   </Text>
-                  <Text style={[styles.definitionPos, { color: colors.secondary }]}>
-                    {definitionData.partOfSpeech}
-                  </Text>
-                  <Text style={[styles.definitionText, { color: colors.primary }]}>
+
+                  {/* Divider */}
+                  <View style={[styles.definitionDivider, { backgroundColor: glass.border }]} />
+
+                  {/* Definition text */}
+                  <Text style={[styles.definitionText, { color: colors.secondary }]}>
                     {definitionData.definition}
                   </Text>
-                  {/* Save to word bank */}
-                  {isPremium && (
-                    <Pressable onPress={handleSaveFromDefinition} style={styles.definitionSaveRow} hitSlop={8}>
-                      <Feather
-                        name="heart"
-                        size={16}
-                        color={isWordSaved ? colors.primary : colors.muted}
-                      />
-                      <Text style={[styles.definitionSaveText, { color: isWordSaved ? colors.primary : colors.muted }]}>
-                        {isWordSaved ? 'Saved' : 'Save to Word Bank'}
-                      </Text>
-                    </Pressable>
-                  )}
+
+                  {/* Save to word bank - minimal inline */}
+                  <Pressable
+                    onPress={handleSaveFromDefinition}
+                    style={styles.definitionSaveRow}
+                    hitSlop={12}
+                  >
+                    <Ionicons
+                      name={isWordSaved ? 'heart' : 'heart-outline'}
+                      size={16}
+                      color={isWordSaved ? colors.error : colors.muted}
+                    />
+                    <Text
+                      style={[
+                        styles.definitionSaveText,
+                        { color: isWordSaved ? colors.error : colors.muted },
+                      ]}
+                    >
+                      {isWordSaved ? 'Saved' : 'Save to Word Bank'}
+                    </Text>
+                  </Pressable>
                 </View>
               )}
             </Animated.View>
-          </Animated.View>
+          </View>
         )}
 
         <Paywall
@@ -468,8 +555,12 @@ export default function ReadingScreen() {
           onPress={handleTtsToggle}
         />
         <Stack.Toolbar.Button
+          icon="questionmark.circle"
+          onPress={handleDefinitionTap}
+        />
+        <Stack.Toolbar.Button
           icon={isWordSaved ? 'heart.fill' : 'heart'}
-          selected={isWordSaved}
+          tintColor={isWordSaved ? colors.error : colors.primary}
           onPress={handleToggleSaveWord}
         />
         <Stack.Toolbar.Spacer />
@@ -499,18 +590,6 @@ const styles = StyleSheet.create({
   headerButton: {
     width: 40,
     height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: 40,
-    justifyContent: 'flex-end',
-  },
-  headerIconButton: {
-    width: 36,
-    height: 36,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -589,73 +668,102 @@ const styles = StyleSheet.create({
   },
   definitionBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   definitionCard: {
-    width: '85%',
-    maxWidth: 340,
-    borderRadius: 20,
+    width: '88%',
+    maxWidth: 360,
+    borderRadius: 24,
     borderCurve: 'continuous',
-    borderWidth: 1,
+    borderWidth: 0.5,
     padding: 24,
-    gap: 8,
+    paddingTop: 28,
   },
   definitionClose: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 28,
-    height: 28,
+    top: 14,
+    right: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
   definitionCenter: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 24,
-    gap: 12,
+    paddingVertical: 32,
+    gap: 16,
   },
-  definitionContent: {
-    gap: 6,
-  },
-  definitionWord: {
-    fontSize: 24,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  definitionSyllables: {
-    fontSize: 13,
-    fontWeight: '400',
-  },
-  definitionPos: {
+  definitionLoadingText: {
     fontSize: 14,
-    fontStyle: 'italic',
-  },
-  definitionText: {
-    fontSize: 15,
-    lineHeight: 22,
+    fontWeight: '400',
     marginTop: 4,
   },
+  definitionContent: {
+    gap: 4,
+  },
+  definitionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  definitionWord: {
+    fontSize: 28,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    textTransform: 'capitalize',
+  },
+  posBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderCurve: 'continuous',
+  },
+  posBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'lowercase',
+  },
+  definitionSyllables: {
+    fontSize: 15,
+    fontWeight: '400',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  definitionDivider: {
+    height: 1,
+    marginVertical: 16,
+  },
+  definitionText: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '400',
+  },
   definitionErrorText: {
-    fontSize: 14,
+    fontSize: 15,
     textAlign: 'center',
+    lineHeight: 22,
+    marginTop: 8,
   },
   retryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    marginTop: 4,
   },
   retryButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
   },
   definitionSaveRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 16,
+    paddingTop: 4,
   },
   definitionSaveText: {
     fontSize: 13,

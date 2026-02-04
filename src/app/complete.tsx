@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { StyleSheet, View, Text, Pressable, ScrollView, Share, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +22,25 @@ import { Paywall } from '../components/Paywall';
 import { Spacing } from '../design/theme';
 import { ALL_BADGES, getBadgeById, type Badge } from '../lib/data/badges';
 import { cancelStreakAtRiskReminder } from '../lib/notifications';
+
+// Level titles for display
+const LEVEL_TITLES: Record<number, string> = {
+  1: 'Wanderer',
+  2: 'Seeker',
+  3: 'Reader',
+  4: 'Scholar',
+  5: 'Adept',
+  6: 'Explorer',
+  7: 'Sage',
+  8: 'Luminary',
+  9: 'Virtuoso',
+  10: 'Master',
+  11: 'Grandmaster',
+  12: 'Archon',
+  13: 'Ascendant',
+  14: 'Paragon',
+  15: 'Transcendent',
+};
 
 export default function CompleteScreen() {
   const { colors, glass } = useTheme();
@@ -70,12 +89,71 @@ export default function CompleteScreen() {
     canUseFreeQuiz,
     lastUnlockedBadgeId,
     clearLastUnlockedBadge,
+    isFirstReading,
+    setIsFirstReading,
+    setReadingLevel,
+    dailyWordGoal,
+    setDailyWordGoal,
   } = useSettingsStore();
 
-  const { customTexts } = useSettingsStore();
+  // Calibration flow state: null = not in calibration, 'calibration' = asking about vocabulary, 'journey' = journey setup
+  const [calibrationStep, setCalibrationStep] = useState<'calibration' | 'journey' | null>(null);
+  const [selectedGoal, setSelectedGoal] = useState(dailyWordGoal);
+
+  // Handle calibration answer
+  const handleCalibrationAnswer = useCallback((answer: 'too_easy' | 'just_right' | 'challenging') => {
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    // Set level based on answer
+    switch (answer) {
+      case 'too_easy':
+        setReadingLevel(7); // Advanced
+        break;
+      case 'just_right':
+        setReadingLevel(5); // Intermediate (stays at default)
+        break;
+      case 'challenging':
+        setReadingLevel(3); // Beginner
+        break;
+    }
+    setCalibrationStep('journey');
+  }, [hapticFeedback, setReadingLevel]);
+
+  // Handle journey setup completion
+  const handleStartJourney = useCallback(() => {
+    if (hapticFeedback) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+    setDailyWordGoal(selectedGoal);
+    setIsFirstReading(false);
+    setHasOnboarded(true);
+    router.replace('/');
+  }, [hapticFeedback, selectedGoal, setDailyWordGoal, setIsFirstReading, setHasOnboarded, router]);
+
+  const { customTexts, addFavoriteText, removeFavoriteText, isFavoriteText } = useSettingsStore();
   const customText = params.customTextId
     ? customTexts.find((t) => t.id === params.customTextId)
     : undefined;
+
+  // Check if this is a bundled text (has categoryKey and textId)
+  const isBundledText = !!params.categoryKey && !!params.textId && !params.customTextId;
+  const isCurrentlyFavorited = isBundledText ? isFavoriteText(params.categoryKey, params.textId!) : false;
+  const [isFavorited, setIsFavorited] = React.useState(isCurrentlyFavorited);
+
+  const handleToggleFavorite = () => {
+    if (!isBundledText || !params.textId) return;
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    if (isFavorited) {
+      removeFavoriteText(params.categoryKey, params.textId);
+      setIsFavorited(false);
+    } else {
+      addFavoriteText(params.categoryKey, params.textId);
+      setIsFavorited(true);
+    }
+  };
 
   const wordsRead = parseInt(params.wordsRead ?? '0', 10);
   const timeSpent = parseInt(params.timeSpent ?? '0', 10);
@@ -90,6 +168,21 @@ export default function CompleteScreen() {
   const minutes = Math.floor(timeSpent / 60);
   const seconds = timeSpent % 60;
   const timeDisplay = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+
+  // Find next text in the same category (for "Read Next" button)
+  const nextText = React.useMemo(() => {
+    if (!category || !params.textId) return null;
+    const currentIdx = category.texts.findIndex((t) => t.id === params.textId);
+    return category.texts[currentIdx + 1] ?? null;
+  }, [category, params.textId]);
+
+  const handleReadNext = () => {
+    if (!nextText || !params.categoryKey) return;
+    router.replace({
+      pathname: '/reading',
+      params: { categoryKey: params.categoryKey, textId: nextText.id },
+    });
+  };
 
   // Track newly unlocked badges for display
   const [newBadge, setNewBadge] = React.useState<Badge | null>(null);
@@ -199,6 +292,11 @@ export default function CompleteScreen() {
             if (badge.id === 'early-bird' && hour >= 4 && hour < 8) shouldUnlock = true;
             if (badge.id === 'challenge-first' && state.weeklyChallengesCompleted >= 1) shouldUnlock = true;
             if (badge.id === 'challenge-10' && state.weeklyChallengesCompleted >= 10) shouldUnlock = true;
+            // Level badges
+            if (badge.id === 'level-5' && state.readingLevel >= 5) shouldUnlock = true;
+            if (badge.id === 'level-10' && state.readingLevel >= 10) shouldUnlock = true;
+            if (badge.id === 'level-15' && state.readingLevel >= 15) shouldUnlock = true;
+            if (badge.id === 'level-prestige' && state.readingLevel >= 16) shouldUnlock = true;
             // Category Master: check if any category-*-gold badge is unlocked
             if (badge.id === 'category-master') {
               const hasGold = state.unlockedBadges.some((b: string) => b.endsWith('-gold'));
@@ -285,9 +383,10 @@ export default function CompleteScreen() {
       }
     }, 400);
 
-    // T+1800ms: Paywall (first reading only)
+    // T+1800ms: Calibration (first reading only)
     const t3 = setTimeout(() => {
-      if (!hasOnboarded) {
+      if (isFirstReading) {
+        setCalibrationStep('calibration');
         paywallOpacity.value = withTiming(1, { duration: 400 });
       }
     }, 1800);
@@ -303,7 +402,7 @@ export default function CompleteScreen() {
       clearTimeout(t3);
       clearTimeout(t4);
     };
-  }, [wordsRead, wpm, displayName, params.categoryKey, params.textId, params.customTextId, incrementWordsRead, addDailyWordsRead, resetDailyUploadIfNewDay, incrementTextsCompleted, updateStreak, hapticFeedback, checkScale, checkOpacity, ctaOpacity, paywallOpacity, badgeScale, badgeOpacity, hasOnboarded, addReadingHistory, incrementCategoryReadCount, unlockBadge, unlockReward]);
+  }, [wordsRead, wpm, displayName, params.categoryKey, params.textId, params.customTextId, incrementWordsRead, addDailyWordsRead, resetDailyUploadIfNewDay, incrementTextsCompleted, updateStreak, hapticFeedback, checkScale, checkOpacity, ctaOpacity, paywallOpacity, badgeScale, badgeOpacity, isFirstReading, addReadingHistory, incrementCategoryReadCount, unlockBadge, unlockReward]);
 
   const checkAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: checkScale.value }],
@@ -388,6 +487,7 @@ export default function CompleteScreen() {
 
   const handleSubscribe = () => {
     startTrial();
+    setIsFirstReading(false);
     setHasOnboarded(true);
     router.replace('/');
   };
@@ -396,11 +496,172 @@ export default function CompleteScreen() {
     setFontFamily('sourceSerif');
     setWordColor('default');
     setHasOnboarded(true);
+    setIsFirstReading(false);
     router.replace('/');
   };
 
-  const isFirstReading = !hasOnboarded;
+  // ============================================
+  // FIRST READING: Focused Calibration Layout
+  // ============================================
+  if (isFirstReading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.bg }]}>
+        <SafeAreaView style={styles.flex}>
+          <View style={styles.firstReadingContent}>
+            {/* Phase 1: Calibration */}
+            {calibrationStep !== 'journey' && (
+              <>
+                {/* Checkmark */}
+                <Animated.View
+                  style={[
+                    styles.checkCircle,
+                    checkAnimStyle,
+                    {
+                      backgroundColor: glass.fill,
+                      borderColor: glass.border,
+                      shadowOpacity: glass.shadowOpacity,
+                    },
+                  ]}
+                >
+                  <Feather name="check" size={32} color={colors.primary} />
+                </Animated.View>
 
+                {/* Headline */}
+                <Animated.Text
+                  entering={FadeIn.delay(500).duration(300)}
+                  style={[styles.firstReadingHeadline, { color: colors.primary }]}
+                >
+                  You just read with{'\n'}complete focus.
+                </Animated.Text>
+
+                {/* Compact Stats */}
+                <Animated.Text
+                  entering={FadeIn.delay(700).duration(300)}
+                  style={[styles.firstReadingStats, { color: colors.secondary }]}
+                >
+                  {wordsRead} words · {timeDisplay}
+                </Animated.Text>
+
+                {/* Calibration Question (appears after delay) */}
+                {calibrationStep === 'calibration' && (
+                  <Animated.View
+                    entering={FadeIn.duration(400)}
+                    style={styles.calibrationContainer}
+                  >
+                    <View style={[styles.calibrationDivider, { backgroundColor: glass.border }]} />
+                    <Text style={[styles.calibrationQuestion, { color: colors.primary }]}>
+                      How was that vocabulary?
+                    </Text>
+                    <View style={styles.calibrationButtons}>
+                      <Pressable
+                        onPress={() => handleCalibrationAnswer('too_easy')}
+                        style={({ pressed }) => [
+                          styles.calibrationButton,
+                          { backgroundColor: glass.fill, borderColor: glass.border, opacity: pressed ? 0.8 : 1 },
+                        ]}
+                      >
+                        <Text style={[styles.calibrationButtonText, { color: colors.primary }]}>
+                          Too Easy
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleCalibrationAnswer('just_right')}
+                        style={({ pressed }) => [
+                          styles.calibrationButton,
+                          { backgroundColor: glass.fill, borderColor: glass.border, opacity: pressed ? 0.8 : 1 },
+                        ]}
+                      >
+                        <Text style={[styles.calibrationButtonText, { color: colors.primary }]}>
+                          Just Right
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleCalibrationAnswer('challenging')}
+                        style={({ pressed }) => [
+                          styles.calibrationButton,
+                          { backgroundColor: glass.fill, borderColor: glass.border, opacity: pressed ? 0.8 : 1 },
+                        ]}
+                      >
+                        <Text style={[styles.calibrationButtonText, { color: colors.primary }]}>
+                          Challenging
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </Animated.View>
+                )}
+              </>
+            )}
+
+            {/* Phase 2: Journey Setup */}
+            {calibrationStep === 'journey' && (
+              <Animated.View entering={FadeIn.duration(400)} style={styles.journeyContainer}>
+                <Text style={[styles.journeyHeadline, { color: colors.primary }]}>
+                  Your reading journey.
+                </Text>
+
+                <GlassCard style={styles.journeyCard}>
+                  <View style={styles.journeyLevelCard}>
+                    <Text style={[styles.journeyLevelTitle, { color: colors.primary }]}>
+                      Level {readingLevel} · {LEVEL_TITLES[readingLevel] || 'Reader'}
+                    </Text>
+                    <View style={[styles.journeyProgressBar, { backgroundColor: glass.border }]}>
+                      <View style={[styles.journeyProgressFill, { backgroundColor: colors.primary, width: '12.5%' }]} />
+                    </View>
+                    <Text style={[styles.journeyLevelSubtitle, { color: colors.muted }]}>
+                      1/8 texts · Read texts → Level up → Unlock harder vocabulary
+                    </Text>
+                  </View>
+                </GlassCard>
+
+                <Text style={[styles.journeyGoalPrompt, { color: colors.secondary }]}>
+                  You read {wordsRead} words in {timeDisplay}.{'\n'}How much feels right daily?
+                </Text>
+
+                <View style={styles.goalPicker}>
+                  {[50, 100, 150, 200].map((goal) => (
+                    <Pressable
+                      key={goal}
+                      onPress={() => {
+                        if (hapticFeedback) {
+                          Haptics.selectionAsync();
+                        }
+                        setSelectedGoal(goal);
+                      }}
+                      style={[
+                        styles.goalOption,
+                        {
+                          backgroundColor: selectedGoal === goal ? colors.primary : glass.fill,
+                          borderColor: selectedGoal === goal ? colors.primary : glass.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[
+                        styles.goalOptionText,
+                        { color: selectedGoal === goal ? colors.bg : colors.primary },
+                      ]}>
+                        {goal}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text style={[styles.goalEstimate, { color: colors.muted }]}>
+                  ~{Math.round(selectedGoal / 10)} min/day
+                </Text>
+
+                <View style={styles.journeyCta}>
+                  <GlassButton title="Start Your Journey" onPress={handleStartJourney} />
+                </View>
+              </Animated.View>
+            )}
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  // ============================================
+  // NORMAL COMPLETION: Full Layout
+  // ============================================
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <SafeAreaView style={styles.flex}>
@@ -556,35 +817,8 @@ export default function CompleteScreen() {
               );
             })()}
 
-            {/* Paywall Section (first reading only) */}
-            {isFirstReading && (
-              <Animated.View style={[styles.paywallSection, paywallAnimStyle]}>
-                <Text style={[styles.paywallHeadline, { color: colors.primary }]}>
-                  You just unlocked focus.{'\n'}Now unlock everything.
-                </Text>
-                <View style={styles.featureList}>
-                  {[
-                    'Read in any style that clicks for you',
-                    '9 premium categories (Philosophy, Poetry, Science & more)',
-                    'Listen while you read with AI narration',
-                    'Train your focus with breathing & chunk modes',
-                  ].map((feature) => (
-                    <View key={feature} style={styles.featureRow}>
-                      <Feather name="check" size={16} color={colors.primary} />
-                      <Text style={[styles.featureText, { color: colors.secondary }]}>
-                        {feature}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-                <Text style={[styles.credibilityText, { color: colors.muted }]}>
-                  Join 10,000+ readers improving their focus daily
-                </Text>
-              </Animated.View>
-            )}
-
             {/* Third-reading soft nudge */}
-            {!isFirstReading && !isPremium && textsCompleted >= 3 && !hasShownThirdReadingNudge && (
+            {!isPremium && textsCompleted >= 3 && !hasShownThirdReadingNudge && (
               <Animated.View entering={FadeIn.delay(1800).duration(300)}>
                 <Pressable onPress={() => {
                   setHasShownThirdReadingNudge(true);
@@ -598,7 +832,7 @@ export default function CompleteScreen() {
             )}
 
             {/* Level-up prompt (Adaptive Difficulty) */}
-            {!isFirstReading && levelUpAvailable && (
+            {levelUpAvailable && (
               <Animated.View entering={FadeIn.delay(1700).duration(400)} style={styles.levelUpSection}>
                 <Text style={[styles.levelUpTitle, { color: colors.primary }]}>
                   You've mastered Level {readingLevel}.
@@ -613,11 +847,7 @@ export default function CompleteScreen() {
                       if (hapticFeedback) {
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                       }
-                      if (!isPremium && readingLevel + 1 > 3) {
-                        setPaywallContext('locked_level_up');
-                      } else {
-                        acceptLevelUp();
-                      }
+                      acceptLevelUp();
                     }}
                   />
                   <Pressable
@@ -625,7 +855,7 @@ export default function CompleteScreen() {
                     style={styles.levelUpDismiss}
                   >
                     <Text style={[styles.levelUpDismissText, { color: colors.muted }]}>
-                      Stay at Level {readingLevel}
+                      Master Level {readingLevel} First
                     </Text>
                   </Pressable>
                 </View>
@@ -633,95 +863,112 @@ export default function CompleteScreen() {
             )}
 
             {/* Tomorrow's preview — Commitment & Consistency */}
-            {!isFirstReading && (() => {
-              // Find next text in the same category
-              if (category && params.textId) {
-                const currentIdx = category.texts.findIndex((t) => t.id === params.textId);
-                const nextText = category.texts[currentIdx + 1];
-                if (nextText) {
-                  return (
-                    <Animated.View entering={FadeIn.delay(1900).duration(300)}>
-                      <Text style={[styles.tomorrowPreview, { color: colors.muted }]}>
-                        Tomorrow: continue your streak with "{nextText.title}"
-                      </Text>
-                    </Animated.View>
-                  );
-                }
-              }
-              // Fallback for custom texts or end-of-category
-              return (
-                <Animated.View entering={FadeIn.delay(1900).duration(300)}>
-                  <Text style={[styles.tomorrowPreview, { color: colors.muted }]}>
-                    Keep your streak alive — read again tomorrow
-                  </Text>
-                </Animated.View>
-              );
-            })()}
+            <Animated.View entering={FadeIn.delay(1900).duration(300)}>
+              <Text style={[styles.tomorrowPreview, { color: colors.muted }]}>
+                {nextText
+                  ? `Tomorrow: continue your streak with "${nextText.title}"`
+                  : 'Keep your streak alive — read again tomorrow'}
+              </Text>
+            </Animated.View>
           </View>
         </ScrollView>
 
         {/* CTAs */}
         <Animated.View style={[styles.ctaContainer, ctaAnimStyle]}>
-          {isFirstReading ? (
-            <>
-              <GlassButton title="Start 3-Day Free Trial" onPress={handleSubscribe} />
-              <Pressable onPress={handleDismiss} style={styles.dismissButton}>
-                <Text style={[styles.dismissLink, { color: colors.muted }]}>
-                  Continue Free
-                </Text>
-              </Pressable>
-            </>
+          <GlassButton title="Continue" onPress={handleContinue} />
+          {nextText && (
+            <GlassButton
+              title={`Read Next: "${nextText.title.length > 25 ? nextText.title.slice(0, 25) + '...' : nextText.title}"`}
+              onPress={handleReadNext}
+              variant="outline"
+            />
+          )}
+          {isPremium ? (
+            <GlassButton
+              title="Take Quiz"
+              onPress={handleTakeQuiz}
+              variant="outline"
+            />
+          ) : canUseFreeQuiz() ? (
+            <GlassButton
+              title="Take Quiz (Free Today)"
+              onPress={handleTakeQuiz}
+              variant="outline"
+            />
           ) : (
-            <>
-              <GlassButton title="Continue" onPress={handleContinue} />
-              {isPremium ? (
-                <GlassButton
-                  title="Take Quiz"
-                  onPress={handleTakeQuiz}
-                  variant="outline"
-                />
-              ) : canUseFreeQuiz() ? (
-                <GlassButton
-                  title="Take Quiz (Free Today)"
-                  onPress={handleTakeQuiz}
-                  variant="outline"
-                />
-              ) : (
-                <GlassButton
-                  title="Take Quiz 🔒"
-                  onPress={() => setPaywallContext('locked_quiz')}
-                  variant="outline"
-                />
-              )}
-              <View style={styles.secondaryActions}>
+            <GlassButton
+              title="Take Quiz 🔒"
+              onPress={() => setPaywallContext('locked_quiz')}
+              variant="outline"
+            />
+          )}
+          <View style={styles.secondaryActions}>
+            {isBundledText && (
+              <>
                 <Pressable
-                  onPress={handleReadAgain}
+                  onPress={handleToggleFavorite}
                   style={({ pressed }) => [
                     styles.secondaryButton,
                     { opacity: pressed ? 0.6 : 1 },
                   ]}
                 >
-                  <Feather name="refresh-cw" size={16} color={colors.secondary} />
-                  <Text style={[styles.secondaryButtonText, { color: colors.secondary }]}>
-                    Read Again
+                  <Feather
+                    name={isFavorited ? 'heart' : 'heart'}
+                    size={16}
+                    color={isFavorited ? colors.primary : colors.secondary}
+                  />
+                  <Text style={[styles.secondaryButtonText, { color: isFavorited ? colors.primary : colors.secondary }]}>
+                    {isFavorited ? 'Saved' : 'Save'}
                   </Text>
                 </Pressable>
                 <View style={[styles.actionDivider, { backgroundColor: colors.muted + '30' }]} />
-                <Pressable
-                  onPress={handleShareProgress}
-                  style={({ pressed }) => [
-                    styles.secondaryButton,
-                    { opacity: pressed ? 0.6 : 1 },
-                  ]}
-                >
-                  <Feather name="share" size={16} color={colors.secondary} />
-                  <Text style={[styles.secondaryButtonText, { color: colors.secondary }]}>
-                    Share
-                  </Text>
-                </Pressable>
-              </View>
-            </>
-          )}
+              </>
+            )}
+            <Pressable
+              onPress={handleReadAgain}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                { opacity: pressed ? 0.6 : 1 },
+              ]}
+            >
+              <Feather name="refresh-cw" size={16} color={colors.secondary} />
+              <Text style={[styles.secondaryButtonText, { color: colors.secondary }]}>
+                Read Again
+              </Text>
+            </Pressable>
+            <View style={[styles.actionDivider, { backgroundColor: colors.muted + '30' }]} />
+            <Pressable
+              onPress={() => {
+                if (!isPremium) {
+                  setPaywallContext('locked_word_bank');
+                  return;
+                }
+                router.push('/word-bank');
+              }}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                { opacity: pressed ? 0.6 : 1 },
+              ]}
+            >
+              <Feather name="bookmark" size={16} color={colors.secondary} />
+              <Text style={[styles.secondaryButtonText, { color: colors.secondary }]}>
+                Word Bank
+              </Text>
+            </Pressable>
+            <View style={[styles.actionDivider, { backgroundColor: colors.muted + '30' }]} />
+            <Pressable
+              onPress={handleShareProgress}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                { opacity: pressed ? 0.6 : 1 },
+              ]}
+            >
+              <Feather name="share" size={16} color={colors.secondary} />
+              <Text style={[styles.secondaryButtonText, { color: colors.secondary }]}>
+                Share
+              </Text>
+            </Pressable>
+          </View>
         </Animated.View>
       </SafeAreaView>
 
@@ -973,5 +1220,160 @@ const styles = StyleSheet.create({
   levelUpDismissText: {
     fontSize: 14,
     fontWeight: '400',
+  },
+  // Calibration styles
+  calibrationSection: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 16,
+    marginTop: 24,
+  },
+  calibrationHeadline: {
+    fontSize: 24,
+    fontWeight: '300',
+    letterSpacing: -0.3,
+    textAlign: 'center',
+    lineHeight: 32,
+  },
+  calibrationSubtitle: {
+    fontSize: 15,
+    fontWeight: '400',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  calibrationDivider: {
+    width: 60,
+    height: 1,
+    backgroundColor: 'rgba(128, 128, 128, 0.2)',
+    marginVertical: 8,
+  },
+  calibrationQuestion: {
+    fontSize: 18,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  calibrationButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  calibrationButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 0.5,
+  },
+  calibrationButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  // Journey setup styles
+  journeySection: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 16,
+    marginTop: 24,
+  },
+  journeyHeadline: {
+    fontSize: 24,
+    fontWeight: '300',
+    letterSpacing: -0.3,
+    textAlign: 'center',
+  },
+  journeyLevelCard: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  journeyLevelTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  journeyProgressBar: {
+    width: '100%',
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  journeyProgressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  journeyLevelSubtitle: {
+    fontSize: 13,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  journeyDivider: {
+    width: 60,
+    height: 1,
+    backgroundColor: 'rgba(128, 128, 128, 0.2)',
+    marginVertical: 8,
+  },
+  journeyGoalPrompt: {
+    fontSize: 15,
+    fontWeight: '400',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  goalPicker: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  goalOption: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  goalOptionText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  goalEstimate: {
+    fontSize: 13,
+    fontWeight: '400',
+  },
+  // First reading focused layout
+  firstReadingContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+  },
+  firstReadingHeadline: {
+    fontSize: 26,
+    fontWeight: '300',
+    letterSpacing: -0.3,
+    textAlign: 'center',
+    lineHeight: 34,
+    marginTop: 16,
+  },
+  firstReadingStats: {
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  calibrationContainer: {
+    alignItems: 'center',
+    marginTop: 32,
+    gap: 16,
+  },
+  journeyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    gap: 20,
+  },
+  journeyCard: {
+    width: '100%',
+  },
+  journeyCta: {
+    width: '100%',
+    marginTop: 24,
   },
 });

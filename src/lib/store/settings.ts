@@ -65,6 +65,12 @@ export interface SavedWord {
   sourceCategory?: string;
 }
 
+export interface FavoriteText {
+  categoryKey: string;
+  textId: string;
+  savedAt: string;
+}
+
 export interface SavedPremiumSettings {
   fontFamily: FontFamilyKey;
   wordColor: WordColorKey;
@@ -116,6 +122,8 @@ export interface SettingsState {
   // Onboarding
   hasOnboarded: boolean;
   setHasOnboarded: (v: boolean) => void;
+  isFirstReading: boolean;
+  setIsFirstReading: (v: boolean) => void;
 
   // Premium
   isPremium: boolean;
@@ -322,6 +330,12 @@ export interface SettingsState {
   addSavedWord: (word: SavedWord) => void;
   removeSavedWord: (id: string) => void;
 
+  // Favorite Texts (Bundled texts saved to library)
+  favoriteTexts: FavoriteText[];
+  addFavoriteText: (categoryKey: string, textId: string) => void;
+  removeFavoriteText: (categoryKey: string, textId: string) => void;
+  isFavoriteText: (categoryKey: string, textId: string) => boolean;
+
   // Computed helper
   trialDaysRemaining: () => number;
 
@@ -335,6 +349,8 @@ export const useSettingsStore = create<SettingsState>()(
       // Onboarding
       hasOnboarded: false,
       setHasOnboarded: (v) => set({ hasOnboarded: v }),
+      isFirstReading: false,
+      setIsFirstReading: (v) => set({ isFirstReading: v }),
 
       // Premium
       isPremium: false,
@@ -967,6 +983,34 @@ export const useSettingsStore = create<SettingsState>()(
           savedWords: s.savedWords.filter((w) => w.id !== id),
         })),
 
+      // Favorite Texts (Bundled texts saved to library)
+      favoriteTexts: [],
+      addFavoriteText: (categoryKey, textId) =>
+        set((s) => {
+          // Prevent duplicates
+          if (s.favoriteTexts.some((f) => f.categoryKey === categoryKey && f.textId === textId)) {
+            return s;
+          }
+          return {
+            favoriteTexts: [
+              ...s.favoriteTexts,
+              { categoryKey, textId, savedAt: new Date().toISOString() },
+            ],
+          };
+        }),
+      removeFavoriteText: (categoryKey, textId) =>
+        set((s) => ({
+          favoriteTexts: s.favoriteTexts.filter(
+            (f) => !(f.categoryKey === categoryKey && f.textId === textId)
+          ),
+        })),
+      isFavoriteText: (categoryKey, textId) => {
+        const state = get();
+        return state.favoriteTexts.some(
+          (f) => f.categoryKey === categoryKey && f.textId === textId
+        );
+      },
+
       // Computed helper
       trialDaysRemaining: () => {
         const state = get();
@@ -980,6 +1024,7 @@ export const useSettingsStore = create<SettingsState>()(
       // Reset
       resetAll: () => set({
         hasOnboarded: false,
+        isFirstReading: false,
         isPremium: false,
         themeMode: 'light',
         backgroundTheme: 'default',
@@ -1057,11 +1102,12 @@ export const useSettingsStore = create<SettingsState>()(
         dailyReadingLog: {},
         favoriteWords: [],
         savedWords: [],
+        favoriteTexts: [],
       }),
     }),
     {
       name: 'articulate-settings',
-      version: 10,
+      version: 11,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -1169,6 +1215,10 @@ export const useSettingsStore = create<SettingsState>()(
         if (version < 10) {
           // v10: add saved words (word bank)
           persisted.savedWords = persisted.savedWords ?? [];
+        }
+        if (version < 11) {
+          // v11: add favorite texts (bundled texts saved to library)
+          persisted.favoriteTexts = persisted.favoriteTexts ?? [];
         }
         return persisted;
       },

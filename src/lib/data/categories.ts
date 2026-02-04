@@ -5,13 +5,18 @@ export interface TextEntry {
   words: string[];
   /** Number of texts user must complete in this category to unlock. 0 or undefined = always available */
   requiredReads?: number;
+  /** Vocabulary difficulty level (1-15). Determines which user levels see this text. */
+  difficulty?: number;
+  /** Content access tier. 'free' = available to all users, 'premium' = premium users only */
+  tier?: 'free' | 'premium';
 }
 
 export interface Category {
   key: string;
   name: string;
   icon: string;
-  level: 'beginner' | 'intermediate' | 'advanced';
+  /** @deprecated Use per-text difficulty instead. Kept for backward compatibility. */
+  level?: 'beginner' | 'intermediate' | 'advanced';
   texts: TextEntry[];
 }
 
@@ -1172,6 +1177,52 @@ const mindfulnessTexts: TextEntry[] = [
 ];
 
 // ─── Export ───────────────────────────────────────────────────
+
+/**
+ * Get texts filtered by user's reading level and premium status.
+ * Texts are available if:
+ * 1. Their difficulty is <= user's level (or difficulty is undefined = available to all)
+ * 2. Their tier matches user's access (free texts available to all, premium only to premium users)
+ */
+export function getAvailableTexts(
+  texts: TextEntry[],
+  userLevel: number,
+  isPremium: boolean
+): TextEntry[] {
+  return texts.filter((text) => {
+    const difficultyOk = !text.difficulty || text.difficulty <= userLevel;
+    const tierOk = !text.tier || text.tier === 'free' || isPremium;
+    return difficultyOk && tierOk;
+  });
+}
+
+/**
+ * Get texts for a specific difficulty level.
+ * Returns texts that match exactly the given difficulty level.
+ */
+export function getTextsAtLevel(texts: TextEntry[], level: number): TextEntry[] {
+  return texts.filter((text) => text.difficulty === level);
+}
+
+/**
+ * Get all texts across all categories that match the user's level and premium status.
+ */
+export function getAllAvailableTexts(
+  userLevel: number,
+  isPremium: boolean
+): { category: Category; text: TextEntry }[] {
+  const results: { category: Category; text: TextEntry }[] = [];
+  for (const category of categories) {
+    for (const text of category.texts) {
+      const difficultyOk = !text.difficulty || text.difficulty <= userLevel;
+      const tierOk = !text.tier || text.tier === 'free' || isPremium;
+      if (difficultyOk && tierOk) {
+        results.push({ category, text });
+      }
+    }
+  }
+  return results;
+}
 
 export const categories: Category[] = [
   {

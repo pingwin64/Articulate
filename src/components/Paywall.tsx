@@ -50,8 +50,8 @@ function getContextualCopy(context: PaywallContext | null): ContextualCopy {
   switch (context) {
     case 'post_onboarding':
       return {
-        headline: 'You just read your first text',
-        subheadline: 'Unlock everything to keep improving.',
+        headline: "You're off to a great start",
+        subheadline: 'Unlock everything to keep the momentum going.',
         featureOrder: DEFAULT_ORDER,
       };
     case 'locked_category':
@@ -98,19 +98,19 @@ function getContextualCopy(context: PaywallContext | null): ContextualCopy {
       };
     case 'locked_autoplay':
       return {
-        headline: 'Hands-free reading',
+        headline: "Sit back. We've got this.",
         subheadline: 'Let Articulate pace your reading automatically.',
         featureOrder: [3, 0, 1, 2, 4, 5],
       };
     case 'locked_chunk':
       return {
-        headline: 'Read faster with chunk reading',
+        headline: 'Speed up without losing focus',
         subheadline: 'See 2-3 words at a time for a natural reading flow.',
         featureOrder: [3, 0, 1, 2, 4, 5],
       };
     case 'locked_breathing':
       return {
-        headline: 'Read with calm focus',
+        headline: 'Breathe. Read. Flow.',
         subheadline: 'Breathing animation syncs your reading with your breath.',
         featureOrder: [3, 0, 1, 2, 4, 5],
       };
@@ -122,8 +122,8 @@ function getContextualCopy(context: PaywallContext | null): ContextualCopy {
       };
     case 'locked_quiz':
       return {
-        headline: 'Test your comprehension',
-        subheadline: 'Take a quiz after each reading to deepen understanding.',
+        headline: 'Did you really get it?',
+        subheadline: 'Take a quick quiz to lock in what you just read.',
         featureOrder: [5, 0, 1, 2, 3, 4],
       };
     case 'trial_expired':
@@ -164,7 +164,7 @@ function getContextualCopy(context: PaywallContext | null): ContextualCopy {
       };
     case 'locked_insights':
       return {
-        headline: 'See your full progress',
+        headline: "See how far you've come",
         subheadline: 'Track your reading journey with weekly charts and trends.',
         featureOrder: [0, 2, 1, 3, 4, 5],
       };
@@ -173,6 +173,18 @@ function getContextualCopy(context: PaywallContext | null): ContextualCopy {
         headline: 'Keep leveling up',
         subheadline: 'Unlock advanced reading levels with AI-generated content.',
         featureOrder: [2, 0, 1, 3, 4, 5],
+      };
+    case 'locked_word_bank':
+      return {
+        headline: 'Never forget a word',
+        subheadline: 'Save the words that matter. Build a vocabulary that grows with you.',
+        featureOrder: [0, 1, 2, 3, 4, 5],
+      };
+    case 'locked_definition':
+      return {
+        headline: 'Curious? Go deeper.',
+        subheadline: 'Tap any word to unlock its meaning instantly.',
+        featureOrder: [0, 1, 2, 3, 4, 5],
       };
     case 'generic':
     default:
@@ -375,17 +387,40 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
       case 'locked_tts':
         return 'Get Text-to-Speech';
       case 'locked_quiz':
-        return 'Unlock Comprehension Quizzes';
+        return 'Test Yourself';
       case 'locked_font':
       case 'locked_color':
       case 'locked_background':
         return 'Unlock All Customization';
+      case 'locked_size':
+      case 'locked_bold':
+        return 'Customize Your View';
       case 'locked_autoplay':
+        return 'Go Hands-Free';
       case 'locked_chunk':
+        return 'Read Faster';
       case 'locked_breathing':
-        return 'Unlock Advanced Reading';
+        return 'Find Your Flow';
       case 'streak_save':
         return 'Protect Your Streak';
+      case 'locked_word_bank':
+        return 'Start Saving Words';
+      case 'locked_definition':
+        return 'Unlock Definitions';
+      case 'locked_scan':
+        return 'Start Scanning';
+      case 'locked_insights':
+        return 'See Your Journey';
+      case 'locked_level_up':
+        return 'Level Up Now';
+      case 'settings_upgrade':
+        return 'Unlock All Settings';
+      case 'trial_expired':
+        return 'Get Them Back';
+      case 'post_onboarding':
+        return 'Keep Going';
+      case 'goal_almost':
+        return 'Finish Strong';
       default:
         return 'Unlock the Full Experience';
     }

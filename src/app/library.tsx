@@ -15,11 +15,13 @@ import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
+import { categories } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { Spacing } from '../design/theme';
 
 type SortMode = 'recent' | 'alpha' | 'mostRead';
+type TabMode = 'myTexts' | 'favorites';
 
 const SOURCE_ICONS: Record<string, string> = {
   paste: 'clipboard',
@@ -39,8 +41,11 @@ export default function LibraryScreen() {
     removeCollection,
     assignTextToCollection,
     hapticFeedback,
+    favoriteTexts,
+    removeFavoriteText,
   } = useSettingsStore();
 
+  const [activeTab, setActiveTab] = useState<TabMode>('myTexts');
   const [search, setSearch] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('recent');
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
@@ -126,6 +131,36 @@ export default function LibraryScreen() {
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
+  // Get detailed info for favorite texts
+  const favoriteTextDetails = useMemo(() => {
+    return favoriteTexts
+      .map((fav) => {
+        const category = categories.find((c) => c.key === fav.categoryKey);
+        const text = category?.texts.find((t) => t.id === fav.textId);
+        if (!category || !text) return null;
+        return {
+          ...fav,
+          category,
+          text,
+          title: text.title,
+          author: text.author,
+          wordCount: text.words.length,
+        };
+      })
+      .filter(Boolean);
+  }, [favoriteTexts]);
+
+  const handleRemoveFavorite = useCallback((categoryKey: string, textId: string) => {
+    Alert.alert('Remove from Library?', 'This text will be removed from your favorites.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => removeFavoriteText(categoryKey, textId),
+      },
+    ]);
+  }, [removeFavoriteText]);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <ScrollView
@@ -134,8 +169,54 @@ export default function LibraryScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Tab selector */}
+        <Animated.View entering={FadeIn.duration(300)} style={styles.tabRow}>
+          <Pressable
+            onPress={() => {
+              setActiveTab('myTexts');
+              if (hapticFeedback) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+            style={[
+              styles.tabButton,
+              activeTab === 'myTexts' && styles.tabButtonActive,
+              activeTab === 'myTexts' && { borderColor: colors.primary },
+            ]}
+          >
+            <Feather name="edit-3" size={16} color={activeTab === 'myTexts' ? colors.primary : colors.muted} />
+            <Text style={[styles.tabButtonText, { color: activeTab === 'myTexts' ? colors.primary : colors.muted }]}>
+              My Texts
+            </Text>
+            {customTexts.length > 0 && (
+              <View style={[styles.tabBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' }]}>
+                <Text style={[styles.tabBadgeText, { color: colors.muted }]}>{customTexts.length}</Text>
+              </View>
+            )}
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              setActiveTab('favorites');
+              if (hapticFeedback) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+            style={[
+              styles.tabButton,
+              activeTab === 'favorites' && styles.tabButtonActive,
+              activeTab === 'favorites' && { borderColor: colors.primary },
+            ]}
+          >
+            <Feather name="heart" size={16} color={activeTab === 'favorites' ? colors.primary : colors.muted} />
+            <Text style={[styles.tabButtonText, { color: activeTab === 'favorites' ? colors.primary : colors.muted }]}>
+              Favorites
+            </Text>
+            {favoriteTexts.length > 0 && (
+              <View style={[styles.tabBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' }]}>
+                <Text style={[styles.tabBadgeText, { color: colors.muted }]}>{favoriteTexts.length}</Text>
+              </View>
+            )}
+          </Pressable>
+        </Animated.View>
+
         {/* Search bar */}
-        <Animated.View entering={FadeIn.duration(300)}>
+        <Animated.View entering={FadeIn.delay(50).duration(300)}>
           <View
             style={[
               styles.searchBar,
@@ -150,7 +231,7 @@ export default function LibraryScreen() {
               style={[styles.searchInput, { color: colors.primary }]}
               value={search}
               onChangeText={setSearch}
-              placeholder="Search texts..."
+              placeholder={activeTab === 'myTexts' ? 'Search texts...' : 'Search favorites...'}
               placeholderTextColor={colors.muted}
               returnKeyType="search"
             />
@@ -162,211 +243,301 @@ export default function LibraryScreen() {
           </View>
         </Animated.View>
 
-        {/* Sort control */}
-        <Animated.View entering={FadeIn.delay(50).duration(300)} style={styles.sortRow}>
-          {(['recent', 'alpha', 'mostRead'] as SortMode[]).map((mode) => {
-            const labels: Record<SortMode, string> = {
-              recent: 'Recent',
-              alpha: 'A-Z',
-              mostRead: 'Most Read',
-            };
-            const isActive = sortMode === mode;
-            return (
-              <Pressable
-                key={mode}
-                onPress={() => {
-                  setSortMode(mode);
-                  if (hapticFeedback) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-                style={[
-                  styles.sortPill,
-                  {
-                    backgroundColor: isActive
-                      ? isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'
-                      : 'transparent',
-                    borderColor: isActive ? glass.border : 'transparent',
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.sortPillText,
-                    { color: isActive ? colors.primary : colors.muted },
-                  ]}
-                >
-                  {labels[mode]}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </Animated.View>
+        {/* MY TEXTS TAB */}
+        {activeTab === 'myTexts' && (
+          <>
+            {/* Sort control */}
+            <Animated.View entering={FadeIn.delay(100).duration(300)} style={styles.sortRow}>
+              {(['recent', 'alpha', 'mostRead'] as SortMode[]).map((mode) => {
+                const labels: Record<SortMode, string> = {
+                  recent: 'Recent',
+                  alpha: 'A-Z',
+                  mostRead: 'Most Read',
+                };
+                const isActive = sortMode === mode;
+                return (
+                  <Pressable
+                    key={mode}
+                    onPress={() => {
+                      setSortMode(mode);
+                      if (hapticFeedback) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    style={[
+                      styles.sortPill,
+                      {
+                        backgroundColor: isActive
+                          ? isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'
+                          : 'transparent',
+                        borderColor: isActive ? glass.border : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.sortPillText,
+                        { color: isActive ? colors.primary : colors.muted },
+                      ]}
+                    >
+                      {labels[mode]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </Animated.View>
 
-        {/* Collection pills */}
-        {textCollections.length > 0 && (
-          <Animated.View entering={FadeIn.delay(100).duration(300)}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.collectionRow}
-            >
-              <Pressable
-                onPress={() => setSelectedCollection(null)}
-                style={[
-                  styles.collectionPill,
-                  {
-                    backgroundColor: !selectedCollection
-                      ? isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'
-                      : glass.fill,
-                    borderColor: glass.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.collectionPillText, { color: !selectedCollection ? colors.primary : colors.muted }]}>
-                  All
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setSelectedCollection(selectedCollection === 'uncollected' ? null : 'uncollected')}
-                style={[
-                  styles.collectionPill,
-                  {
-                    backgroundColor: selectedCollection === 'uncollected'
-                      ? isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'
-                      : glass.fill,
-                    borderColor: glass.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.collectionPillText, { color: selectedCollection === 'uncollected' ? colors.primary : colors.muted }]}>
-                  Uncollected
-                </Text>
-              </Pressable>
-              {textCollections.map((col) => (
-                <Pressable
-                  key={col.id}
-                  onPress={() => setSelectedCollection(selectedCollection === col.id ? null : col.id)}
-                  style={[
-                    styles.collectionPill,
-                    {
-                      backgroundColor: selectedCollection === col.id
-                        ? isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'
-                        : glass.fill,
-                      borderColor: glass.border,
-                    },
-                  ]}
+            {/* Collection pills */}
+            {textCollections.length > 0 && (
+              <Animated.View entering={FadeIn.delay(150).duration(300)}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.collectionRow}
                 >
-                  <Text style={[styles.collectionPillText, { color: selectedCollection === col.id ? colors.primary : colors.muted }]}>
-                    {col.name}
-                  </Text>
-                </Pressable>
-              ))}
-              <Pressable onPress={handleAddCollection} style={[styles.collectionPill, { borderColor: glass.border }]}>
-                <Feather name="plus" size={14} color={colors.muted} />
-              </Pressable>
-            </ScrollView>
-          </Animated.View>
+                  <Pressable
+                    onPress={() => setSelectedCollection(null)}
+                    style={[
+                      styles.collectionPill,
+                      {
+                        backgroundColor: !selectedCollection
+                          ? isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'
+                          : glass.fill,
+                        borderColor: glass.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.collectionPillText, { color: !selectedCollection ? colors.primary : colors.muted }]}>
+                      All
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setSelectedCollection(selectedCollection === 'uncollected' ? null : 'uncollected')}
+                    style={[
+                      styles.collectionPill,
+                      {
+                        backgroundColor: selectedCollection === 'uncollected'
+                          ? isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'
+                          : glass.fill,
+                        borderColor: glass.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.collectionPillText, { color: selectedCollection === 'uncollected' ? colors.primary : colors.muted }]}>
+                      Uncollected
+                    </Text>
+                  </Pressable>
+                  {textCollections.map((col) => (
+                    <Pressable
+                      key={col.id}
+                      onPress={() => setSelectedCollection(selectedCollection === col.id ? null : col.id)}
+                      style={[
+                        styles.collectionPill,
+                        {
+                          backgroundColor: selectedCollection === col.id
+                            ? isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'
+                            : glass.fill,
+                          borderColor: glass.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.collectionPillText, { color: selectedCollection === col.id ? colors.primary : colors.muted }]}>
+                        {col.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                  <Pressable onPress={handleAddCollection} style={[styles.collectionPill, { borderColor: glass.border }]}>
+                    <Feather name="plus" size={14} color={colors.muted} />
+                  </Pressable>
+                </ScrollView>
+              </Animated.View>
+            )}
+
+            {/* Text cards */}
+            {filteredTexts.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Feather name="edit-3" size={40} color={colors.muted} />
+                <Text style={[styles.emptyTitle, { color: colors.primary }]}>
+                  {search ? 'No matches' : 'No texts yet'}
+                </Text>
+                <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
+                  {search ? 'Try a different search' : 'Paste, scan, or import a text to get started'}
+                </Text>
+                {!search && (
+                  <Pressable
+                    onPress={() => router.push('/paste')}
+                    style={[styles.emptyButton, { borderColor: colors.muted }]}
+                  >
+                    <Text style={[styles.emptyButtonText, { color: colors.primary }]}>Add Text</Text>
+                  </Pressable>
+                )}
+              </View>
+            ) : (
+              <View style={styles.textList}>
+                {filteredTexts.map((ct, i) => (
+                  <Animated.View
+                    key={ct.id}
+                    entering={FadeIn.delay(i * 40).duration(250)}
+                  >
+                    <GlassCard
+                      onPress={() => {
+                        router.push({
+                          pathname: '/reading',
+                          params: { customTextId: ct.id },
+                        });
+                      }}
+                    >
+                      <View style={styles.textCard}>
+                        <View style={styles.textCardContent}>
+                          <Text
+                            style={[styles.textCardTitle, { color: colors.primary }]}
+                            numberOfLines={1}
+                          >
+                            {ct.title}
+                          </Text>
+                          {ct.preview && (
+                            <Text
+                              style={[styles.textCardPreview, { color: colors.muted }]}
+                              numberOfLines={2}
+                            >
+                              {ct.preview}
+                            </Text>
+                          )}
+                          <View style={styles.textCardMeta}>
+                            <Feather
+                              name={(SOURCE_ICONS[ct.source ?? 'paste'] ?? 'clipboard') as any}
+                              size={12}
+                              color={colors.muted}
+                            />
+                            <Text style={[styles.textCardMetaText, { color: colors.muted }]}>
+                              ~{ct.wordCount}w
+                            </Text>
+                            {(ct.timesRead ?? 0) > 0 && (
+                              <Text style={[styles.textCardMetaText, { color: colors.muted }]}>
+                                · {ct.timesRead}x read
+                              </Text>
+                            )}
+                            {ct.lastReadAt && (
+                              <Text style={[styles.textCardMetaText, { color: colors.muted }]}>
+                                · {formatDate(ct.lastReadAt)}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                        <Pressable
+                          onPress={() => handleTextOptions(ct.id)}
+                          hitSlop={8}
+                          style={styles.textCardMore}
+                        >
+                          <Feather name="more-vertical" size={18} color={colors.muted} />
+                        </Pressable>
+                      </View>
+                    </GlassCard>
+                  </Animated.View>
+                ))}
+              </View>
+            )}
+          </>
         )}
 
-        {/* Text cards */}
-        {filteredTexts.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Feather name="book-open" size={40} color={colors.muted} />
-            <Text style={[styles.emptyTitle, { color: colors.primary }]}>
-              {search ? 'No matches' : 'No texts yet'}
-            </Text>
-            <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
-              {search ? 'Try a different search' : 'Paste, scan, or import a text to get started'}
-            </Text>
-            {!search && (
-              <Pressable
-                onPress={() => router.push('/paste')}
-                style={[styles.emptyButton, { borderColor: colors.muted }]}
-              >
-                <Text style={[styles.emptyButtonText, { color: colors.primary }]}>Add Text</Text>
-              </Pressable>
-            )}
-          </View>
-        ) : (
-          <View style={styles.textList}>
-            {filteredTexts.map((ct, i) => (
-              <Animated.View
-                key={ct.id}
-                entering={FadeIn.delay(i * 40).duration(250)}
-              >
-                <GlassCard
-                  onPress={() => {
-                    router.push({
-                      pathname: '/reading',
-                      params: { customTextId: ct.id },
-                    });
-                  }}
-                >
-                  <View style={styles.textCard}>
-                    <View style={styles.textCardContent}>
-                      <Text
-                        style={[styles.textCardTitle, { color: colors.primary }]}
-                        numberOfLines={1}
+        {/* FAVORITES TAB */}
+        {activeTab === 'favorites' && (
+          <>
+            {favoriteTextDetails.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Feather name="heart" size={40} color={colors.muted} />
+                <Text style={[styles.emptyTitle, { color: colors.primary }]}>
+                  {search ? 'No matches' : 'No favorites yet'}
+                </Text>
+                <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
+                  {search ? 'Try a different search' : 'Tap the heart on the complete screen to save texts here'}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.textList}>
+                {favoriteTextDetails
+                  .filter((fav) => {
+                    if (!search.trim()) return true;
+                    const q = search.toLowerCase();
+                    return fav?.title.toLowerCase().includes(q) || fav?.author?.toLowerCase().includes(q);
+                  })
+                  .map((fav, i) => {
+                    if (!fav) return null;
+                    return (
+                      <Animated.View
+                        key={`${fav.categoryKey}-${fav.textId}`}
+                        entering={FadeIn.delay(i * 40).duration(250)}
                       >
-                        {ct.title}
-                      </Text>
-                      {ct.preview && (
-                        <Text
-                          style={[styles.textCardPreview, { color: colors.muted }]}
-                          numberOfLines={2}
+                        <GlassCard
+                          onPress={() => {
+                            router.push({
+                              pathname: '/reading',
+                              params: { categoryKey: fav.categoryKey, textId: fav.textId },
+                            });
+                          }}
                         >
-                          {ct.preview}
-                        </Text>
-                      )}
-                      <View style={styles.textCardMeta}>
-                        <Feather
-                          name={(SOURCE_ICONS[ct.source ?? 'paste'] ?? 'clipboard') as any}
-                          size={12}
-                          color={colors.muted}
-                        />
-                        <Text style={[styles.textCardMetaText, { color: colors.muted }]}>
-                          ~{ct.wordCount}w
-                        </Text>
-                        {(ct.timesRead ?? 0) > 0 && (
-                          <Text style={[styles.textCardMetaText, { color: colors.muted }]}>
-                            · {ct.timesRead}x read
-                          </Text>
-                        )}
-                        {ct.lastReadAt && (
-                          <Text style={[styles.textCardMetaText, { color: colors.muted }]}>
-                            · {formatDate(ct.lastReadAt)}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                    <Pressable
-                      onPress={() => handleTextOptions(ct.id)}
-                      hitSlop={8}
-                      style={styles.textCardMore}
-                    >
-                      <Feather name="more-vertical" size={18} color={colors.muted} />
-                    </Pressable>
-                  </View>
-                </GlassCard>
-              </Animated.View>
-            ))}
-          </View>
+                          <View style={styles.textCard}>
+                            <View style={styles.textCardContent}>
+                              <Text
+                                style={[styles.textCardTitle, { color: colors.primary }]}
+                                numberOfLines={1}
+                              >
+                                {fav.title}
+                              </Text>
+                              {fav.author && (
+                                <Text
+                                  style={[styles.textCardPreview, { color: colors.muted }]}
+                                  numberOfLines={1}
+                                >
+                                  by {fav.author}
+                                </Text>
+                              )}
+                              <View style={styles.textCardMeta}>
+                                <Feather
+                                  name={fav.category.icon as any}
+                                  size={12}
+                                  color={colors.muted}
+                                />
+                                <Text style={[styles.textCardMetaText, { color: colors.muted }]}>
+                                  {fav.category.name}
+                                </Text>
+                                <Text style={[styles.textCardMetaText, { color: colors.muted }]}>
+                                  · ~{fav.wordCount}w
+                                </Text>
+                              </View>
+                            </View>
+                            <Pressable
+                              onPress={() => handleRemoveFavorite(fav.categoryKey, fav.textId)}
+                              hitSlop={8}
+                              style={styles.textCardMore}
+                            >
+                              <Feather name="heart" size={18} color={colors.primary} />
+                            </Pressable>
+                          </View>
+                        </GlassCard>
+                      </Animated.View>
+                    );
+                  })}
+              </View>
+            )}
+          </>
         )}
 
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* FAB */}
-      <Pressable
-        onPress={() => router.push('/paste')}
-        style={[
-          styles.fab,
-          {
-            backgroundColor: colors.primary,
-          },
-        ]}
-      >
-        <Feather name="plus" size={24} color={isDark ? '#000' : '#fff'} />
-      </Pressable>
+      {/* FAB (My Texts tab only) */}
+      {activeTab === 'myTexts' && (
+        <Pressable
+          onPress={() => router.push('/paste')}
+          style={[
+            styles.fab,
+            {
+              backgroundColor: colors.primary,
+            },
+          ]}
+        >
+          <Feather name="plus" size={24} color={isDark ? '#000' : '#fff'} />
+        </Pressable>
+      )}
 
       <Modal
         transparent
@@ -430,6 +601,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
     gap: 12,
+  },
+  // Tabs
+  tabRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  tabButtonActive: {
+    borderWidth: 1,
+  },
+  tabButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  tabBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  tabBadgeText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   // Search
   searchBar: {

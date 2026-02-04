@@ -1,24 +1,100 @@
-import React from 'react';
-import { StyleSheet, View, Text, ScrollView } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { StyleSheet, View, Text, ScrollView, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../hooks/useTheme';
-import { useSettingsStore } from '../lib/store/settings';
-import { categories, TextEntry } from '../lib/data/categories';
+import { useSettingsStore, getTierName } from '../lib/store/settings';
+import { categories, TextEntry, getAvailableTexts } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { Feather } from '@expo/vector-icons';
 import { Spacing } from '../design/theme';
 
+// Level titles for chips
+const LEVEL_TITLES: Record<number, string> = {
+  1: 'Wanderer', 2: 'Seeker', 3: 'Reader', 4: 'Scholar', 5: 'Adept',
+  6: 'Explorer', 7: 'Sage', 8: 'Luminary', 9: 'Virtuoso', 10: 'Master',
+  11: 'Grandmaster', 12: 'Archon', 13: 'Ascendant', 14: 'Paragon', 15: 'Transcendent',
+};
+
+function getLevelTitle(level: number): string {
+  if (level > 15) return `Lvl ${level}`;
+  return LEVEL_TITLES[level] ?? `Lvl ${level}`;
+}
+
+// Level chip component
+function LevelChip({
+  level,
+  isSelected,
+  isCurrent,
+  onPress,
+}: {
+  level: number;
+  isSelected: boolean;
+  isCurrent: boolean;
+  onPress: () => void;
+}) {
+  const { colors, glass, isDark } = useTheme();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.levelChip,
+        {
+          backgroundColor: isSelected
+            ? isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'
+            : glass.fill,
+          borderColor: isSelected
+            ? isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)'
+            : glass.border,
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.levelChipText,
+          { color: isSelected ? colors.primary : colors.muted },
+        ]}
+      >
+        Lvl {level}
+      </Text>
+      {isCurrent && (
+        <View style={[styles.currentDot, { backgroundColor: colors.primary }]} />
+      )}
+    </Pressable>
+  );
+}
+
 export default function TextSelectScreen() {
-  const { colors } = useTheme();
+  const { colors, glass, isDark } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ categoryKey: string }>();
   const selectedCategoryKey = useSettingsStore((s) => s.selectedCategoryKey);
   const setSelectedCategoryKey = useSettingsStore((s) => s.setSelectedCategoryKey);
   const categoryReadCounts = useSettingsStore((s) => s.categoryReadCounts);
+  const readingLevel = useSettingsStore((s) => s.readingLevel);
+  const isPremium = useSettingsStore((s) => s.isPremium);
+  const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
 
-  const [lockedMessage, setLockedMessage] = React.useState<string | null>(null);
+  const [lockedMessage, setLockedMessage] = useState<string | null>(null);
+  const [selectedLevel, setSelectedLevel] = useState<number>(readingLevel);
+
+  // Generate array of accessible levels (1 to current level)
+  const accessibleLevels = useMemo(() => {
+    const levels: number[] = [];
+    for (let i = readingLevel; i >= 1; i--) {
+      levels.push(i);
+    }
+    return levels;
+  }, [readingLevel]);
+
+  const handleLevelSelect = (level: number) => {
+    if (hapticEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setSelectedLevel(level);
+  };
 
   // FormSheet workaround: params may be empty, fall back to store
   const categoryKey = params.categoryKey || selectedCategoryKey || undefined;
@@ -36,8 +112,6 @@ export default function TextSelectScreen() {
   React.useEffect(() => {
     return () => { setSelectedCategoryKey(null); };
   }, [setSelectedCategoryKey]);
-
-  const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
 
   const handleTextSelect = (entry: TextEntry) => {
     if (!category) return;
@@ -87,6 +161,27 @@ export default function TextSelectScreen() {
       <Text style={[styles.subtitle, { color: colors.secondary }]}>
         Choose a text to read
       </Text>
+
+      {/* Level chips - access previous levels */}
+      {accessibleLevels.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.levelChipScroll}
+          contentContainerStyle={styles.levelChipContainer}
+        >
+          {accessibleLevels.map((level) => (
+            <LevelChip
+              key={level}
+              level={level}
+              isSelected={selectedLevel === level}
+              isCurrent={level === readingLevel}
+              onPress={() => handleLevelSelect(level)}
+            />
+          ))}
+        </ScrollView>
+      )}
+
       {lockedMessage && (
         <Animated.View entering={FadeIn.duration(200)} style={styles.lockedToast}>
           <Feather name="lock" size={14} color={colors.muted} />
@@ -180,7 +275,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 15,
     fontWeight: '400',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.sm,
   },
   list: {
     gap: 10,
@@ -234,5 +329,33 @@ const styles = StyleSheet.create({
   lockedToastText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  // Level chips
+  levelChipScroll: {
+    marginBottom: Spacing.md,
+    marginHorizontal: -Spacing.lg,
+  },
+  levelChipContainer: {
+    paddingHorizontal: Spacing.lg,
+    gap: 8,
+  },
+  levelChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderCurve: 'continuous',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  levelChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  currentDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
 });

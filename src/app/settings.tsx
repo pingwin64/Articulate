@@ -531,6 +531,36 @@ export default function SettingsScreen() {
             </GlassCard>
           </Pressable>
 
+          {/* Word Bank Card */}
+          <Pressable onPress={() => {
+            if (!isPremium) {
+              setPaywallContext('locked_word_bank');
+              return;
+            }
+            router.push('/word-bank');
+          }}>
+            <GlassCard>
+              <View style={styles.achievementsRow}>
+                <View style={styles.achievementsLeft}>
+                  <Feather name="bookmark" size={20} color={colors.primary} />
+                  <View style={styles.achievementsText}>
+                    <Text style={[styles.achievementsTitle, { color: colors.primary }]}>
+                      Word Bank
+                    </Text>
+                    <Text style={[styles.achievementsSubtitle, { color: colors.muted }]}>
+                      {isPremium ? 'Your saved vocabulary' : 'Save words while reading'}
+                    </Text>
+                  </View>
+                </View>
+                {isPremium ? (
+                  <Feather name="chevron-right" size={18} color={colors.muted} />
+                ) : (
+                  <Feather name="lock" size={16} color={colors.muted} />
+                )}
+              </View>
+            </GlassCard>
+          </Pressable>
+
           {/* Reading History */}
           {readingHistory.length > 0 && (
             <>
