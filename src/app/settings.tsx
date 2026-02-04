@@ -533,11 +533,7 @@ export default function SettingsScreen() {
 
           {/* Word Bank Card */}
           <Pressable onPress={() => {
-            if (!isPremium) {
-              setPaywallContext('locked_word_bank');
-              return;
-            }
-            router.push('/word-bank');
+            router.push({ pathname: '/library', params: { tab: 'words' } });
           }}>
             <GlassCard>
               <View style={styles.achievementsRow}>

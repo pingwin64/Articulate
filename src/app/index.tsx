@@ -9,6 +9,10 @@ import {
   useWindowDimensions,
   Alert,
   AccessibilityInfo,
+  Dimensions,
+  LayoutAnimation,
+  UIManager,
+  Platform,
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,7 +27,9 @@ import Animated, {
   cancelAnimation,
   Easing,
   FadeIn,
+  runOnJS,
 } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
@@ -34,10 +40,7 @@ import { GlassButton } from '../components/GlassButton';
 import { PageDots } from '../components/PageDots';
 import { TimeGreeting } from '../components/TimeGreeting';
 import { ResumeCard } from '../components/ResumeCard';
-import { CategoryCard } from '../components/CategoryCard';
 import { Paywall } from '../components/Paywall';
-import { LevelProgress } from '../components/LevelProgress';
-import { ALL_BADGES, type Badge } from '../lib/data/badges';
 import {
   Spacing,
   Springs,
@@ -47,9 +50,6 @@ import {
 } from '../design/theme';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
 import { scheduleStreakAtRiskReminder, cleanupOrphanedNotifications } from '../lib/notifications';
-import { speakWord } from '../lib/tts';
-import { getDailyFeaturedText } from '../lib/data/featured';
-import { getCurrentChallenge, getCurrentWeekId, getDaysRemainingInWeek } from '../lib/data/challenges';
 import { StreakRestoreSheet } from '../components/StreakRestoreSheet';
 
 // ─── Onboarding Constants ────────────────────────────────────
@@ -272,7 +272,7 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
         <Animated.Text
           style={[styles.hintText, { color: colors.muted }, hintStyle]}
         >
-          This is how you build focus.{'\n'}Tap anywhere
+          Tap anywhere
         </Animated.Text>
       </View>
       <View style={styles.progressContainer}>
@@ -292,7 +292,7 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
 
 function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
   const { colors, isDark, glass } = useTheme();
-  const { fontFamily, setFontFamily, voiceGender, setVoiceGender } = useSettingsStore();
+  const { fontFamily, setFontFamily, wordColor, setWordColor, isPremium, setPaywallContext } = useSettingsStore();
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
 
   const previewScale = useSharedValue(1);
@@ -312,20 +312,21 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
     animatePreview();
   }, [hapticEnabled, setFontFamily, animatePreview]);
 
-  const handleVoiceSelect = useCallback((gender: 'male' | 'female') => {
+  // All colors available during onboarding - pro experience for first reading
+  const handleColorSelect = useCallback((key: WordColorKey) => {
     if (hapticEnabled) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    setVoiceGender(gender);
-    // Preview the voice by saying "Articulate"
-    speakWord('Articulate', 'normal', gender);
-  }, [hapticEnabled, setVoiceGender]);
+    setWordColor(key);
+    animatePreview();
+  }, [hapticEnabled, setWordColor, animatePreview]);
 
   const previewStyle = useAnimatedStyle(() => ({
     transform: [{ scale: previewScale.value }],
   }));
 
   const fontConfig = FontFamilies[fontFamily];
+  const previewColor = WordColors.find(c => c.key === wordColor)?.color ?? colors.primary;
 
   return (
     <View style={styles.onboardingPage}>
@@ -340,7 +341,7 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
           entering={FadeIn.delay(100).duration(400)}
           style={[styles.personalizeSubtitle, { color: colors.secondary }]}
         >
-          The right font and voice keep you coming back.
+          The right font and color keep you coming back.
         </Animated.Text>
 
         <View style={styles.previewArea}>
@@ -348,7 +349,7 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
             style={[
               styles.previewWord,
               {
-                color: colors.primary,
+                color: previewColor,
                 fontFamily: fontConfig.regular,
               },
               previewStyle,
@@ -393,45 +394,33 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
           })}
         </View>
 
-        {/* Voice selection */}
+        {/* Color selection */}
         <Animated.View
           entering={FadeIn.delay(350).duration(400)}
-          style={styles.voiceRow}
+          style={styles.colorSelectionRow}
         >
-          <View style={styles.voiceLabelRow}>
-            <Feather name="volume-2" size={14} color={colors.secondary} />
-            <Text style={[styles.voiceLabel, { color: colors.secondary }]}>
-              Voice
+          <View style={styles.colorLabelRow}>
+            <Text style={[styles.colorLabel, { color: colors.secondary }]}>
+              Color
             </Text>
           </View>
-          <View style={styles.voiceButtons}>
-            {(['female', 'male'] as const).map((gender) => {
-              const isSelected = voiceGender === gender;
+          <View style={styles.colorSwatches}>
+            {WordColors.slice(0, 6).map((colorOption) => {
+              const isSelected = wordColor === colorOption.key;
+              const swatchColor = colorOption.color ?? colors.primary;
               return (
                 <Pressable
-                  key={gender}
-                  onPress={() => handleVoiceSelect(gender)}
+                  key={colorOption.key}
+                  onPress={() => handleColorSelect(colorOption.key)}
                   style={[
-                    styles.voiceButton,
+                    styles.colorSwatch,
                     {
-                      backgroundColor: isSelected
-                        ? isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'
-                        : glass.fill,
-                      borderColor: isSelected
-                        ? isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.15)'
-                        : glass.border,
+                      backgroundColor: swatchColor,
+                      borderColor: isSelected ? colors.primary : glass.border,
+                      borderWidth: isSelected ? 2 : 1,
                     },
                   ]}
-                >
-                  <Text
-                    style={[
-                      styles.voiceButtonText,
-                      { color: isSelected ? colors.primary : colors.muted },
-                    ]}
-                  >
-                    {gender === 'female' ? 'Female' : 'Male'}
-                  </Text>
-                </Pressable>
+                />
               );
             })}
           </View>
@@ -840,21 +829,303 @@ function Onboarding() {
 
 const FREE_CATEGORIES = ['story', 'article', 'speech'];
 const CORE_CATEGORIES = categories.filter((c) => FREE_CATEGORIES.includes(c.key));
+const OTHER_CATEGORIES = categories.filter((c) => !FREE_CATEGORIES.includes(c.key));
+const SCREEN_WIDTH = Dimensions.get('window').width;
+
+// ─── CategoryTile Component ──────────────────────────────────
+
+interface CategoryTileProps {
+  category: typeof categories[0];
+  index: number;
+  onPress: () => void;
+  textCount: number;
+  isLocked?: boolean;
+}
+
+function CategoryTile({ category, index, onPress, textCount, isLocked = false }: CategoryTileProps) {
+  const { colors, glass, isDark } = useTheme();
+  const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
+  const scale = useSharedValue(1);
+
+  const handlePress = useCallback(() => {
+    if (hapticEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    onPress();
+  }, [hapticEnabled, onPress]);
+
+  const gesture = Gesture.Tap()
+    .onBegin(() => {
+      scale.value = withSpring(0.95, { damping: 15, stiffness: 200 });
+    })
+    .onFinalize(() => {
+      scale.value = withSpring(1, { damping: 10, stiffness: 180 });
+    })
+    .onEnd(() => {
+      runOnJS(handlePress)();
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <Animated.View
+        entering={FadeIn.delay(index * 80).duration(400)}
+        style={[
+          styles.categoryTile,
+          animatedStyle,
+          {
+            backgroundColor: glass.fill,
+            borderColor: glass.border,
+            opacity: isLocked ? 0.7 : 1,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.categoryTileIcon,
+            {
+              backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+            },
+          ]}
+        >
+          <Feather
+            name={isLocked ? 'lock' : (category.icon as any)}
+            size={24}
+            color={isLocked ? colors.muted : colors.primary}
+          />
+        </View>
+        <Text style={[styles.categoryTileName, { color: isLocked ? colors.muted : colors.primary }]}>
+          {category.name}
+        </Text>
+        <Text style={[styles.categoryTileCount, { color: colors.muted }]}>
+          {textCount} texts
+        </Text>
+      </Animated.View>
+    </GestureDetector>
+  );
+}
+
+// ─── MoreTile Component ──────────────────────────────────────
+
+interface MoreTileProps {
+  count: number;
+  onPress: () => void;
+  index: number;
+  expanded: boolean;
+}
+
+function MoreTile({ count, onPress, index, expanded }: MoreTileProps) {
+  const { colors, glass, isDark } = useTheme();
+  const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
+  const scale = useSharedValue(1);
+
+  const handlePress = useCallback(() => {
+    if (hapticEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    onPress();
+  }, [hapticEnabled, onPress]);
+
+  const gesture = Gesture.Tap()
+    .onBegin(() => {
+      scale.value = withSpring(0.95, { damping: 15, stiffness: 200 });
+    })
+    .onFinalize(() => {
+      scale.value = withSpring(1, { damping: 10, stiffness: 180 });
+    })
+    .onEnd(() => {
+      runOnJS(handlePress)();
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <Animated.View
+        entering={FadeIn.delay(index * 80).duration(400)}
+        style={[
+          styles.categoryTile,
+          animatedStyle,
+          {
+            backgroundColor: glass.fill,
+            borderColor: glass.border,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.categoryTileIcon,
+            {
+              backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+            },
+          ]}
+        >
+          <Feather name={expanded ? 'chevron-up' : 'plus'} size={24} color={colors.primary} />
+        </View>
+        <Text style={[styles.categoryTileName, { color: colors.primary }]}>
+          {expanded ? 'Show less' : 'More'}
+        </Text>
+        {!expanded && (
+          <Text style={[styles.categoryTileCount, { color: colors.muted }]}>
+            {count} categories
+          </Text>
+        )}
+      </Animated.View>
+    </GestureDetector>
+  );
+}
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// ─── BookSpine Component (Redesigned - Full Width Living Bookshelf) ──────────
+
+interface BookSpineProps {
+  label: string;
+  color: string;
+  count?: number;
+  icon?: string;
+  isLocked?: boolean;
+  onPress: (e: any) => void;
+  index: number; // For staggered entry
+}
+
+function BookSpine({ label, color, count, icon, isLocked, onPress, index }: BookSpineProps) {
+  const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
+  const reduceMotion = useSettingsStore((s) => s.reduceMotion);
+
+  // Entry animation
+  const entryTranslateY = useSharedValue(30);
+  const entryOpacity = useSharedValue(0);
+
+  // Press animation
+  const translateY = useSharedValue(0);
+  const rotateX = useSharedValue(0);
+  const scale = useSharedValue(1);
+  const shadowRadius = useSharedValue(4);
+
+  // Idle wobble
+  const wobble = useSharedValue(0);
+
+  // Entry animation on mount
+  useEffect(() => {
+    const delay = index * 80;
+    entryTranslateY.value = withDelay(delay, withSpring(0, { damping: 12, stiffness: 100 }));
+    entryOpacity.value = withDelay(delay, withTiming(1, { duration: 300 }));
+  }, []);
+
+  // Idle wobble (very subtle)
+  useEffect(() => {
+    if (reduceMotion) return;
+    const startWobble = () => {
+      wobble.value = withSequence(
+        withTiming(0.5, { duration: 2000 }),
+        withTiming(-0.5, { duration: 2000 }),
+        withTiming(0, { duration: 2000 })
+      );
+    };
+    // Initial delay before first wobble
+    const initialDelay = setTimeout(() => {
+      startWobble();
+    }, 3000 + index * 1000);
+    const interval = setInterval(startWobble, 8000 + index * 2000);
+    return () => {
+      clearTimeout(initialDelay);
+      clearInterval(interval);
+      cancelAnimation(wobble);
+      wobble.value = 0;
+    };
+  }, [reduceMotion, index]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: entryTranslateY.value + translateY.value },
+      { perspective: 800 },
+      { rotateX: `${rotateX.value}deg` },
+      { rotate: `${wobble.value}deg` },
+      { scale: scale.value },
+    ],
+    opacity: entryOpacity.value,
+    shadowRadius: shadowRadius.value,
+  }));
+
+  const handlePressIn = () => {
+    translateY.value = withSpring(-12, { damping: 15, stiffness: 200 });
+    rotateX.value = withSpring(-8, { damping: 15, stiffness: 200 });
+    scale.value = withSpring(1.05, { damping: 15, stiffness: 200 });
+    shadowRadius.value = withTiming(12, { duration: 150 });
+  };
+
+  const handlePressOut = () => {
+    translateY.value = withSpring(0, { damping: 12, stiffness: 180 });
+    rotateX.value = withSpring(0, { damping: 12, stiffness: 180 });
+    scale.value = withSpring(1, { damping: 12, stiffness: 180 });
+    shadowRadius.value = withTiming(4, { duration: 200 });
+  };
+
+  const handlePress = (e: any) => {
+    if (hapticEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    onPress(e);
+  };
+
+  return (
+    <Pressable
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={handlePress}
+      style={styles.bookSpinePressable}
+    >
+      <Animated.View
+        style={[
+          styles.bookSpine,
+          { backgroundColor: color },
+          animatedStyle,
+        ]}
+      >
+        {/* Icon at top */}
+        {isLocked ? (
+          <Feather name="lock" size={20} color="rgba(255,255,255,0.6)" />
+        ) : icon ? (
+          <Feather name={icon as any} size={20} color="rgba(255,255,255,0.9)" />
+        ) : null}
+
+        {/* Label */}
+        <Text style={styles.bookSpineLabel}>{label}</Text>
+
+        {/* Count badge */}
+        {!isLocked && count !== undefined && count > 0 && (
+          <Text style={styles.bookSpineCount}>({count})</Text>
+        )}
+      </Animated.View>
+    </Pressable>
+  );
+}
 
 function Home() {
   const { colors, isDark, glass } = useTheme();
   const router = useRouter();
+  const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   const {
     resumeData,
     currentStreak,
     isPremium,
     setIsPremium,
     resetAll,
-    unlockedBadges,
     categoryReadCounts,
     lastReadDate,
     customTexts,
     favoriteTexts,
+    savedWords,
     checkTrialExpired,
     trialActive,
     trialStartDate,
@@ -867,18 +1138,9 @@ function Home() {
     totalWordsRead,
     textsCompleted,
     reduceMotion,
-    dailyWordGoal,
-    dailyWordsToday,
     resetDailyUploadIfNewDay,
-    pendingStreakRestore,
-    streakFreezes,
-    streakFrozenTonight,
-    weeklyChallengeProgress,
-    weeklyChallengeCompleted,
     refillStreakAllowancesIfNewMonth,
     checkWeeklyChallenge,
-    activateStreakFreeze,
-    deactivateStreakFreeze,
   } = useSettingsStore();
 
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
@@ -983,7 +1245,6 @@ function Home() {
   })();
 
   const setSelectedCategoryKey = useSettingsStore((s) => s.setSelectedCategoryKey);
-  const savedWords = useSettingsStore((s) => s.savedWords);
 
   // ─── Shuffle (Surprise Me) ─────────────────────────────────
   const shuffleRotation = useSharedValue(0);
@@ -1035,56 +1296,44 @@ function Home() {
     transform: [{ rotate: `${shuffleRotation.value}deg` }],
   }));
 
-  const formatNumber = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
+  // ─── Category Press Handler ─────────────────────────────────
+  const handleCategoryPress = useCallback(
+    (category: typeof categories[0]) => {
+      const isLocked = !isPremium && !FREE_CATEGORIES.includes(category.key);
 
-  // Memoize next badge calculation to avoid re-computing on every render
-  const nextBadgeData = useMemo(() => {
-    const nextBadge = ALL_BADGES.find((b) => {
-      if (unlockedBadges.includes(b.id)) return false;
-      if (b.category === 'streak' && b.threshold) return currentStreak < b.threshold;
-      if (b.category === 'words' && b.threshold) return totalWordsRead < b.threshold;
-      if (b.category === 'texts' && b.threshold) return textsCompleted < b.threshold;
-      if (b.category === 'category' && b.categoryKey && b.threshold) {
-        return (categoryReadCounts[b.categoryKey] ?? 0) < b.threshold;
+      if (isLocked) {
+        setPaywallContext('locked_category');
+        return;
       }
-      return false;
-    });
 
-    if (!nextBadge || !nextBadge.threshold) return null;
+      // If only one text, go directly to reading
+      if (category.texts.length === 1) {
+        router.push({
+          pathname: '/reading',
+          params: { categoryKey: category.key, textId: category.texts[0]?.id ?? '' },
+        });
+        return;
+      }
 
-    let current = 0;
-    let remaining = 0;
-    let unit = '';
-    if (nextBadge.category === 'streak') {
-      current = currentStreak;
-      remaining = nextBadge.threshold - current;
-      unit = remaining === 1 ? 'day' : 'days';
-    } else if (nextBadge.category === 'words') {
-      current = totalWordsRead;
-      remaining = nextBadge.threshold - current;
-      unit = 'words';
-    } else if (nextBadge.category === 'texts') {
-      current = textsCompleted;
-      remaining = nextBadge.threshold - current;
-      unit = remaining === 1 ? 'text' : 'texts';
-    } else if (nextBadge.category === 'category' && nextBadge.categoryKey) {
-      current = categoryReadCounts[nextBadge.categoryKey] ?? 0;
-      remaining = nextBadge.threshold - current;
-      unit = remaining === 1 ? 'text' : 'texts';
-    }
+      // Otherwise, go to text selection
+      setSelectedCategoryKey(category.key);
+      router.push({
+        pathname: '/text-select',
+        params: { categoryKey: category.key },
+      });
+    },
+    [isPremium, setPaywallContext, setSelectedCategoryKey, router]
+  );
 
-    const progress = Math.min(100, (current / nextBadge.threshold) * 100);
-    return { nextBadge, current, remaining, unit, progress };
-  }, [unlockedBadges, currentStreak, totalWordsRead, textsCompleted, categoryReadCounts]);
+  const formatNumber = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
+  const insightsCount = textsCompleted;
 
   return (
     <SafeAreaView style={styles.flex}>
       {/* Header */}
       <View style={styles.homeHeader}>
-        <Pressable onPress={() => router.push('/achievements')} style={styles.headerButton} accessibilityLabel="Open achievements" accessibilityRole="button">
-          <Feather name="award" size={20} color={colors.primary} />
-        </Pressable>
-        <View style={styles.headerIcons}>
+        {/* Icons row - at top */}
+        <View style={styles.headerIconsTop}>
           {__DEV__ && (
             <>
               <Pressable onPress={() => setIsPremium(!isPremium)}>
@@ -1099,9 +1348,41 @@ function Home() {
               </Pressable>
             </>
           )}
-          <Pressable onPress={() => router.push('/settings')} style={styles.headerButton} accessibilityLabel="Open profile" accessibilityRole="button">
-            <Feather name="user" size={20} color={colors.primary} />
+          <Pressable onPress={() => router.push('/achievements')} style={styles.headerButton} accessibilityLabel="Open achievements" accessibilityRole="button">
+            <Feather name="award" size={18} color={colors.primary} />
           </Pressable>
+          <Pressable onPress={() => router.push('/library')} style={styles.headerButton} accessibilityLabel="Open library" accessibilityRole="button">
+            <Feather name="folder" size={18} color={colors.primary} />
+          </Pressable>
+          <Pressable onPress={() => router.push('/settings')} style={styles.headerButton} accessibilityLabel="Open profile" accessibilityRole="button">
+            <Feather name="user" size={18} color={colors.primary} />
+          </Pressable>
+        </View>
+
+        {/* Greeting row - below icons */}
+        <View style={styles.headerGreeting}>
+          <TimeGreeting />
+          {/* Upgrade Pill CTA - only for free users */}
+          {!isPremium && !trialActive && (
+            <Pressable
+              onPress={() => setPaywallContext('generic')}
+              style={({ pressed }) => [
+                styles.upgradePill,
+                {
+                  backgroundColor: glass.fill,
+                  borderColor: glass.border,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Unlock full access"
+            >
+              <Feather name="zap" size={12} color={colors.primary} />
+              <Text style={[styles.upgradePillText, { color: colors.primary }]}>
+                Unlock full access
+              </Text>
+            </Pressable>
+          )}
         </View>
       </View>
 
@@ -1111,183 +1392,315 @@ function Home() {
         contentContainerStyle={styles.homeScrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 1. Greeting */}
-        <View style={styles.greetingSection}>
-          <TimeGreeting />
-        </View>
-
-        {/* 2. Level Progress */}
-        <View style={styles.bannerSection}>
-          <LevelProgress />
-        </View>
-
-        {/* 3. Stats row */}
-        <Animated.View entering={FadeIn.delay(100).duration(400)} style={styles.bannerSection} accessibilityLabel={`${currentStreak} day streak, ${formatNumber(totalWordsRead)} words read, ${textsCompleted} texts completed`}>
-          <GlassCard onPress={() => router.push('/insights')}>
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Feather name="zap" size={14} color={colors.muted} />
-                <View style={styles.streakValueRow}>
-                  <Text style={[styles.statValue, { color: colors.primary }]}>
-                    {currentStreak}
-                  </Text>
-                  {isPremium && (
-                    <Pressable
-                      onPress={() => {
-                        if (hapticEnabled) {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        }
-                        if (streakFrozenTonight) {
-                          deactivateStreakFreeze();
-                        } else {
-                          activateStreakFreeze();
-                        }
-                      }}
-                      style={styles.freezeIcon}
-                      hitSlop={8}
-                    >
-                      <Feather
-                        name="shield"
-                        size={14}
-                        color={streakFrozenTonight ? colors.primary : colors.muted}
-                      />
-                    </Pressable>
-                  )}
-                </View>
-                <Text style={[styles.statLabel, { color: colors.muted }]}>
-                  {currentStreak === 1 ? 'day' : 'days'}
-                </Text>
-              </View>
-              <View style={[styles.statDivider, { backgroundColor: glass.border }]} />
-              <View style={styles.statItem}>
-                <Feather name="book-open" size={14} color={colors.muted} />
-                <Text style={[styles.statValue, { color: colors.primary }]}>
-                  {formatNumber(totalWordsRead)}
-                </Text>
-                <Text style={[styles.statLabel, { color: colors.muted }]}>
-                  words read
-                </Text>
-              </View>
-              <View style={[styles.statDivider, { backgroundColor: glass.border }]} />
-              <View style={styles.statItem}>
-                <Feather name="check-circle" size={14} color={colors.muted} />
-                <Text style={[styles.statValue, { color: colors.primary }]}>
-                  {textsCompleted}
-                </Text>
-                <Text style={[styles.statLabel, { color: colors.muted }]}>
-                  completed
-                </Text>
-              </View>
-            </View>
-          </GlassCard>
-          {/* Daily word goal progress */}
-          {dailyWordGoal > 0 && (
-            <View style={styles.dailyGoalRow}>
-              <View style={[styles.dailyGoalBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
-                <View style={[
-                  styles.dailyGoalFill,
-                  {
-                    backgroundColor: colors.primary,
-                    width: `${Math.min(100, (dailyWordsToday / dailyWordGoal) * 100)}%`,
-                  },
-                ]} />
-              </View>
-              <Text style={[styles.dailyGoalText, { color: dailyWordsToday >= dailyWordGoal ? colors.secondary : colors.muted }]}>
-                {dailyWordsToday >= dailyWordGoal
-                  ? 'Daily goal reached'
-                  : `${dailyWordsToday} / ${dailyWordGoal} words today`}
-              </Text>
-            </View>
-          )}
-          {/* Daily engagement: next badge progress */}
-          {nextBadgeData && (
-            <Pressable
-              onPress={() => {
-                const { nextBadge } = nextBadgeData;
-                if (nextBadge.category === 'category' && nextBadge.categoryKey) {
-                  setSelectedCategoryKey(nextBadge.categoryKey);
-                  router.push({
-                    pathname: '/text-select',
-                    params: { categoryKey: nextBadge.categoryKey },
-                  });
-                } else if (nextBadge.category === 'texts' || nextBadge.category === 'words') {
-                  const firstCat = CORE_CATEGORIES[0];
-                  if (firstCat) {
-                    setSelectedCategoryKey(firstCat.key);
-                    router.push({
-                      pathname: '/text-select',
-                      params: { categoryKey: firstCat.key },
-                    });
-                  }
-                } else {
-                  router.push('/achievements');
-                }
-              }}
-              style={styles.nextBadgeCard}
-              accessibilityLabel={`Next badge: ${nextBadgeData.nextBadge.name}, ${formatNumber(nextBadgeData.remaining)} ${nextBadgeData.unit} to go`}
-              accessibilityRole="button"
-            >
-              <View style={styles.nextBadgeHeader}>
-                <Feather name={nextBadgeData.nextBadge.icon as any} size={16} color={colors.primary} />
-                <Text style={[styles.nextBadgeName, { color: colors.primary }]}>
-                  {nextBadgeData.nextBadge.name}
-                </Text>
-              </View>
-              <View style={[styles.nextBadgeProgressBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
-                <View
-                  style={[
-                    styles.nextBadgeProgressFill,
-                    { backgroundColor: colors.primary, width: `${nextBadgeData.progress}%` },
-                  ]}
-                />
-              </View>
-              <View style={styles.nextBadgeFooter}>
-                <Text style={[styles.nextBadgeProgress, { color: colors.muted }]}>
-                  {nextBadgeData.current}/{nextBadgeData.nextBadge.threshold}
-                </Text>
-                <Text style={[styles.nextBadgeAction, { color: colors.secondary }]}>
-                  {formatNumber(nextBadgeData.remaining)} {nextBadgeData.unit} to go →
-                </Text>
-              </View>
-            </Pressable>
-          )}
+        {/* Stats Row */}
+        <Animated.View entering={FadeIn.delay(100).duration(400)} style={styles.statsRow}>
+          <View style={styles.statsLeft}>
+            <Feather name="zap" size={14} color={colors.muted} />
+            <Text style={[styles.statsText, { color: colors.secondary }]}>
+              <Text style={{ color: colors.primary, fontWeight: '600' }}>{currentStreak}</Text>
+              {'-day streak · '}
+              <Text style={{ color: colors.primary, fontWeight: '600' }}>{formatNumber(totalWordsRead)}</Text>
+              {' words'}
+            </Text>
+          </View>
+          <Pressable onPress={() => router.push('/insights')} hitSlop={12}>
+            <Text style={[styles.insightsLink, { color: colors.primary }]}>Insights →</Text>
+          </Pressable>
         </Animated.View>
 
-        {/* 3. Your Text hero card */}
-        <Animated.View entering={FadeIn.delay(150).duration(400)} style={styles.bannerSection}>
-          <Pressable onPress={() => router.push('/paste')} accessibilityLabel="Your Text — paste, scan, or import any text" accessibilityRole="button">
+        {/* Hero: Your Text */}
+        <Animated.View entering={FadeIn.delay(120).duration(400)} style={styles.heroSection}>
+          <Pressable
+            onPress={() => router.push('/paste')}
+            accessibilityRole="button"
+            accessibilityLabel="Open your text"
+          >
             <Animated.View style={[styles.heroCard, { backgroundColor: glass.fill }, heroBorderStyle]}>
-              <View
-                style={[
-                  styles.heroCardIcon,
-                  {
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                    borderColor: glass.border,
-                  },
-                ]}
-              >
-                <Feather name="edit-3" size={24} color={colors.primary} />
-              </View>
-              <View style={styles.heroCardText}>
-                <Text style={[styles.heroCardTitle, { color: colors.primary }]}>
-                  Your Text
-                </Text>
-                <Text style={[styles.heroCardSubtitle, { color: colors.secondary }]}>
-                  Paste, scan, or import any text
-                </Text>
-                {customTexts.length > 0 && (
-                  <Text style={[styles.heroCardMeta, { color: colors.muted }]}>
-                    {customTexts.length} saved {customTexts.length === 1 ? 'text' : 'texts'}
+              <Text style={[styles.heroCardTitle, { color: colors.primary }]}>
+                Your Text
+              </Text>
+              <Text style={[styles.heroCardSubtitle, { color: colors.secondary }]}>
+                Paste, scan, or import any text
+              </Text>
+              <View style={styles.heroActions}>
+                <Pressable
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    router.push({ pathname: '/paste', params: { action: 'paste' } });
+                  }}
+                  style={({ pressed }) => [
+                    styles.heroActionButton,
+                    styles.heroActionPrimary,
+                    { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Paste text"
+                >
+                  <Feather name="clipboard" size={14} color={isDark ? '#000' : '#fff'} />
+                  <Text style={[styles.heroActionText, { color: isDark ? '#000' : '#fff' }]}>
+                    Paste
                   </Text>
-                )}
+                </Pressable>
+                <Pressable
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    router.push({ pathname: '/paste', params: { action: 'scan' } });
+                  }}
+                  style={({ pressed }) => [
+                    styles.heroActionButton,
+                    {
+                      borderColor: glass.border,
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Scan text"
+                >
+                  <Feather name="camera" size={14} color={colors.primary} />
+                  <Text style={[styles.heroActionText, { color: colors.primary }]}>
+                    Scan
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    router.push({ pathname: '/paste', params: { action: 'import' } });
+                  }}
+                  style={({ pressed }) => [
+                    styles.heroActionButton,
+                    {
+                      borderColor: glass.border,
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Import a file"
+                >
+                  <Feather name="upload" size={14} color={colors.primary} />
+                  <Text style={[styles.heroActionText, { color: colors.primary }]}>
+                    Import
+                  </Text>
+                </Pressable>
               </View>
-              <Feather name="chevron-right" size={18} color={colors.muted} />
             </Animated.View>
           </Pressable>
         </Animated.View>
 
-        {/* 4. Banners */}
-        {/* Trial countdown banner (active trial) */}
+        {/* Continue card */}
+        {resumeData && (
+          <View style={styles.resumeSection}>
+            <Link
+              href={{
+                pathname: '/reading',
+                params: {
+                  categoryKey: resumeData.categoryKey,
+                  resumeIndex: String(resumeData.wordIndex),
+                  ...(resumeData.textId ? { textId: resumeData.textId } : {}),
+                  ...(resumeData.customTextId ? { customTextId: resumeData.customTextId } : {}),
+                },
+              }}
+              asChild
+            >
+              <Link.AppleZoom>
+                <ResumeCard data={resumeData} />
+              </Link.AppleZoom>
+            </Link>
+          </View>
+        )}
+
+        {/* Categories Grid */}
+        <Animated.View entering={FadeIn.delay(140).duration(400)} style={styles.categoriesGrid}>
+          {/* Always show: Story, Article, Speech */}
+          {CORE_CATEGORIES.map((cat, index) => (
+            <CategoryTile
+              key={cat.key}
+              category={cat}
+              index={index}
+              textCount={cat.texts.length}
+              onPress={() => handleCategoryPress(cat)}
+            />
+          ))}
+
+          {/* Expanded: Show remaining categories */}
+          {categoriesExpanded && OTHER_CATEGORIES.map((cat, index) => {
+            const isLocked = !isPremium;
+            return (
+              <CategoryTile
+                key={cat.key}
+                category={cat}
+                index={index + 3}
+                textCount={cat.texts.length}
+                onPress={() => handleCategoryPress(cat)}
+                isLocked={isLocked}
+              />
+            );
+          })}
+
+          {/* Toggle tile: +More / Show Less */}
+          <MoreTile
+            count={OTHER_CATEGORIES.length}
+            onPress={() => setCategoriesExpanded(!categoriesExpanded)}
+            index={categoriesExpanded ? CORE_CATEGORIES.length + OTHER_CATEGORIES.length : 3}
+            expanded={categoriesExpanded}
+          />
+        </Animated.View>
+
+        {/* Surprise Me Button */}
+        <Animated.View entering={FadeIn.delay(180).duration(400)}>
+          <Pressable
+            onPress={handleShuffle}
+            style={({ pressed }) => [
+              styles.surpriseMeButton,
+              {
+                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                borderColor: glass.border,
+                transform: [{ scale: pressed ? 0.97 : 1 }],
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Surprise me with a random text"
+          >
+            <Animated.View style={shuffleIconStyle}>
+              <Feather name="shuffle" size={16} color={colors.primary} />
+            </Animated.View>
+            <Text style={[styles.surpriseMeText, { color: colors.primary }]}>
+              Surprise me
+            </Text>
+          </Pressable>
+        </Animated.View>
+
+        {/* Bookshelf Library - Full Width Living Design */}
+        <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.bookshelfContainer}>
+          {/* Books row - spans full width */}
+          <View style={styles.booksRow}>
+            {/* Word Bank - open to all */}
+            <BookSpine
+              label="Words"
+              icon="bookmark"
+              color={isDark ? '#2A5A5A' : '#4A9A9A'}
+              count={savedWords.length}
+              index={0}
+              onPress={(e) => {
+                e.stopPropagation();
+                router.push('/word-bank');
+              }}
+            />
+
+            {/* Favorites - open to all */}
+            <BookSpine
+              label="Favs"
+              icon="heart"
+              color={isDark ? '#5A4A4A' : '#9A7A7A'}
+              count={favoriteTexts.length}
+              index={1}
+              onPress={(e) => {
+                e.stopPropagation();
+                router.push({ pathname: '/library', params: { tab: 'favorites' } });
+              }}
+            />
+
+            {/* My Texts - LOCKED for free users */}
+            <BookSpine
+              label="Texts"
+              icon="file-text"
+              color={isDark ? '#4A4A5A' : '#7A7A8A'}
+              count={customTexts.length}
+              isLocked={!isPremium}
+              index={2}
+              onPress={(e) => {
+                e.stopPropagation();
+                if (!isPremium) {
+                  setPaywallContext('custom_text_limit');
+                } else {
+                  router.push({ pathname: '/library', params: { tab: 'texts' } });
+                }
+              }}
+            />
+          </View>
+
+          {/* 3D Shelf */}
+          <View style={styles.shelfContainer}>
+            <View style={[styles.shelfTop, { backgroundColor: isDark ? '#3A3A3A' : '#D4C4B4' }]} />
+            <View style={[styles.shelfFront, { backgroundColor: isDark ? '#2A2A2A' : '#B4A494' }]} />
+            <View style={[styles.shelfShadow, { backgroundColor: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.1)' }]} />
+          </View>
+        </Animated.View>
+
+        {/* Library Preview */}
+        {(favoriteTexts.length > 0 || customTexts.length > 0) && (
+          <View style={styles.librarySection}>
+            <View style={styles.librarySectionHeader}>
+              <Text style={[styles.librarySectionTitle, { color: colors.secondary }]}>
+                {favoriteTexts.length > 0 ? 'FAVORITES' : 'YOUR LIBRARY'}
+              </Text>
+              <Pressable onPress={() => router.push('/library')}>
+                <Text style={[styles.librarySeeAll, { color: colors.primary }]}>See all →</Text>
+              </Pressable>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.libraryScroll}
+              style={{ flexGrow: 0 }}
+            >
+              {(favoriteTexts.length > 0
+                ? favoriteTexts.slice(0, 5).map((fav) => {
+                    const cat = categories.find(c => c.key === fav.categoryKey);
+                    const text = cat?.texts.find(t => t.id === fav.textId);
+                    if (!text) return null;
+                    return (
+                      <Pressable
+                        key={`${fav.categoryKey}-${fav.textId}`}
+                        onPress={() => {
+                          router.push({
+                            pathname: '/reading',
+                            params: { categoryKey: fav.categoryKey, textId: fav.textId },
+                          });
+                        }}
+                        style={({ pressed }) => [
+                          styles.libraryCard,
+                          { backgroundColor: glass.fill, borderColor: glass.border, opacity: pressed ? 0.8 : 1 },
+                        ]}
+                      >
+                        <Text style={[styles.libraryCardTitle, { color: colors.primary }]} numberOfLines={2}>
+                          {text.title}
+                        </Text>
+                        <Text style={[styles.libraryCardMeta, { color: colors.muted }]}>
+                          {text.words.length} words
+                        </Text>
+                      </Pressable>
+                    );
+                  })
+                : customTexts.slice(0, 5).map((item) => (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => {
+                        router.push({
+                          pathname: '/reading',
+                          params: { categoryKey: 'custom', customTextId: item.id },
+                        });
+                      }}
+                      style={({ pressed }) => [
+                        styles.libraryCard,
+                        { backgroundColor: glass.fill, borderColor: glass.border, opacity: pressed ? 0.8 : 1 },
+                      ]}
+                    >
+                      <Text style={[styles.libraryCardTitle, { color: colors.primary }]} numberOfLines={2}>
+                        {item.title}
+                      </Text>
+                      <Text style={[styles.libraryCardMeta, { color: colors.muted }]}>
+                        {item.wordCount} words
+                      </Text>
+                    </Pressable>
+                  ))
+              )}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Notices */}
         {showTrialCountdown && (
           <Animated.View entering={FadeIn.duration(400)} style={styles.bannerSection}>
             <GlassCard onPress={() => setPaywallContext('generic')}>
@@ -1306,7 +1719,6 @@ function Home() {
           </Animated.View>
         )}
 
-        {/* Post-trial win-back banner */}
         {!isPremium && !trialActive && winBackText && (
           <Animated.View entering={FadeIn.duration(400)} style={styles.bannerSection}>
             <GlassCard onPress={() => setPaywallContext('trial_expired')}>
@@ -1325,11 +1737,9 @@ function Home() {
           </Animated.View>
         )}
 
-        {/* Streak at risk warning — Loss Aversion framing */}
         {isStreakAtRisk && (
           <Animated.View entering={FadeIn.duration(400)} style={styles.bannerSection} accessibilityLabel={`Streak at risk: ${currentStreak}-day streak. Read one text to keep it going`} accessibilityRole="button">
             <GlassCard onPress={() => {
-              // Navigate to first available category to help user save streak
               const firstCat = CORE_CATEGORIES[0];
               if (firstCat) {
                 setSelectedCategoryKey(firstCat.key);
@@ -1357,339 +1767,6 @@ function Home() {
           </Animated.View>
         )}
 
-        {/* 4. Resume card */}
-        {resumeData && (
-          <View style={styles.resumeSection}>
-            <Link
-              href={{
-                pathname: '/reading',
-                params: {
-                  categoryKey: resumeData.categoryKey,
-                  resumeIndex: String(resumeData.wordIndex),
-                  ...(resumeData.textId ? { textId: resumeData.textId } : {}),
-                  ...(resumeData.customTextId ? { customTextId: resumeData.customTextId } : {}),
-                },
-              }}
-              asChild
-            >
-              <Link.AppleZoom>
-                <ResumeCard data={resumeData} />
-              </Link.AppleZoom>
-            </Link>
-          </View>
-        )}
-
-        {/* 5. Combined Activity card (Daily Featured + Weekly Challenge) */}
-        {(() => {
-          const featured = getDailyFeaturedText();
-          const challenge = getCurrentChallenge();
-          const weekId = getCurrentWeekId();
-          const weekNum = weekId.split('-W')[1];
-          const daysLeft = getDaysRemainingInWeek();
-
-          // Lock check: free user + (premium category OR requiredReads not met)
-          const isLocked = !isPremium && (
-            featured.isPremium ||
-            (featured.text.requiredReads ?? 0) > (categoryReadCounts[featured.category.key] ?? 0)
-          );
-
-          const progressFraction = challenge.target > 0
-            ? Math.min(1, weeklyChallengeProgress / challenge.target)
-            : 0;
-
-          return (
-            <Animated.View entering={FadeIn.delay(250).duration(400)} style={styles.bannerSection}>
-              <GlassCard>
-                <View style={styles.activityCard}>
-                  {/* Top: Daily Featured */}
-                  <View>
-                    <Text style={[styles.activityLabel, { color: colors.muted }]}>
-                      TODAY'S PICK
-                    </Text>
-                    <Pressable
-                      onPress={() => {
-                        if (isLocked) {
-                          setPaywallContext('locked_category');
-                        } else {
-                          setSelectedCategoryKey(featured.category.key);
-                          router.push({
-                            pathname: '/reading',
-                            params: {
-                              categoryKey: featured.category.key,
-                              textId: featured.text.id,
-                            },
-                          });
-                        }
-                      }}
-                      style={styles.featuredRow}
-                    >
-                      <View style={[
-                        styles.featuredIconCircle,
-                        {
-                          backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                          borderColor: glass.border,
-                        },
-                      ]}>
-                        <Feather name={featured.category.icon as any} size={18} color={colors.primary} />
-                      </View>
-                      <View style={styles.featuredTextGroup}>
-                        <Text style={[styles.featuredTitle, { color: colors.primary }]} numberOfLines={1}>
-                          {featured.text.title}
-                        </Text>
-                        <Text style={[styles.featuredMeta, { color: colors.muted }]} numberOfLines={1}>
-                          {featured.text.author ? `${featured.text.author} · ` : ''}{featured.category.name} · ~{featured.text.words.length}w
-                        </Text>
-                      </View>
-                      <Feather
-                        name={isLocked ? 'lock' : 'chevron-right'}
-                        size={16}
-                        color={colors.muted}
-                      />
-                    </Pressable>
-                  </View>
-
-                  {/* Divider */}
-                  <View style={[styles.activityDivider, { backgroundColor: glass.border }]} />
-
-                  {/* Bottom: Weekly Challenge */}
-                  <View>
-                    <Text style={[styles.activityLabel, { color: colors.muted }]}>
-                      WEEK {weekNum} CHALLENGE
-                    </Text>
-                    {weeklyChallengeCompleted ? (
-                      <View style={styles.challengeRow}>
-                        <Feather name="check-circle" size={16} color={colors.success} />
-                        <Text style={[styles.challengeDescription, { color: colors.success }]}>
-                          Challenge Complete
-                        </Text>
-                      </View>
-                    ) : (
-                      <>
-                        <Text style={[styles.challengeDescription, { color: colors.primary }]}>
-                          {challenge.description}
-                        </Text>
-                        <View style={styles.challengeRow}>
-                          <View style={[styles.challengeProgressBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
-                            <View style={[
-                              styles.challengeProgressFill,
-                              {
-                                backgroundColor: colors.primary,
-                                width: `${progressFraction * 100}%`,
-                              },
-                            ]} />
-                          </View>
-                          <Text style={[styles.challengeProgressText, { color: colors.muted }]}>
-                            {weeklyChallengeProgress}/{challenge.target}
-                          </Text>
-                          <Text style={[styles.challengeProgressText, { color: colors.muted }]}>
-                            {daysLeft}d left
-                          </Text>
-                        </View>
-                      </>
-                    )}
-                  </View>
-                </View>
-              </GlassCard>
-            </Animated.View>
-          );
-        })()}
-
-        {/* 6. My Library card */}
-        <Animated.View entering={FadeIn.delay(260).duration(400)} style={styles.bannerSection}>
-          <GlassCard onPress={() => {
-            if (customTexts.length > 0 || favoriteTexts.length > 0) {
-              router.push('/library');
-            } else {
-              // Empty state - guide to reading
-              const firstCat = CORE_CATEGORIES[0];
-              if (firstCat) {
-                setSelectedCategoryKey(firstCat.key);
-                router.push({
-                  pathname: '/text-select',
-                  params: { categoryKey: firstCat.key },
-                });
-              }
-            }
-          }}>
-            <View style={styles.shuffleContent}>
-              <View
-                style={[
-                  styles.shuffleIconCircle,
-                  {
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                    borderColor: glass.border,
-                  },
-                ]}
-              >
-                <Feather name="folder" size={20} color={colors.primary} />
-              </View>
-              <View style={styles.shuffleTextGroup}>
-                <Text style={[styles.shuffleTitle, { color: colors.primary }]}>
-                  My Library
-                </Text>
-                <Text style={[styles.shuffleSubtitle, { color: colors.muted }]}>
-                  {customTexts.length + favoriteTexts.length > 0
-                    ? `${customTexts.length + favoriteTexts.length} saved ${customTexts.length + favoriteTexts.length === 1 ? 'text' : 'texts'}`
-                    : 'Tap ♡ while reading to save texts'}
-                </Text>
-              </View>
-              <Feather name="chevron-right" size={18} color={colors.muted} />
-            </View>
-          </GlassCard>
-        </Animated.View>
-
-        {/* 7a. Surprise Me (Shuffle) card */}
-        {shuffleableTexts.length > 0 && (
-          <Animated.View entering={FadeIn.delay(280).duration(400)} style={styles.bannerSection}>
-            <GlassCard onPress={handleShuffle}>
-              <View style={styles.shuffleContent}>
-                <View
-                  style={[
-                    styles.shuffleIconCircle,
-                    {
-                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                      borderColor: glass.border,
-                    },
-                  ]}
-                >
-                  <Animated.View style={shuffleIconStyle}>
-                    <Feather name="shuffle" size={20} color={colors.primary} />
-                  </Animated.View>
-                </View>
-                <View style={styles.shuffleTextGroup}>
-                  <Text style={[styles.shuffleTitle, { color: colors.primary }]}>
-                    Surprise Me
-                  </Text>
-                  <Text style={[styles.shuffleSubtitle, { color: colors.muted }]}>
-                    Random text from your categories
-                  </Text>
-                </View>
-                <Feather name="play" size={18} color={colors.muted} />
-              </View>
-            </GlassCard>
-          </Animated.View>
-        )}
-
-        {/* 7b. My Words card (word bank) */}
-        <Animated.View entering={FadeIn.delay(300).duration(400)} style={styles.bannerSection}>
-          <GlassCard
-            onPress={() => {
-              if (savedWords.length > 0) {
-                if (!isPremium) {
-                  setPaywallContext('locked_word_bank');
-                  return;
-                }
-                router.push('/word-bank');
-              } else {
-                // Empty state - guide to reading
-                const firstCat = CORE_CATEGORIES[0];
-                if (firstCat) {
-                  setSelectedCategoryKey(firstCat.key);
-                  router.push({
-                    pathname: '/text-select',
-                    params: { categoryKey: firstCat.key },
-                  });
-                }
-              }
-            }}
-          >
-            <View style={styles.shuffleContent}>
-              <View
-                style={[
-                  styles.shuffleIconCircle,
-                  {
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                    borderColor: glass.border,
-                  },
-                ]}
-              >
-                <Feather name="bookmark" size={20} color={colors.primary} />
-              </View>
-              <View style={styles.shuffleTextGroup}>
-                <Text style={[styles.shuffleTitle, { color: colors.primary }]}>
-                  My Words
-                </Text>
-                <Text style={[styles.shuffleSubtitle, { color: colors.muted }]}>
-                  {savedWords.length > 0
-                    ? `${savedWords.length} saved`
-                    : 'Tap words while reading to save'}
-                </Text>
-              </View>
-              <Feather name="chevron-right" size={18} color={colors.muted} />
-            </View>
-          </GlassCard>
-        </Animated.View>
-
-        {/* 7c. All Categories */}
-        <View style={styles.categoriesSection}>
-          <Text style={[styles.sectionTitle, { color: colors.secondary }]}>
-            CATEGORIES
-          </Text>
-          <View style={styles.categoryList}>
-            {categories.map((cat, i) => {
-              const isLocked = !isPremium && !FREE_CATEGORIES.includes(cat.key);
-
-              // Locked categories show paywall
-              if (isLocked) {
-                return (
-                  <Animated.View
-                    key={cat.key}
-                    entering={FadeIn.delay(i * 60).duration(300)}
-                  >
-                    <CategoryCard
-                      category={cat}
-                      locked={true}
-                      index={i}
-                      onPress={() => setPaywallContext('locked_category')}
-                    />
-                  </Animated.View>
-                );
-              }
-
-              // Single-text categories navigate directly to reading
-              if (cat.texts.length === 1) {
-                return (
-                  <Animated.View
-                    key={cat.key}
-                    entering={FadeIn.delay(i * 60).duration(300)}
-                  >
-                    <CategoryCard
-                      category={cat}
-                      index={i}
-                      onPress={() => {
-                        router.push({
-                          pathname: '/reading',
-                          params: { categoryKey: cat.key, textId: cat.texts[0]?.id ?? '' },
-                        });
-                      }}
-                    />
-                  </Animated.View>
-                );
-              }
-
-              // Multi-text categories navigate to text selection
-              return (
-                <Animated.View
-                  key={cat.key}
-                  entering={FadeIn.delay(i * 60).duration(300)}
-                >
-                  <CategoryCard
-                    category={cat}
-                    index={i}
-                    onPress={() => {
-                      setSelectedCategoryKey(cat.key);
-                      router.push({
-                        pathname: '/text-select',
-                        params: { categoryKey: cat.key },
-                      });
-                    }}
-                  />
-                </Animated.View>
-              );
-            })}
-          </View>
-        </View>
-
         {/* 9. Bottom spacer */}
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -1703,6 +1780,7 @@ function Home() {
         onDismiss={() => setPaywallContext(null)}
         context={paywallContext}
       />
+
     </SafeAreaView>
   );
 }
@@ -1852,48 +1930,40 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '500',
   },
-  colorRow: {
-    flexDirection: 'row',
-    gap: 16,
-    justifyContent: 'center',
+  // Color selection
+  colorSelectionRow: {
+    alignItems: 'center',
+    gap: 12,
   },
-  colorDot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderCurve: 'continuous',
-  },
-  // Voice selection
-  voiceRow: {
-    width: '100%',
-    gap: 10,
-  },
-  voiceLabelRow: {
+  colorLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    justifyContent: 'center',
   },
-  voiceLabel: {
+  colorLabel: {
     fontSize: 13,
     fontWeight: '500',
-    letterSpacing: 0.3,
   },
-  voiceButtons: {
+  colorSwatches: {
     flexDirection: 'row',
     gap: 12,
+  },
+  colorSwatch: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  voiceButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-  },
-  voiceButtonText: {
-    fontSize: 15,
-    fontWeight: '500',
+  colorLockBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   // Daily Goal wheel picker
   goalSubtitle: {
@@ -1982,19 +2052,38 @@ const styles = StyleSheet.create({
   },
   // Home
   homeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
+    gap: 8,
   },
-  headerIcons: {
+  headerIconsTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  headerGreeting: {
+    // Greeting below icons
+  },
+  upgradePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 0.5,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  upgradePillText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   devReplay: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '500',
     letterSpacing: 0.2,
   },
@@ -2006,45 +2095,189 @@ const styles = StyleSheet.create({
   },
   homeScrollContent: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.sm,
   },
-  greetingSection: {
+  heroSection: {
     marginBottom: Spacing.lg,
+  },
+  // Stats Row (inline, above hero)
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+  },
+  statsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statsText: {
+    fontSize: 13,
+    fontWeight: '400',
+  },
+  insightsLink: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   bannerSection: {
     marginBottom: Spacing.md,
   },
   resumeSection: {
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
-  categoriesSection: {
-    marginTop: Spacing.md,
-  },
-  categoryList: {
-    gap: 12,
-  },
-  // Stats row
-  statsRow: {
+  // Categories Grid
+  categoriesGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: Spacing.lg,
+  },
+  categoryTile: {
+    width: (SCREEN_WIDTH - 48 - 12) / 2,
+    aspectRatio: 1.1,
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    borderWidth: 0.5,
     alignItems: 'center',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 16,
   },
-  statItem: {
+  categoryTileIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
-    flex: 1,
-    gap: 2,
+    justifyContent: 'center',
   },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '700',
+  categoryTileName: {
+    fontSize: 16,
+    fontWeight: '600',
   },
-  statLabel: {
-    fontSize: 11,
+  categoryTileCount: {
+    fontSize: 12,
     fontWeight: '400',
   },
-  statDivider: {
-    width: 0.5,
-    height: 32,
+  // Surprise Me Button
+  surpriseMeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 999,
+    borderWidth: 0.5,
+    alignSelf: 'center',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  surpriseMeText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  // Bookshelf Library - Full Width Living Design
+  bookshelfContainer: {
+    marginTop: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  booksRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    zIndex: 2,
+  },
+  bookSpinePressable: {
+    flex: 1,
+  },
+  bookSpine: {
+    flex: 1,
+    height: 100,
+    borderRadius: 6,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 8, // Rounded spine edge
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    // Book shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  bookSpineLabel: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  bookSpineCount: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  // 3D Shelf
+  shelfContainer: {
+    marginTop: -4, // Overlap with books
+    zIndex: 1,
+  },
+  shelfTop: {
+    height: 8,
+    borderRadius: 2,
+    marginHorizontal: 8,
+  },
+  shelfFront: {
+    height: 6,
+    marginHorizontal: 8,
+    borderBottomLeftRadius: 3,
+    borderBottomRightRadius: 3,
+  },
+  shelfShadow: {
+    height: 8,
+    marginHorizontal: 16,
+    borderRadius: 4,
+    marginTop: 2,
+  },
+  // Library Section
+  librarySection: {
+    marginBottom: Spacing.lg,
+  },
+  librarySectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  librarySectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+  },
+  librarySeeAll: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  libraryScroll: {
+    gap: 12,
+  },
+  libraryCard: {
+    width: 140,
+    padding: 14,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    borderWidth: 0.5,
+    gap: 6,
+  },
+  libraryCardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  libraryCardMeta: {
+    fontSize: 12,
+    fontWeight: '400',
   },
   // Daily goal progress
   dailyGoalRow: {
@@ -2149,55 +2382,51 @@ const styles = StyleSheet.create({
   },
   // Hero "Your Text" card
   heroCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 14,
-    padding: 16,
-    borderRadius: 16,
+    paddingTop: 22,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderRadius: 20,
     borderCurve: 'continuous',
     borderWidth: 1,
-  },
-  heroCardIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    borderCurve: 'continuous',
-    borderWidth: 0.5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  heroCardText: {
-    flex: 1,
-    gap: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
   heroCardTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '700',
+    marginBottom: 2,
   },
   heroCardSubtitle: {
     fontSize: 13,
     fontWeight: '400',
+    marginBottom: 14,
   },
-  heroCardMeta: {
-    fontSize: 12,
-    fontWeight: '400',
-    marginTop: 2,
+  heroActions: {
+    flexDirection: 'row',
+    gap: 10,
+    flexWrap: 'wrap',
   },
-  // Section header
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.8,
-    marginBottom: 10,
-  },
-  // Streak value row with freeze icon
-  streakValueRow: {
+  heroActionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 0.6,
   },
-  freezeIcon: {
-    marginLeft: 4,
+  heroActionPrimary: {
+    borderWidth: 0,
+  },
+  heroActionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   // Combined Activity card
   activityCard: {

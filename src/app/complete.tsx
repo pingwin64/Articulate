@@ -96,8 +96,8 @@ export default function CompleteScreen() {
     setDailyWordGoal,
   } = useSettingsStore();
 
-  // Calibration flow state: null = not in calibration, 'calibration' = asking about vocabulary, 'journey' = journey setup
-  const [calibrationStep, setCalibrationStep] = useState<'calibration' | 'journey' | null>(null);
+  // First reading flow state: 'celebration' = normal completion celebration, 'calibration' = asking about vocabulary, 'journey' = journey setup
+  const [calibrationStep, setCalibrationStep] = useState<'celebration' | 'calibration' | 'journey'>('celebration');
   const [selectedGoal, setSelectedGoal] = useState(dailyWordGoal);
 
   // Handle calibration answer
@@ -383,13 +383,9 @@ export default function CompleteScreen() {
       }
     }, 400);
 
-    // T+1800ms: Calibration (first reading only)
-    const t3 = setTimeout(() => {
-      if (isFirstReading) {
-        setCalibrationStep('calibration');
-        paywallOpacity.value = withTiming(1, { duration: 400 });
-      }
-    }, 1800);
+    // For first reading, we start at celebration (no auto-advance needed)
+    // User manually advances to calibration via "Continue" button
+    const t3: ReturnType<typeof setTimeout> | undefined = undefined;
 
     // T+2000ms: CTAs
     const t4 = setTimeout(() => {
@@ -399,7 +395,7 @@ export default function CompleteScreen() {
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
-      clearTimeout(t3);
+      if (t3) clearTimeout(t3);
       clearTimeout(t4);
     };
   }, [wordsRead, wpm, displayName, params.categoryKey, params.textId, params.customTextId, incrementWordsRead, addDailyWordsRead, resetDailyUploadIfNewDay, incrementTextsCompleted, updateStreak, hapticFeedback, checkScale, checkOpacity, ctaOpacity, paywallOpacity, badgeScale, badgeOpacity, isFirstReading, addReadingHistory, incrementCategoryReadCount, unlockBadge, unlockReward]);
@@ -508,9 +504,9 @@ export default function CompleteScreen() {
       <View style={[styles.container, { backgroundColor: colors.bg }]}>
         <SafeAreaView style={styles.flex}>
           <View style={styles.firstReadingContent}>
-            {/* Phase 1: Calibration */}
-            {calibrationStep !== 'journey' && (
-              <>
+            {/* Phase 1: Celebration (normal completion experience) */}
+            {calibrationStep === 'celebration' && (
+              <Animated.View entering={FadeIn.duration(400)} style={styles.celebrationContainer}>
                 {/* Checkmark */}
                 <Animated.View
                   style={[
@@ -531,10 +527,10 @@ export default function CompleteScreen() {
                   entering={FadeIn.delay(500).duration(300)}
                   style={[styles.firstReadingHeadline, { color: colors.primary }]}
                 >
-                  You just read with{'\n'}complete focus.
+                  Well Done!
                 </Animated.Text>
 
-                {/* Compact Stats */}
+                {/* Stats */}
                 <Animated.Text
                   entering={FadeIn.delay(700).duration(300)}
                   style={[styles.firstReadingStats, { color: colors.secondary }]}
@@ -542,57 +538,134 @@ export default function CompleteScreen() {
                   {wordsRead} words · {timeDisplay}
                 </Animated.Text>
 
-                {/* Calibration Question (appears after delay) */}
-                {calibrationStep === 'calibration' && (
-                  <Animated.View
-                    entering={FadeIn.duration(400)}
-                    style={styles.calibrationContainer}
-                  >
-                    <View style={[styles.calibrationDivider, { backgroundColor: glass.border }]} />
-                    <Text style={[styles.calibrationQuestion, { color: colors.primary }]}>
-                      How was that vocabulary?
-                    </Text>
-                    <View style={styles.calibrationButtons}>
-                      <Pressable
-                        onPress={() => handleCalibrationAnswer('too_easy')}
-                        style={({ pressed }) => [
-                          styles.calibrationButton,
-                          { backgroundColor: glass.fill, borderColor: glass.border, opacity: pressed ? 0.8 : 1 },
-                        ]}
-                      >
-                        <Text style={[styles.calibrationButtonText, { color: colors.primary }]}>
-                          Too Easy
+                {/* Take Quiz (optional) */}
+                <Animated.View entering={FadeIn.delay(900).duration(300)} style={styles.celebrationActions}>
+                  <GlassButton
+                    title="Take Quiz"
+                    variant="outline"
+                    onPress={() => router.push({
+                      pathname: '/quiz',
+                      params: {
+                        ...(params.categoryKey ? { categoryKey: params.categoryKey } : {}),
+                        ...(params.textId ? { textId: params.textId } : {}),
+                      },
+                    })}
+                  />
+                </Animated.View>
+
+                {/* Upgrade Banner (inline, soft CTA) */}
+                {!isPremium && (
+                  <Animated.View entering={FadeIn.delay(1100).duration(300)}>
+                    <Pressable
+                      onPress={() => setPaywallContext('post_onboarding')}
+                      style={({ pressed }) => [
+                        styles.upgradeBanner,
+                        {
+                          backgroundColor: glass.fill,
+                          borderColor: glass.border,
+                          opacity: pressed ? 0.8 : 1,
+                        },
+                      ]}
+                    >
+                      <Feather name="zap" size={18} color={colors.primary} />
+                      <View style={styles.upgradeBannerText}>
+                        <Text style={[styles.upgradeBannerTitle, { color: colors.primary }]}>
+                          Upgrade to Pro
                         </Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => handleCalibrationAnswer('just_right')}
-                        style={({ pressed }) => [
-                          styles.calibrationButton,
-                          { backgroundColor: glass.fill, borderColor: glass.border, opacity: pressed ? 0.8 : 1 },
-                        ]}
-                      >
-                        <Text style={[styles.calibrationButtonText, { color: colors.primary }]}>
-                          Just Right
+                        <Text style={[styles.upgradeBannerSubtitle, { color: colors.secondary }]}>
+                          Unlock all colors, fonts & features
                         </Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => handleCalibrationAnswer('challenging')}
-                        style={({ pressed }) => [
-                          styles.calibrationButton,
-                          { backgroundColor: glass.fill, borderColor: glass.border, opacity: pressed ? 0.8 : 1 },
-                        ]}
-                      >
-                        <Text style={[styles.calibrationButtonText, { color: colors.primary }]}>
-                          Challenging
-                        </Text>
-                      </Pressable>
-                    </View>
+                      </View>
+                      <Feather name="chevron-right" size={18} color={colors.muted} />
+                    </Pressable>
                   </Animated.View>
                 )}
-              </>
+
+                {/* Continue to calibration */}
+                <Animated.View entering={FadeIn.delay(1300).duration(300)} style={styles.celebrationContinue}>
+                  <GlassButton
+                    title="Continue"
+                    onPress={() => setCalibrationStep('calibration')}
+                  />
+                </Animated.View>
+              </Animated.View>
             )}
 
-            {/* Phase 2: Journey Setup */}
+            {/* Phase 2: Calibration */}
+            {calibrationStep === 'calibration' && (
+              <Animated.View entering={FadeIn.duration(400)} style={styles.calibrationFullContainer}>
+                {/* Checkmark */}
+                <Animated.View
+                  style={[
+                    styles.checkCircle,
+                    {
+                      backgroundColor: glass.fill,
+                      borderColor: glass.border,
+                      shadowOpacity: glass.shadowOpacity,
+                      transform: [{ scale: 1 }],
+                      opacity: 1,
+                    },
+                  ]}
+                >
+                  <Feather name="check" size={32} color={colors.primary} />
+                </Animated.View>
+
+                {/* Headline */}
+                <Text style={[styles.firstReadingHeadline, { color: colors.primary }]}>
+                  You just read with{'\n'}complete focus.
+                </Text>
+
+                {/* Compact Stats */}
+                <Text style={[styles.firstReadingStats, { color: colors.secondary }]}>
+                  {wordsRead} words · {timeDisplay}
+                </Text>
+
+                {/* Calibration Question */}
+                <View style={styles.calibrationContainer}>
+                  <View style={[styles.calibrationDivider, { backgroundColor: glass.border }]} />
+                  <Text style={[styles.calibrationQuestion, { color: colors.primary }]}>
+                    How was that vocabulary?
+                  </Text>
+                  <View style={styles.calibrationButtons}>
+                    <Pressable
+                      onPress={() => handleCalibrationAnswer('too_easy')}
+                      style={({ pressed }) => [
+                        styles.calibrationButton,
+                        { backgroundColor: glass.fill, borderColor: glass.border, opacity: pressed ? 0.8 : 1 },
+                      ]}
+                    >
+                      <Text style={[styles.calibrationButtonText, { color: colors.primary }]}>
+                        Too Easy
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => handleCalibrationAnswer('just_right')}
+                      style={({ pressed }) => [
+                        styles.calibrationButton,
+                        { backgroundColor: glass.fill, borderColor: glass.border, opacity: pressed ? 0.8 : 1 },
+                      ]}
+                    >
+                      <Text style={[styles.calibrationButtonText, { color: colors.primary }]}>
+                        Just Right
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => handleCalibrationAnswer('challenging')}
+                      style={({ pressed }) => [
+                        styles.calibrationButton,
+                        { backgroundColor: glass.fill, borderColor: glass.border, opacity: pressed ? 0.8 : 1 },
+                      ]}
+                    >
+                      <Text style={[styles.calibrationButtonText, { color: colors.primary }]}>
+                        Challenging
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </Animated.View>
+            )}
+
+            {/* Phase 3: Journey Setup */}
             {calibrationStep === 'journey' && (
               <Animated.View entering={FadeIn.duration(400)} style={styles.journeyContainer}>
                 <Text style={[styles.journeyHeadline, { color: colors.primary }]}>
@@ -655,6 +728,13 @@ export default function CompleteScreen() {
             )}
           </View>
         </SafeAreaView>
+
+        {/* Paywall modal (for upgrade banner tap) */}
+        <Paywall
+          visible={showPaywall}
+          onDismiss={() => setPaywallContext(null)}
+          context={paywallContext}
+        />
       </View>
     );
   }
@@ -939,11 +1019,7 @@ export default function CompleteScreen() {
             <View style={[styles.actionDivider, { backgroundColor: colors.muted + '30' }]} />
             <Pressable
               onPress={() => {
-                if (!isPremium) {
-                  setPaywallContext('locked_word_bank');
-                  return;
-                }
-                router.push('/word-bank');
+                router.push({ pathname: '/library', params: { tab: 'words' } });
               }}
               style={({ pressed }) => [
                 styles.secondaryButton,
@@ -1375,5 +1451,51 @@ const styles = StyleSheet.create({
   journeyCta: {
     width: '100%',
     marginTop: 24,
+  },
+  // Celebration phase styles
+  celebrationContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    gap: 16,
+  },
+  celebrationActions: {
+    width: '100%',
+    marginTop: 16,
+  },
+  celebrationContinue: {
+    width: '100%',
+    marginTop: 8,
+  },
+  // Upgrade banner (inline soft CTA)
+  upgradeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    marginTop: 16,
+    gap: 12,
+    width: '100%',
+  },
+  upgradeBannerText: {
+    flex: 1,
+    gap: 2,
+  },
+  upgradeBannerTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  upgradeBannerSubtitle: {
+    fontSize: 13,
+    fontWeight: '400',
+  },
+  // Calibration full container (for phase 2)
+  calibrationFullContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
   },
 });

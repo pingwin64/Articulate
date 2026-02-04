@@ -32,7 +32,7 @@ const URL_REGEX = /^https?:\/\/[^\s]+$/;
 export default function PasteScreen() {
   const { colors, glass, isDark } = useTheme();
   const router = useRouter();
-  const params = useLocalSearchParams<{ editTextId?: string }>();
+  const params = useLocalSearchParams<{ editTextId?: string; action?: string }>();
   const {
     addCustomText, hapticFeedback, isPremium, customTexts, updateCustomText, removeCustomText,
     setPaywallContext, showPaywall, paywallContext,
@@ -313,6 +313,24 @@ export default function PasteScreen() {
       { text: 'Cancel', style: 'cancel' },
     ]);
   }, [handleScanText]);
+
+  // Deep link actions from home hero buttons
+  useEffect(() => {
+    if (editingText) return;
+    const action = typeof params.action === 'string' ? params.action : undefined;
+    if (!action) return;
+    if (action === 'scan') {
+      handleScanPrompt();
+      return;
+    }
+    if (action === 'import') {
+      handleImportFile();
+      return;
+    }
+    if (action === 'paste') {
+      setTimeout(() => textInputRef.current?.focus(), 50);
+    }
+  }, [params.action, editingText, handleScanPrompt, handleImportFile]);
 
   const handleClose = () => {
     router.back();

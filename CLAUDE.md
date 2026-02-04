@@ -1,5 +1,18 @@
 # Articulate - Project Guidelines
 
+## 🚨 ABSOLUTE FORBIDDEN: NEVER TOUCH NUMU-APP
+
+**NEVER read, edit, or reference ANY files from:**
+- `/Users/alialfaras/Desktop/numu-app/`
+- `/Users/alialfaras/numu/`
+- Any folder named `numu` or `numu-app`
+
+**Numu is a completely separate Emirati Arabic learning app.** It has NOTHING to do with Articulate. If you see references to landmarks, Arabic phrases, lessons, Emirati dialect, or falcons — STOP IMMEDIATELY. You are looking at the wrong project.
+
+**This project is ONLY:** `/Users/alialfaras/Desktop/Articulate/`
+
+---
+
 ## Project Overview
 
 Articulate is a minimalist iOS reading app (Expo SDK 55 + React Native 0.83) that displays one word at a time. Design philosophy: **liquid glass minimalism** — clean, subtle, no garish colors or heavy UI elements.
@@ -13,6 +26,34 @@ Articulate is a minimalist iOS reading app (Expo SDK 55 + React Native 0.83) tha
 - **Zustand 5** + **MMKV** (state management + persistence)
 - **RevenueCat** (subscriptions)
 - **TypeScript strict mode**
+- **Supabase** (Edge Functions for OpenAI proxy)
+
+## ⚠️ CRITICAL: Supabase Project Configuration
+
+**Articulate uses ONLY this Supabase project:**
+- **Project Ref:** `mgwkhxlhhrvjgixptcnu`
+- **URL:** `https://mgwkhxlhhrvjgixptcnu.supabase.co`
+- **MCP URL:** `https://mcp.supabase.com/mcp?project_ref=mgwkhxlhhrvjgixptcnu`
+
+**NEVER use project `jvqmniqdljdqkssekzzr`** — that is a completely different app (Emirati Arabic learning). If you see tables like `profiles`, `landmarks_progress`, `lessons_history`, `emirati_embeddings`, you are connected to the WRONG project.
+
+**Correct Articulate tables:** None yet (app uses local MMKV storage). Edge functions only.
+
+**Edge Function:** `openai-proxy` — handles quiz generation, PDF parsing, image scanning, and AI text generation.
+
+**How to verify and fix MCP connection:**
+1. In Claude Code, use `mcp__supabase__get_project_url` — should return `https://mgwkhxlhhrvjgixptcnu.supabase.co`
+2. If it returns `jvqmniqdljdqkssekzzr`, the session is using the wrong cached credentials
+3. To fix: Exit Claude Code, run `claude /mcp`, select "supabase", re-authenticate, then restart
+
+**Red flags you're on the wrong project:**
+- Tables named: `profiles`, `landmarks_progress`, `lessons_history`, `emirati_embeddings`, `fix_list`, `chat_history`
+- Edge functions: `text-to-speech`, `chat-completion`, `speech-to-text`, `embeddings`, `pronunciation-dict`
+- Any reference to Arabic, Emirati, landmarks, or lessons
+
+**Correct Articulate setup:**
+- No database tables (uses local MMKV only)
+- One edge function: `openai-proxy`
 
 ## Directory Structure
 
