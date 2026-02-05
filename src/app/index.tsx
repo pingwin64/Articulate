@@ -41,11 +41,13 @@ import { PageDots } from '../components/PageDots';
 import { TimeGreeting } from '../components/TimeGreeting';
 import { ResumeCard } from '../components/ResumeCard';
 import { Paywall } from '../components/Paywall';
+import { OnboardingPaywall } from '../components/OnboardingPaywall';
 import {
   Spacing,
   Springs,
   FontFamilies,
   WordColors,
+  BackgroundThemes,
   Radius,
 } from '../design/theme';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
@@ -292,7 +294,7 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
 
 function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
   const { colors, isDark, glass } = useTheme();
-  const { fontFamily, setFontFamily, wordColor, setWordColor, isPremium, setPaywallContext } = useSettingsStore();
+  const { fontFamily, setFontFamily, wordColor, setWordColor, backgroundTheme, setBackgroundTheme } = useSettingsStore();
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
 
   const previewScale = useSharedValue(1);
@@ -321,12 +323,30 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
     animatePreview();
   }, [hapticEnabled, setWordColor, animatePreview]);
 
+  // Background selection handler
+  const handleBackgroundSelect = useCallback((key: string) => {
+    if (hapticEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setBackgroundTheme(key);
+    animatePreview();
+  }, [hapticEnabled, setBackgroundTheme, animatePreview]);
+
   const previewStyle = useAnimatedStyle(() => ({
     transform: [{ scale: previewScale.value }],
   }));
 
   const fontConfig = FontFamilies[fontFamily];
   const previewColor = WordColors.find(c => c.key === wordColor)?.color ?? colors.primary;
+
+  // Get background color for preview
+  const selectedBgTheme = BackgroundThemes.find(t => t.key === backgroundTheme);
+  const previewBgColor = selectedBgTheme
+    ? (isDark ? selectedBgTheme.dark : selectedBgTheme.light)
+    : colors.bg;
+
+  // Filter background themes for onboarding (exclude reward-locked ones)
+  const onboardingBackgrounds = BackgroundThemes.filter(t => !t.rewardId);
 
   return (
     <View style={styles.onboardingPage}>
@@ -344,7 +364,7 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
           The right font and color keep you coming back.
         </Animated.Text>
 
-        <View style={styles.previewArea}>
+        <View style={[styles.previewArea, { backgroundColor: previewBgColor, borderRadius: Radius.lg }]}>
           <Animated.Text
             style={[
               styles.previewWord,
@@ -405,13 +425,45 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
             </Text>
           </View>
           <View style={styles.colorSwatches}>
-            {WordColors.slice(0, 6).map((colorOption) => {
+            {WordColors.filter(c => !c.rewardId).map((colorOption) => {
               const isSelected = wordColor === colorOption.key;
               const swatchColor = colorOption.color ?? colors.primary;
               return (
                 <Pressable
                   key={colorOption.key}
                   onPress={() => handleColorSelect(colorOption.key)}
+                  style={[
+                    styles.colorSwatch,
+                    {
+                      backgroundColor: swatchColor,
+                      borderColor: isSelected ? colors.primary : glass.border,
+                      borderWidth: isSelected ? 2 : 1,
+                    },
+                  ]}
+                />
+              );
+            })}
+          </View>
+        </Animated.View>
+
+        {/* Background selection */}
+        <Animated.View
+          entering={FadeIn.delay(450).duration(400)}
+          style={styles.colorSelectionRow}
+        >
+          <View style={styles.colorLabelRow}>
+            <Text style={[styles.colorLabel, { color: colors.secondary }]}>
+              Background
+            </Text>
+          </View>
+          <View style={styles.colorSwatches}>
+            {onboardingBackgrounds.map((theme) => {
+              const isSelected = backgroundTheme === theme.key;
+              const swatchColor = isDark ? theme.dark : theme.light;
+              return (
+                <Pressable
+                  key={theme.key}
+                  onPress={() => handleBackgroundSelect(theme.key)}
                   style={[
                     styles.colorSwatch,
                     {
@@ -791,24 +843,40 @@ function OnboardingLaunch({ onNext }: { onNext: (categoryKey: string) => void })
 // ─── Onboarding Container ────────────────────────────────────
 
 function Onboarding() {
+  // Debug: Log on mount
+  if (__DEV__) {
+    console.log('[Onboarding] Component mounting, starting at page 0');
+  }
+
   const [page, setPage] = useState(0);
   const router = useRouter();
   const { setReadingLevel, setIsFirstReading } = useSettingsStore();
 
+  // Page 0: Silent Start
   const handleSilentStartDone = useCallback(() => {
     setPage(1);
   }, []);
 
+  // Page 1: Personalize (font/color/bg)
   const handlePersonalizeDone = useCallback(() => {
     setPage(2);
   }, []);
 
+  // Page 2: Category Selection → Navigate to reading
+  // After reading completes, complete.tsx handles: calibration → daily goal → paywall
   const handleLaunch = useCallback((categoryKey: string) => {
-    // Set default level and mark as first reading
-    // hasOnboarded will be set after calibration in complete.tsx
+    if (__DEV__) {
+      console.log('[Onboarding] handleLaunch called with:', categoryKey);
+    }
     setReadingLevel(5);
     setIsFirstReading(true);
     const cat = categories.find((c) => c.key === categoryKey);
+    if (__DEV__) {
+      console.log('[Onboarding] Navigating to /reading with:', {
+        categoryKey,
+        textId: cat?.texts[0]?.id ?? '',
+      });
+    }
     router.replace({
       pathname: '/reading',
       params: { categoryKey, textId: cat?.texts[0]?.id ?? '' },
@@ -1569,33 +1637,43 @@ function Home() {
         <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.bookshelfContainer}>
           {/* Books row - spans full width */}
           <View style={styles.booksRow}>
-            {/* Word Bank - open to all */}
+            {/* Word Bank - Pro only */}
             <BookSpine
               label="Words"
               icon="bookmark"
               color={isDark ? '#2A5A5A' : '#4A9A9A'}
               count={savedWords.length}
+              isLocked={!isPremium}
               index={0}
               onPress={(e) => {
                 e.stopPropagation();
-                router.push('/word-bank');
+                if (!isPremium) {
+                  setPaywallContext('locked_library');
+                } else {
+                  router.push({ pathname: '/library', params: { tab: 'words' } });
+                }
               }}
             />
 
-            {/* Favorites - open to all */}
+            {/* Favorites - Pro only */}
             <BookSpine
               label="Favs"
               icon="heart"
               color={isDark ? '#5A4A4A' : '#9A7A7A'}
               count={favoriteTexts.length}
+              isLocked={!isPremium}
               index={1}
               onPress={(e) => {
                 e.stopPropagation();
-                router.push({ pathname: '/library', params: { tab: 'favorites' } });
+                if (!isPremium) {
+                  setPaywallContext('locked_library');
+                } else {
+                  router.push({ pathname: '/library', params: { tab: 'favorites' } });
+                }
               }}
             />
 
-            {/* My Texts - LOCKED for free users */}
+            {/* My Texts - Pro only */}
             <BookSpine
               label="Texts"
               icon="file-text"
@@ -1606,7 +1684,7 @@ function Home() {
               onPress={(e) => {
                 e.stopPropagation();
                 if (!isPremium) {
-                  setPaywallContext('custom_text_limit');
+                  setPaywallContext('locked_library');
                 } else {
                   router.push({ pathname: '/library', params: { tab: 'texts' } });
                 }
@@ -1622,8 +1700,8 @@ function Home() {
           </View>
         </Animated.View>
 
-        {/* Library Preview */}
-        {(favoriteTexts.length > 0 || customTexts.length > 0) && (
+        {/* Library Preview - Pro only */}
+        {isPremium && (favoriteTexts.length > 0 || customTexts.length > 0) && (
           <View style={styles.librarySection}>
             <View style={styles.librarySectionHeader}>
               <Text style={[styles.librarySectionTitle, { color: colors.secondary }]}>
@@ -1784,6 +1862,11 @@ function Home() {
 export default function IndexScreen() {
   const { hasOnboarded } = useSettingsStore();
   const { colors } = useTheme();
+
+  // Debug logging
+  if (__DEV__) {
+    console.log('[Index] Rendering with hasOnboarded:', hasOnboarded);
+  }
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
@@ -2082,8 +2165,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   headerButton: {
-    width: 40,
-    height: 40,
+    width: 44, // Apple HIG minimum touch target
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -2092,7 +2175,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
   },
   heroSection: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl, // Increased for better visual separation
   },
   // Stats Row (inline, above hero)
   statsRow: {
@@ -2173,8 +2256,8 @@ const styles = StyleSheet.create({
   },
   // Bookshelf Library - Full Width Living Design
   bookshelfContainer: {
-    marginTop: Spacing.md,
-    marginBottom: Spacing.md,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.xl, // Increased for better visual separation
   },
   booksRow: {
     flexDirection: 'row',

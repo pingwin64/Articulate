@@ -52,7 +52,7 @@ export type PaywallContext =
   | 'locked_breathing' | 'locked_tts' | 'locked_quiz'
   | 'locked_daily_upload' | 'locked_scan' | 'streak_save' | 'goal_almost'
   | 'trial_expired' | 'settings_upgrade' | 'locked_insights'
-  | 'locked_level_up' | 'locked_definition' | 'locked_word_bank' | 'generic';
+  | 'locked_level_up' | 'locked_definition' | 'locked_word_bank' | 'locked_library' | 'generic';
 
 export interface SavedWord {
   id: string;
@@ -153,6 +153,7 @@ export interface SettingsState {
 
   // Reading — Adaptive Difficulty (numeric levels)
   readingLevel: number;
+  maxEarnedLevel: number;
   setReadingLevel: (v: number) => void;
   readingLevelTier: string;
   textsCompletedAtLevel: number;
@@ -428,7 +429,13 @@ export const useSettingsStore = create<SettingsState>()(
 
       // Reading — Adaptive Difficulty
       readingLevel: 5,
-      setReadingLevel: (v) => set({ readingLevel: v, readingLevelTier: getTierName(v) }),
+      maxEarnedLevel: 5,
+      setReadingLevel: (v) => {
+        const state = get();
+        // Users can only select levels up to their max earned level
+        const clampedLevel = Math.min(v, state.maxEarnedLevel);
+        set({ readingLevel: clampedLevel, readingLevelTier: getTierName(clampedLevel) });
+      },
       readingLevelTier: 'Intermediate',
       textsCompletedAtLevel: 0,
       recentQuizScoresAtLevel: [],
@@ -453,6 +460,7 @@ export const useSettingsStore = create<SettingsState>()(
         const newLevel = state.readingLevel + 1;
         set({
           readingLevel: newLevel,
+          maxEarnedLevel: Math.max(state.maxEarnedLevel, newLevel),
           readingLevelTier: getTierName(newLevel),
           textsCompletedAtLevel: 0,
           recentQuizScoresAtLevel: [],
@@ -1107,7 +1115,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'articulate-settings',
-      version: 11,
+      version: 12,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -1219,6 +1227,10 @@ export const useSettingsStore = create<SettingsState>()(
         if (version < 11) {
           // v11: add favorite texts (bundled texts saved to library)
           persisted.favoriteTexts = persisted.favoriteTexts ?? [];
+        }
+        if (version < 12) {
+          // v12: add maxEarnedLevel — users can only lower their level, not raise it
+          persisted.maxEarnedLevel = persisted.maxEarnedLevel ?? (persisted.readingLevel ?? 5);
         }
         return persisted;
       },

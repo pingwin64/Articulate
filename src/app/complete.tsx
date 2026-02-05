@@ -11,6 +11,7 @@ import Animated, {
   FadeIn,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { Audio } from 'expo-av';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore, getTierName } from '../lib/store/settings';
@@ -19,6 +20,8 @@ import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { NumberRoll } from '../components/NumberRoll';
 import { Paywall } from '../components/Paywall';
+import { TickerSlider } from '../components/TickerSlider';
+import { OnboardingPaywall } from '../components/OnboardingPaywall';
 import { Spacing } from '../design/theme';
 import { ALL_BADGES, getBadgeById, type Badge } from '../lib/data/badges';
 import { cancelStreakAtRiskReminder } from '../lib/notifications';
@@ -43,6 +46,11 @@ const LEVEL_TITLES: Record<number, string> = {
 };
 
 export default function CompleteScreen() {
+  // Debug: Log on mount
+  if (__DEV__) {
+    console.log('[Complete] Component mounting');
+  }
+
   const { colors, glass } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -52,6 +60,11 @@ export default function CompleteScreen() {
     wordsRead: string;
     timeSpent: string;
   }>();
+
+  // Debug: Log params received
+  if (__DEV__) {
+    console.log('[Complete] Params received:', params);
+  }
 
   const levelUpAvailable = useSettingsStore((s) => s.levelUpAvailable);
   const readingLevel = useSettingsStore((s) => s.readingLevel);
@@ -94,42 +107,66 @@ export default function CompleteScreen() {
     setReadingLevel,
     dailyWordGoal,
     setDailyWordGoal,
+    fontFamily,
+    wordColor,
+    backgroundTheme,
   } = useSettingsStore();
 
-  // First reading flow state: 'celebration' = normal completion celebration, 'calibration' = asking about vocabulary, 'journey' = journey setup
-  const [calibrationStep, setCalibrationStep] = useState<'celebration' | 'calibration' | 'journey'>('celebration');
+  // First reading flow state: 'celebration' = normal completion celebration, 'calibration' = asking about vocabulary, 'journey' = journey setup, 'paywall' = onboarding paywall
+  const [calibrationStep, setCalibrationStep] = useState<'celebration' | 'calibration' | 'journey' | 'paywall'>('celebration');
   const [selectedGoal, setSelectedGoal] = useState(dailyWordGoal);
+  const [calibrationValue, setCalibrationValue] = useState(0.5); // 0 = challenging, 1 = too easy
 
-  // Handle calibration answer
-  const handleCalibrationAnswer = useCallback((answer: 'too_easy' | 'just_right' | 'challenging') => {
+  // Tick sound for goal selection (disabled - sound file not bundled)
+  const tickSoundRef = useRef<Audio.Sound | null>(null);
+
+  const playTickSound = useCallback(async () => {
+    if (tickSoundRef.current) {
+      try {
+        await tickSoundRef.current.setPositionAsync(0);
+        await tickSoundRef.current.playAsync();
+      } catch (e) {
+        // Ignore playback errors
+      }
+    }
     if (hapticFeedback) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    // Set level based on answer
-    switch (answer) {
-      case 'too_easy':
-        setReadingLevel(7); // Advanced
-        break;
-      case 'just_right':
-        setReadingLevel(5); // Intermediate (stays at default)
-        break;
-      case 'challenging':
-        setReadingLevel(3); // Beginner
-        break;
-    }
-    setCalibrationStep('journey');
-  }, [hapticFeedback, setReadingLevel]);
+  }, [hapticFeedback]);
 
-  // Handle journey setup completion
-  const handleStartJourney = useCallback(() => {
+  // Handle calibration slider completion
+  const handleCalibrationComplete = useCallback(() => {
     if (hapticFeedback) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
+    // Map 0-1 to levels 3-7
+    // 0 = Challenging (level 3)
+    // 0.5 = Just Right (level 5)
+    // 1 = Too Easy (level 7)
+    const level = Math.round(3 + calibrationValue * 4);
+    setReadingLevel(level);
+    setCalibrationStep('journey');
+  }, [hapticFeedback, calibrationValue, setReadingLevel]);
+
+  // Handle journey setup completion - show paywall
+  const handleStartJourney = useCallback(() => {
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     setDailyWordGoal(selectedGoal);
+    // Show onboarding paywall for everyone
+    setCalibrationStep('paywall');
+  }, [hapticFeedback, selectedGoal, setDailyWordGoal]);
+
+  // Handle paywall completion (subscribe or continue free)
+  const handlePaywallComplete = useCallback(() => {
+    if (hapticFeedback) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
     setIsFirstReading(false);
     setHasOnboarded(true);
     router.replace('/');
-  }, [hapticFeedback, selectedGoal, setDailyWordGoal, setIsFirstReading, setHasOnboarded, router]);
+  }, [hapticFeedback, setIsFirstReading, setHasOnboarded, router]);
 
   const { customTexts, addFavoriteText, removeFavoriteText, isFavoriteText } = useSettingsStore();
   const customText = params.customTextId
@@ -499,7 +536,25 @@ export default function CompleteScreen() {
   // ============================================
   // FIRST READING: Focused Calibration Layout
   // ============================================
-  if (isFirstReading) {
+  // Defensive: if hasOnboarded is false, treat as first reading
+  const showFirstReadingFlow = isFirstReading || !hasOnboarded;
+
+  // Debug logging
+  if (__DEV__) {
+    console.log('[Complete] State:', {
+      isFirstReading,
+      hasOnboarded,
+      showFirstReadingFlow,
+      calibrationStep,
+      params: {
+        categoryKey: params.categoryKey,
+        textId: params.textId,
+        wordsRead: params.wordsRead,
+      },
+    });
+  }
+
+  if (showFirstReadingFlow) {
     return (
       <View style={[styles.container, { backgroundColor: colors.bg }]}>
         <SafeAreaView style={styles.flex}>
@@ -553,34 +608,6 @@ export default function CompleteScreen() {
                   />
                 </Animated.View>
 
-                {/* Upgrade Banner (inline, soft CTA) */}
-                {!isPremium && (
-                  <Animated.View entering={FadeIn.delay(1100).duration(300)}>
-                    <Pressable
-                      onPress={() => setPaywallContext('post_onboarding')}
-                      style={({ pressed }) => [
-                        styles.upgradeBanner,
-                        {
-                          backgroundColor: glass.fill,
-                          borderColor: glass.border,
-                          opacity: pressed ? 0.8 : 1,
-                        },
-                      ]}
-                    >
-                      <Feather name="zap" size={18} color={colors.primary} />
-                      <View style={styles.upgradeBannerText}>
-                        <Text style={[styles.upgradeBannerTitle, { color: colors.primary }]}>
-                          Upgrade to Pro
-                        </Text>
-                        <Text style={[styles.upgradeBannerSubtitle, { color: colors.secondary }]}>
-                          Unlock all colors, fonts & features
-                        </Text>
-                      </View>
-                      <Feather name="chevron-right" size={18} color={colors.muted} />
-                    </Pressable>
-                  </Animated.View>
-                )}
-
                 {/* Continue to calibration */}
                 <Animated.View entering={FadeIn.delay(1300).duration(300)} style={styles.celebrationContinue}>
                   <GlassButton
@@ -620,47 +647,24 @@ export default function CompleteScreen() {
                   {wordsRead} words · {timeDisplay}
                 </Text>
 
-                {/* Calibration Question */}
+                {/* Calibration Slider */}
                 <View style={styles.calibrationContainer}>
                   <View style={[styles.calibrationDivider, { backgroundColor: glass.border }]} />
                   <Text style={[styles.calibrationQuestion, { color: colors.primary }]}>
                     How was that vocabulary?
                   </Text>
-                  <View style={styles.calibrationButtons}>
-                    <Pressable
-                      onPress={() => handleCalibrationAnswer('too_easy')}
-                      style={({ pressed }) => [
-                        styles.calibrationButton,
-                        { backgroundColor: glass.fill, borderColor: glass.border, opacity: pressed ? 0.8 : 1 },
-                      ]}
-                    >
-                      <Text style={[styles.calibrationButtonText, { color: colors.primary }]}>
-                        Too Easy
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => handleCalibrationAnswer('just_right')}
-                      style={({ pressed }) => [
-                        styles.calibrationButton,
-                        { backgroundColor: glass.fill, borderColor: glass.border, opacity: pressed ? 0.8 : 1 },
-                      ]}
-                    >
-                      <Text style={[styles.calibrationButtonText, { color: colors.primary }]}>
-                        Just Right
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => handleCalibrationAnswer('challenging')}
-                      style={({ pressed }) => [
-                        styles.calibrationButton,
-                        { backgroundColor: glass.fill, borderColor: glass.border, opacity: pressed ? 0.8 : 1 },
-                      ]}
-                    >
-                      <Text style={[styles.calibrationButtonText, { color: colors.primary }]}>
-                        Challenging
-                      </Text>
-                    </Pressable>
+                  <View style={styles.calibrationSliderContainer}>
+                    <TickerSlider
+                      value={calibrationValue}
+                      onValueChange={setCalibrationValue}
+                      leftLabel="Challenging"
+                      rightLabel="Too Easy"
+                    />
                   </View>
+                  <GlassButton
+                    title="Continue"
+                    onPress={handleCalibrationComplete}
+                  />
                 </View>
               </Animated.View>
             )}
@@ -695,9 +699,7 @@ export default function CompleteScreen() {
                     <Pressable
                       key={goal}
                       onPress={() => {
-                        if (hapticFeedback) {
-                          Haptics.selectionAsync();
-                        }
+                        playTickSound();
                         setSelectedGoal(goal);
                       }}
                       style={[
@@ -725,6 +727,19 @@ export default function CompleteScreen() {
                   <GlassButton title="Start Your Journey" onPress={handleStartJourney} />
                 </View>
               </Animated.View>
+            )}
+
+            {/* Phase 4: Onboarding Paywall */}
+            {calibrationStep === 'paywall' && (
+              <OnboardingPaywall
+                fontFamily={fontFamily}
+                wordColor={wordColor}
+                backgroundTheme={backgroundTheme}
+                dailyGoal={selectedGoal}
+                readingLevel={readingLevel}
+                onSubscribe={handlePaywallComplete}
+                onContinueFree={handlePaywallComplete}
+              />
             )}
           </View>
         </SafeAreaView>
@@ -1437,6 +1452,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 32,
     gap: 16,
+    width: '100%',
+  },
+  calibrationSliderContainer: {
+    width: '100%',
+    paddingHorizontal: 16,
+    marginVertical: 8,
   },
   journeyContainer: {
     flex: 1,

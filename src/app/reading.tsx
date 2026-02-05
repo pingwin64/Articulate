@@ -120,6 +120,7 @@ export default function ReadingScreen() {
   const [currentIndex, setCurrentIndex] = React.useState(startIndex);
   const startTimeRef = useRef(Date.now());
   const autoPlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isNavigatingRef = useRef(false); // Guard against multiple navigation calls
 
   const currentWord = words.slice(currentIndex, currentIndex + chunkSize).join(' ');
   const progress = totalWords > 0 ? currentIndex / totalWords : 0;
@@ -149,9 +150,32 @@ export default function ReadingScreen() {
   }, [currentIndex, totalWords, params.categoryKey, params.textId, params.customTextId, setResumeData, wordBankWords]);
 
   const advanceWord = useCallback(() => {
+    // Guard against multiple navigation calls
+    if (isNavigatingRef.current) {
+      if (__DEV__) {
+        console.log('[Reading] Navigation already in progress, skipping');
+      }
+      return;
+    }
+
     if (currentIndex + chunkSize >= totalWords) {
+      // Set guard immediately
+      isNavigatingRef.current = true;
+
       setResumeData(null);
       const elapsed = Math.round((Date.now() - startTimeRef.current) / 1000);
+
+      // Log navigation for debugging
+      if (__DEV__) {
+        console.log('[Reading] Navigating to /complete with params:', {
+          categoryKey: params.categoryKey ?? '',
+          textId: params.textId ?? '',
+          customTextId: params.customTextId ?? '',
+          wordsRead: String(totalWords),
+          timeSpent: String(elapsed),
+        });
+      }
+
       router.replace({
         pathname: '/complete',
         params: {
@@ -170,7 +194,7 @@ export default function ReadingScreen() {
     }
 
     setCurrentIndex((prev) => Math.min(prev + chunkSize, totalWords - 1));
-  }, [currentIndex, totalWords, chunkSize, hapticFeedback, setResumeData, router, params.categoryKey, params.customTextId]);
+  }, [currentIndex, totalWords, chunkSize, hapticFeedback, setResumeData, router, params.categoryKey, params.textId, params.customTextId]);
 
   // Auto-play (only enable after user has completed onboarding)
   useEffect(() => {
@@ -335,6 +359,9 @@ export default function ReadingScreen() {
   };
 
   const handleClose = () => {
+    if (__DEV__) {
+      console.log('[Reading] handleClose called, canGoBack:', router.canGoBack());
+    }
     if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current);
     stopSpeaking();
     if (router.canGoBack()) {
@@ -588,8 +615,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   headerButton: {
-    width: 40,
-    height: 40,
+    width: 44, // Apple HIG minimum touch target
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -681,11 +708,11 @@ const styles = StyleSheet.create({
   },
   definitionClose: {
     position: 'absolute',
-    top: 14,
-    right: 14,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    top: 10,
+    right: 10,
+    width: 44, // Apple HIG minimum touch target
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },

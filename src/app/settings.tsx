@@ -281,7 +281,7 @@ export default function SettingsScreen() {
     wordSize, setWordSize,
     wordBold, setWordBold,
     wordColor, setWordColor,
-    readingLevel, setReadingLevel,
+    readingLevel, maxEarnedLevel, setReadingLevel,
     sentenceRecap, setSentenceRecap,
     hapticFeedback, setHapticFeedback,
     breathingAnimation, setBreathingAnimation,
@@ -313,7 +313,7 @@ export default function SettingsScreen() {
     wordSize: s.wordSize, setWordSize: s.setWordSize,
     wordBold: s.wordBold, setWordBold: s.setWordBold,
     wordColor: s.wordColor, setWordColor: s.setWordColor,
-    readingLevel: s.readingLevel, setReadingLevel: s.setReadingLevel,
+    readingLevel: s.readingLevel, maxEarnedLevel: s.maxEarnedLevel, setReadingLevel: s.setReadingLevel,
     sentenceRecap: s.sentenceRecap, setSentenceRecap: s.setSentenceRecap,
     hapticFeedback: s.hapticFeedback, setHapticFeedback: s.setHapticFeedback,
     breathingAnimation: s.breathingAnimation, setBreathingAnimation: s.setBreathingAnimation,
@@ -527,20 +527,24 @@ export default function SettingsScreen() {
             </GlassCard>
           </Pressable>
 
-          {/* Word Bank Card */}
+          {/* My Library Card */}
           <Pressable onPress={() => {
-            router.push({ pathname: '/library', params: { tab: 'words' } });
+            if (isPremium) {
+              router.push('/library');
+            } else {
+              setPaywallContext('locked_library');
+            }
           }}>
             <GlassCard>
               <View style={styles.achievementsRow}>
                 <View style={styles.achievementsLeft}>
-                  <Feather name="bookmark" size={20} color={colors.primary} />
+                  <Feather name="book" size={20} color={colors.primary} />
                   <View style={styles.achievementsText}>
                     <Text style={[styles.achievementsTitle, { color: colors.primary }]}>
-                      Word Bank
+                      My Library
                     </Text>
                     <Text style={[styles.achievementsSubtitle, { color: colors.muted }]}>
-                      {isPremium ? 'Your saved vocabulary' : 'Save words while reading'}
+                      {isPremium ? 'Favorites, texts & saved words' : 'Your personal collection'}
                     </Text>
                   </View>
                 </View>
@@ -549,6 +553,26 @@ export default function SettingsScreen() {
                 ) : (
                   <Feather name="lock" size={16} color={colors.muted} />
                 )}
+              </View>
+            </GlassCard>
+          </Pressable>
+
+          {/* Get a Free Month - Referral */}
+          <Pressable onPress={() => router.push('/referral')}>
+            <GlassCard>
+              <View style={styles.achievementsRow}>
+                <View style={styles.achievementsLeft}>
+                  <Feather name="gift" size={20} color={colors.primary} />
+                  <View style={styles.achievementsText}>
+                    <Text style={[styles.achievementsTitle, { color: colors.primary }]}>
+                      Get a free month
+                    </Text>
+                    <Text style={[styles.achievementsSubtitle, { color: colors.muted }]}>
+                      Refer friends and earn rewards
+                    </Text>
+                  </View>
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.muted} />
               </View>
             </GlassCard>
           </Pressable>
@@ -860,14 +884,18 @@ export default function SettingsScreen() {
               <GlassSlider
                 value={readingLevel}
                 minimumValue={1}
-                maximumValue={15}
+                maximumValue={maxEarnedLevel}
                 step={1}
                 onValueChange={(v: number) => setReadingLevel(v)}
                 leftLabel="1"
-                rightLabel="15"
+                rightLabel={String(maxEarnedLevel)}
               />
               <Text style={{ fontSize: 12, fontWeight: '400', textAlign: 'center', marginTop: 4, color: colors.muted }}>
-                {textsToNextLevel > 0 ? `${textsCompletedAtLevel}/8 texts to next level` : 'Level up available!'}
+                {readingLevel < maxEarnedLevel
+                  ? 'Reading easier content'
+                  : textsToNextLevel > 0
+                    ? `${textsCompletedAtLevel}/8 texts to next level`
+                    : 'Level up available!'}
               </Text>
             </View>
             <View style={[styles.separator, { backgroundColor: glass.border }]} />
