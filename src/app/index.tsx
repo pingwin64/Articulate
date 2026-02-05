@@ -912,7 +912,7 @@ function Onboarding() {
 
   const [page, setPage] = useState(0);
   const router = useRouter();
-  const { setReadingLevel, setIsFirstReading } = useSettingsStore();
+  const { setIsFirstReading } = useSettingsStore();
 
   // Page 0: Silent Start
   const handleSilentStartDone = useCallback(() => {
@@ -925,12 +925,11 @@ function Onboarding() {
   }, []);
 
   // Page 2: Category Selection → Navigate to reading
-  // After reading completes, complete.tsx handles: calibration → daily goal → paywall
+  // After reading completes, complete.tsx handles: daily goal → paywall
   const handleLaunch = useCallback((categoryKey: string) => {
     if (__DEV__) {
       console.log('[Onboarding] handleLaunch called with:', categoryKey);
     }
-    setReadingLevel(5);
     setIsFirstReading(true);
     const cat = categories.find((c) => c.key === categoryKey);
     if (__DEV__) {
@@ -943,7 +942,7 @@ function Onboarding() {
       pathname: '/reading',
       params: { categoryKey, textId: cat?.texts[0]?.id ?? '' },
     });
-  }, [setReadingLevel, setIsFirstReading, router]);
+  }, [setIsFirstReading, router]);
 
   return (
     <SafeAreaView style={styles.flex}>

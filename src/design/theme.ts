@@ -74,7 +74,7 @@ export const BackgroundThemes: BackgroundTheme[] = [
   { key: 'legendary', label: 'Legendary', light: '#1A0A2E', dark: '#1A0A2E', darkOnly: true, rewardId: 'streak-365-theme' },
   // Reward themes - unlocked via non-streak achievements
   { key: 'ember', label: 'Ember', light: '#1C1210', dark: '#1C1210', darkOnly: true, rewardId: 'words-50k-theme' },
-  { key: 'verdant', label: 'Verdant', light: '#0B1A0F', dark: '#0B1A0F', darkOnly: true, rewardId: 'category-master-theme' },
+  { key: 'master', label: 'Master', light: '#0F1419', dark: '#0F1419', darkOnly: true, rewardId: 'master-theme' },
 ];
 
 export const FontFamilies = {

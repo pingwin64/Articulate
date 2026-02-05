@@ -23,26 +23,42 @@ const mmkvStorage = {
 export type TTSSpeed = 'slow' | 'normal' | 'fast';
 export type VoiceGender = 'male' | 'female';
 
-// Legacy type kept for backward compatibility during migration
-export type ReadingLevel = 'beginner' | 'intermediate' | 'advanced';
+// New 5-level system thresholds (words)
+export const LEVEL_THRESHOLDS = [0, 1000, 4000, 8000, 15000];
+export const LEVEL_NAMES = ['Beginner', 'Intermediate', 'Advanced', 'Expert', 'Master'] as const;
+export type LevelName = typeof LEVEL_NAMES[number];
 
-// Tier names for the numeric level system
-export function getTierName(level: number): string {
-  if (level <= 3) return 'Beginner';
-  if (level <= 6) return 'Intermediate';
-  if (level <= 9) return 'Advanced';
-  if (level <= 12) return 'Expert';
-  if (level <= 15) return 'Master';
-  return 'Scholar';
+// Compute current level from levelProgress (1-5)
+export function getCurrentLevel(levelProgress: number): number {
+  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (levelProgress >= LEVEL_THRESHOLDS[i]) return i + 1;
+  }
+  return 1;
 }
 
-export function getTierKey(level: number): string {
-  if (level <= 3) return 'beginner';
-  if (level <= 6) return 'intermediate';
-  if (level <= 9) return 'advanced';
-  if (level <= 12) return 'expert';
-  if (level <= 15) return 'master';
-  return 'scholar';
+// Get level name from levelProgress
+export function getLevelName(levelProgress: number): LevelName {
+  const level = getCurrentLevel(levelProgress);
+  return LEVEL_NAMES[level - 1];
+}
+
+// Get progress toward next level (0-100)
+export function getProgressToNextLevel(levelProgress: number): number {
+  const level = getCurrentLevel(levelProgress);
+  if (level >= 5) return 100; // Mastery achieved
+  const currentThreshold = LEVEL_THRESHOLDS[level - 1];
+  const nextThreshold = LEVEL_THRESHOLDS[level];
+  const progressInLevel = levelProgress - currentThreshold;
+  const levelRange = nextThreshold - currentThreshold;
+  return Math.min(100, Math.round((progressInLevel / levelRange) * 100));
+}
+
+// Get words needed for next level
+export function getWordsToNextLevel(levelProgress: number): number {
+  const level = getCurrentLevel(levelProgress);
+  if (level >= 5) return 0; // Mastery achieved
+  const nextThreshold = LEVEL_THRESHOLDS[level];
+  return nextThreshold - levelProgress;
 }
 
 export type PaywallContext =
@@ -151,17 +167,10 @@ export interface SettingsState {
   wordColor: WordColorKey;
   setWordColor: (v: WordColorKey) => void;
 
-  // Reading — Adaptive Difficulty (numeric levels)
-  readingLevel: number;
-  maxEarnedLevel: number;
-  setReadingLevel: (v: number) => void;
-  readingLevelTier: string;
-  textsCompletedAtLevel: number;
-  recentQuizScoresAtLevel: number[];
-  levelUpAvailable: boolean;
-  checkLevelUpEligibility: () => void;
-  acceptLevelUp: () => void;
-  dismissLevelUp: () => void;
+  // Reading — Level Progress (new 5-level system)
+  levelProgress: number;
+  addLevelProgress: (words: number) => void;
+  addQuizProgress: (scorePercent: number) => void;
   sentenceRecap: boolean;
   setSentenceRecap: (v: boolean) => void;
   hapticFeedback: boolean;
@@ -427,47 +436,59 @@ export const useSettingsStore = create<SettingsState>()(
       wordColor: 'default',
       setWordColor: (v) => set({ wordColor: v }),
 
-      // Reading — Adaptive Difficulty
-      readingLevel: 5,
-      maxEarnedLevel: 5,
-      setReadingLevel: (v) => {
+      // Reading — Level Progress (new 5-level system)
+      levelProgress: 0,
+      addLevelProgress: (words) => {
         const state = get();
-        // Users can only select levels up to their max earned level
-        const clampedLevel = Math.min(v, state.maxEarnedLevel);
-        set({ readingLevel: clampedLevel, readingLevelTier: getTierName(clampedLevel) });
-      },
-      readingLevelTier: 'Intermediate',
-      textsCompletedAtLevel: 0,
-      recentQuizScoresAtLevel: [],
-      levelUpAvailable: false,
-      checkLevelUpEligibility: () => {
-        const state = get();
-        const textsNeeded = 8;
-        const minQuizzes = 3;
-        const minAvgScore = 70;
-        const hasVolume = state.textsCompletedAtLevel >= textsNeeded;
-        const scores = state.recentQuizScoresAtLevel;
-        const recentScores = scores.slice(-minQuizzes);
-        const hasComprehension = recentScores.length >= minQuizzes
-          && (recentScores.reduce((a, b) => a + b, 0) / recentScores.length) >= minAvgScore;
-        const isReady = hasVolume && hasComprehension;
-        if (isReady !== state.levelUpAvailable) {
-          set({ levelUpAvailable: isReady });
+        const oldLevel = getCurrentLevel(state.levelProgress);
+        const newProgress = state.levelProgress + words;
+        const newLevel = getCurrentLevel(newProgress);
+
+        set({ levelProgress: newProgress });
+
+        // Check for level-up badges
+        if (newLevel > oldLevel) {
+          const unlockBadge = get().unlockBadge;
+          if (newLevel >= 2) unlockBadge('reached-intermediate');
+          if (newLevel >= 3) unlockBadge('reached-advanced');
+          if (newLevel >= 4) unlockBadge('reached-expert');
+          if (newLevel >= 5) unlockBadge('reached-master');
+        }
+
+        // 50K words milestone: award 3-day Pro trial
+        // Note: totalWordsRead was already updated by incrementWordsRead before this runs
+        // So we check if it JUST crossed 50K (was below before adding these words)
+        // Badge ('words-50k') is unlocked separately via complete.tsx checkBadges
+        const prevTotalWords = state.totalWordsRead - words;
+        if (prevTotalWords < 50000 && state.totalWordsRead >= 50000) {
+          const currentState = get();
+          if (!currentState.isPremium && !currentState.trialActive) {
+            get().startTrial();
+          }
         }
       },
-      acceptLevelUp: () => {
+      addQuizProgress: (scorePercent) => {
+        // Quiz bonus: 100 base + 25 for 80%+ + 25 for 100%
+        let bonus = 100;
+        if (scorePercent >= 80) bonus += 25;
+        if (scorePercent === 100) bonus += 25;
+
         const state = get();
-        const newLevel = state.readingLevel + 1;
-        set({
-          readingLevel: newLevel,
-          maxEarnedLevel: Math.max(state.maxEarnedLevel, newLevel),
-          readingLevelTier: getTierName(newLevel),
-          textsCompletedAtLevel: 0,
-          recentQuizScoresAtLevel: [],
-          levelUpAvailable: false,
-        });
+        const oldLevel = getCurrentLevel(state.levelProgress);
+        const newProgress = state.levelProgress + bonus;
+        const newLevel = getCurrentLevel(newProgress);
+
+        set({ levelProgress: newProgress });
+
+        // Check for level-up badges
+        if (newLevel > oldLevel) {
+          const unlockBadge = get().unlockBadge;
+          if (newLevel >= 2) unlockBadge('reached-intermediate');
+          if (newLevel >= 3) unlockBadge('reached-advanced');
+          if (newLevel >= 4) unlockBadge('reached-expert');
+          if (newLevel >= 5) unlockBadge('reached-master');
+        }
       },
-      dismissLevelUp: () => set({ levelUpAvailable: false }),
       sentenceRecap: false,
       setSentenceRecap: (v) => set({ sentenceRecap: v }),
       hapticFeedback: true,
@@ -1040,11 +1061,7 @@ export const useSettingsStore = create<SettingsState>()(
         wordSize: 48,
         wordBold: false,
         wordColor: 'default',
-        readingLevel: 5,
-        readingLevelTier: 'Intermediate',
-        textsCompletedAtLevel: 0,
-        recentQuizScoresAtLevel: [],
-        levelUpAvailable: false,
+        levelProgress: 0,
         sentenceRecap: false,
         hapticFeedback: true,
         breathingAnimation: true,
@@ -1115,7 +1132,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'articulate-settings',
-      version: 12,
+      version: 13,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -1231,6 +1248,14 @@ export const useSettingsStore = create<SettingsState>()(
         if (version < 12) {
           // v12: add maxEarnedLevel — users can only lower their level, not raise it
           persisted.maxEarnedLevel = persisted.maxEarnedLevel ?? (persisted.readingLevel ?? 5);
+        }
+        if (version < 13) {
+          // v13: New 5-level system
+          // Initialize levelProgress from existing totalWordsRead
+          persisted.levelProgress = persisted.totalWordsRead ?? 0;
+          // Old level fields are deprecated but kept for reference (will be ignored)
+          // readingLevel, maxEarnedLevel, readingLevelTier, textsCompletedAtLevel,
+          // recentQuizScoresAtLevel, levelUpAvailable
         }
         return persisted;
       },

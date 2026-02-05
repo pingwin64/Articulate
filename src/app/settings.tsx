@@ -42,7 +42,7 @@ import {
 } from '../design/theme';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
 import type { TTSSpeed, PaywallContext, VoiceGender } from '../lib/store/settings';
-import { getTierName } from '../lib/store/settings';
+import { getLevelName } from '../lib/store/settings';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   requestNotificationPermissions,
@@ -281,7 +281,7 @@ export default function SettingsScreen() {
     wordSize, setWordSize,
     wordBold, setWordBold,
     wordColor, setWordColor,
-    readingLevel, maxEarnedLevel, setReadingLevel,
+    levelProgress,
     sentenceRecap, setSentenceRecap,
     hapticFeedback, setHapticFeedback,
     breathingAnimation, setBreathingAnimation,
@@ -313,7 +313,7 @@ export default function SettingsScreen() {
     wordSize: s.wordSize, setWordSize: s.setWordSize,
     wordBold: s.wordBold, setWordBold: s.setWordBold,
     wordColor: s.wordColor, setWordColor: s.setWordColor,
-    readingLevel: s.readingLevel, maxEarnedLevel: s.maxEarnedLevel, setReadingLevel: s.setReadingLevel,
+    levelProgress: s.levelProgress,
     sentenceRecap: s.sentenceRecap, setSentenceRecap: s.setSentenceRecap,
     hapticFeedback: s.hapticFeedback, setHapticFeedback: s.setHapticFeedback,
     breathingAnimation: s.breathingAnimation, setBreathingAnimation: s.setBreathingAnimation,
@@ -435,7 +435,7 @@ export default function SettingsScreen() {
 
   const reminderTimeLabel = `${String(reminderHour).padStart(2, '0')}:${String(reminderMinute).padStart(2, '0')}`;
 
-  const readingLevelLabel = getTierName(readingLevel);
+  const readingLevelLabel = getLevelName(levelProgress);
 
   const formatNumber = (n: number) =>
     n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
@@ -454,9 +454,6 @@ export default function SettingsScreen() {
 
   const themeModes = ['Light', 'Dark', 'System'];
   const themeIndex = themeMode === 'dark' ? 1 : themeMode === 'system' ? 2 : 0;
-
-  const textsCompletedAtLevel = useSettingsStore((s) => s.textsCompletedAtLevel);
-  const textsToNextLevel = Math.max(0, 8 - textsCompletedAtLevel);
 
   const ttsSpeeds: TTSSpeed[] = ['slow', 'normal', 'fast'];
   const ttsLabels = ['Slow', 'Normal', 'Fast'];

@@ -5,58 +5,29 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
+import {
+  getCurrentLevel,
+  getLevelName,
+  getProgressToNextLevel,
+  getWordsToNextLevel,
+  LEVEL_NAMES,
+} from '../lib/store/settings';
 import { GlassCard } from './GlassCard';
-
-// Level titles (more evocative than tier names)
-const LEVEL_TITLES: Record<number, string> = {
-  1: 'Wanderer',
-  2: 'Seeker',
-  3: 'Reader',
-  4: 'Scholar',
-  5: 'Adept',
-  6: 'Explorer',
-  7: 'Sage',
-  8: 'Luminary',
-  9: 'Virtuoso',
-  10: 'Master',
-  11: 'Grandmaster',
-  12: 'Archon',
-  13: 'Ascendant',
-  14: 'Paragon',
-  15: 'Transcendent',
-};
-
-// Roman numerals for level display
-const ROMAN_NUMERALS: Record<number, string> = {
-  1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V',
-  6: 'VI', 7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X',
-  11: 'XI', 12: 'XII', 13: 'XIII', 14: 'XIV', 15: 'XV',
-};
-
-function toRomanNumeral(num: number): string {
-  if (num <= 15) return ROMAN_NUMERALS[num] ?? String(num);
-  // For levels beyond 15, use XV+ format
-  return `XV+${num - 15}`;
-}
-
-function getLevelTitle(level: number): string {
-  if (level > 15) return `Legendary ${level - 15}`;
-  return LEVEL_TITLES[level] ?? `Level ${level}`;
-}
 
 export function LevelProgress() {
   const { colors, glass, isDark } = useTheme();
   const router = useRouter();
 
-  const readingLevel = useSettingsStore((s) => s.readingLevel);
-  const textsCompletedAtLevel = useSettingsStore((s) => s.textsCompletedAtLevel);
+  const levelProgress = useSettingsStore((s) => s.levelProgress);
 
-  const textsRequired = 8;
-  const progressPercent = Math.min(100, (textsCompletedAtLevel / textsRequired) * 100);
-  const textsRemaining = Math.max(0, textsRequired - textsCompletedAtLevel);
+  const currentLevel = getCurrentLevel(levelProgress);
+  const levelName = getLevelName(levelProgress);
+  const progressPercent = getProgressToNextLevel(levelProgress);
+  const wordsToNext = getWordsToNextLevel(levelProgress);
+  const isMaster = currentLevel >= 5;
 
-  const levelTitle = getLevelTitle(readingLevel);
-  const nextLevelTitle = getLevelTitle(readingLevel + 1);
+  // Next level name for display
+  const nextLevelName = currentLevel < 5 ? LEVEL_NAMES[currentLevel] : null;
 
   return (
     <Animated.View entering={FadeIn.delay(50).duration(400)}>
@@ -73,7 +44,7 @@ export function LevelProgress() {
             ]}
           >
             <Text style={[styles.levelNumber, { color: colors.primary }]}>
-              {toRomanNumeral(readingLevel)}
+              {currentLevel}
             </Text>
           </View>
 
@@ -81,7 +52,7 @@ export function LevelProgress() {
           <View style={styles.progressInfo}>
             <View style={styles.levelHeader}>
               <Text style={[styles.levelTitle, { color: colors.primary }]}>
-                Level {readingLevel} · {levelTitle}
+                {levelName}
               </Text>
               <Feather name="chevron-right" size={16} color={colors.muted} />
             </View>
@@ -106,9 +77,9 @@ export function LevelProgress() {
 
             {/* Progress text */}
             <Text style={[styles.progressText, { color: colors.muted }]}>
-              {textsRemaining > 0
-                ? `${textsRemaining} ${textsRemaining === 1 ? 'text' : 'texts'} to ${nextLevelTitle}`
-                : 'Complete quizzes to level up'}
+              {isMaster
+                ? 'Mastery Achieved'
+                : `${wordsToNext.toLocaleString()} words to ${nextLevelName}`}
             </Text>
           </View>
         </View>
@@ -133,7 +104,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   levelNumber: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
   },
   progressInfo: {

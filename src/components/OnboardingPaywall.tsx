@@ -39,7 +39,6 @@ interface OnboardingPaywallProps {
   wordColor: WordColorKey;
   backgroundTheme: string;
   dailyGoal: number;
-  readingLevel: number;
   variant?: OnboardingPaywallVariant;
   onSubscribe: () => void;
   onContinueFree: () => void;
@@ -65,7 +64,6 @@ export function OnboardingPaywall({
   wordColor,
   backgroundTheme,
   dailyGoal,
-  readingLevel,
   variant: propVariant,
   onSubscribe,
   onContinueFree,
@@ -272,8 +270,8 @@ export function OnboardingPaywall({
         </View>
         <View style={[styles.statCard, { backgroundColor: glass.fill, borderColor: glass.border }]}>
           <Feather name="trending-up" size={24} color={colors.primary} />
-          <Text style={[styles.statValue, { color: colors.primary }]}>Level {readingLevel}</Text>
-          <Text style={[styles.statLabel, { color: colors.secondary }]}>starting</Text>
+          <Text style={[styles.statValue, { color: colors.primary }]}>Beginner</Text>
+          <Text style={[styles.statLabel, { color: colors.secondary }]}>starting level</Text>
         </View>
       </Animated.View>
     </>

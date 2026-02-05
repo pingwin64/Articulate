@@ -277,53 +277,48 @@ const QUIZ_BADGES: Badge[] = [
   },
 ];
 
-// Level badges (4) - progression milestones
+// Level badges (4) - new 5-level system milestones
 const LEVEL_BADGES: Badge[] = [
   {
-    id: 'level-5',
-    name: 'Rising Reader',
-    description: 'Reach Level 5',
+    id: 'reached-intermediate',
+    name: 'Intermediate',
+    description: 'Reach Level 2 (1,000 words)',
     category: 'special',
     tier: 'bronze',
     icon: 'trending-up',
-    threshold: 5,
+    threshold: 1000,
   },
   {
-    id: 'level-10',
-    name: 'Vocabulary Builder',
-    description: 'Reach Level 10',
+    id: 'reached-advanced',
+    name: 'Advanced',
+    description: 'Reach Level 3 (4,000 words)',
     category: 'special',
     tier: 'silver',
     icon: 'bar-chart-2',
-    threshold: 10,
-    reward: {
-      type: 'color',
-      id: 'level-10-color',
-      name: 'Sage Color',
-    },
+    threshold: 4000,
   },
   {
-    id: 'level-15',
-    name: 'Articulate Master',
-    description: 'Reach Level 15',
+    id: 'reached-expert',
+    name: 'Expert',
+    description: 'Reach Level 4 (8,000 words)',
     category: 'special',
-    tier: 'gold',
+    tier: 'silver',
     icon: 'award',
-    threshold: 15,
-    reward: {
-      type: 'theme',
-      id: 'level-15-theme',
-      name: 'Transcendent Theme',
-    },
+    threshold: 8000,
   },
   {
-    id: 'level-prestige',
-    name: 'Legendary',
-    description: 'Reach prestige level (beyond 15)',
+    id: 'reached-master',
+    name: 'Master',
+    description: 'Reach Level 5 (15,000 words)',
     category: 'special',
     tier: 'gold',
     icon: 'star',
-    threshold: 16,
+    threshold: 15000,
+    reward: {
+      type: 'theme',
+      id: 'master-theme',
+      name: 'Master Theme',
+    },
   },
 ];
 
@@ -390,18 +385,6 @@ const SPECIAL_BADGES: Badge[] = [
       type: 'color',
       id: 'challenge-10-color',
       name: 'Dawn Color',
-    },
-  },
-  {
-    id: 'category-master',
-    name: 'Category Master',
-    description: 'Earn a Gold badge in any category',
-    category: 'special',
-    icon: 'award',
-    reward: {
-      type: 'theme',
-      id: 'category-master-theme',
-      name: 'Verdant Theme',
     },
   },
 ];

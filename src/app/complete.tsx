@@ -13,37 +13,17 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { useSettingsStore, getTierName } from '../lib/store/settings';
+import { useSettingsStore, getCurrentLevel, getLevelName } from '../lib/store/settings';
 import { categories } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { NumberRoll } from '../components/NumberRoll';
 import { Paywall } from '../components/Paywall';
-import { TickerSlider } from '../components/TickerSlider';
 import { GoalScrollPicker } from '../components/GoalScrollPicker';
 import { OnboardingPaywall } from '../components/OnboardingPaywall';
 import { Spacing } from '../design/theme';
 import { ALL_BADGES, getBadgeById, type Badge } from '../lib/data/badges';
 import { cancelStreakAtRiskReminder } from '../lib/notifications';
-
-// Level titles for display
-const LEVEL_TITLES: Record<number, string> = {
-  1: 'Wanderer',
-  2: 'Seeker',
-  3: 'Reader',
-  4: 'Scholar',
-  5: 'Adept',
-  6: 'Explorer',
-  7: 'Sage',
-  8: 'Luminary',
-  9: 'Virtuoso',
-  10: 'Master',
-  11: 'Grandmaster',
-  12: 'Archon',
-  13: 'Ascendant',
-  14: 'Paragon',
-  15: 'Transcendent',
-};
 
 export default function CompleteScreen() {
   // Debug: Log on mount
@@ -66,10 +46,8 @@ export default function CompleteScreen() {
     console.log('[Complete] Params received:', params);
   }
 
-  const levelUpAvailable = useSettingsStore((s) => s.levelUpAvailable);
-  const readingLevel = useSettingsStore((s) => s.readingLevel);
-  const acceptLevelUp = useSettingsStore((s) => s.acceptLevelUp);
-  const dismissLevelUp = useSettingsStore((s) => s.dismissLevelUp);
+  const levelProgress = useSettingsStore((s) => s.levelProgress);
+  const addLevelProgress = useSettingsStore((s) => s.addLevelProgress);
 
   const {
     hapticFeedback,
@@ -104,7 +82,6 @@ export default function CompleteScreen() {
     clearLastUnlockedBadge,
     isFirstReading,
     setIsFirstReading,
-    setReadingLevel,
     dailyWordGoal,
     setDailyWordGoal,
     fontFamily,
@@ -112,31 +89,9 @@ export default function CompleteScreen() {
     backgroundTheme,
   } = useSettingsStore();
 
-  // First reading flow state: 'celebration' = normal completion celebration, 'calibration' = asking about vocabulary, 'journey' = journey setup, 'paywall' = onboarding paywall
-  const [calibrationStep, setCalibrationStep] = useState<'celebration' | 'calibration' | 'journey' | 'paywall'>('celebration');
+  // First reading flow state: 'celebration' = normal completion, 'journey' = goal setup, 'paywall' = onboarding paywall
+  const [calibrationStep, setCalibrationStep] = useState<'celebration' | 'journey' | 'paywall'>('celebration');
   const [selectedGoal, setSelectedGoal] = useState(dailyWordGoal);
-  const [calibrationValue, setCalibrationValue] = useState(0.5); // 0 = challenging, 1 = too easy
-
-  // Haptic feedback for goal selection
-  const playTickSound = useCallback(() => {
-    if (hapticFeedback) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-  }, [hapticFeedback]);
-
-  // Handle calibration slider completion
-  const handleCalibrationComplete = useCallback(() => {
-    if (hapticFeedback) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
-    // Map 0-1 to levels 3-7
-    // 0 = Too Easy (level 7)
-    // 0.5 = Just Right (level 5)
-    // 1 = Challenging (level 3)
-    const level = Math.round(7 - calibrationValue * 4);
-    setReadingLevel(level);
-    setCalibrationStep('journey');
-  }, [hapticFeedback, calibrationValue, setReadingLevel]);
 
   // Handle journey setup completion - show paywall
   const handleStartJourney = useCallback(() => {
@@ -276,10 +231,8 @@ export default function CompleteScreen() {
     const { recordWeeklyReading } = useSettingsStore.getState();
     recordWeeklyReading(wordsRead, wpm);
 
-    // Increment texts completed at current level (for adaptive difficulty)
-    useSettingsStore.setState((s) => ({
-      textsCompletedAtLevel: s.textsCompletedAtLevel + 1,
-    }));
+    // Add level progress (new 5-level system)
+    addLevelProgress(wordsRead);
 
     // Update weekly challenge progress
     const { checkWeeklyChallenge, incrementWeeklyChallengeProgress } = useSettingsStore.getState();
@@ -319,16 +272,11 @@ export default function CompleteScreen() {
             if (badge.id === 'early-bird' && hour >= 4 && hour < 8) shouldUnlock = true;
             if (badge.id === 'challenge-first' && state.weeklyChallengesCompleted >= 1) shouldUnlock = true;
             if (badge.id === 'challenge-10' && state.weeklyChallengesCompleted >= 10) shouldUnlock = true;
-            // Level badges
-            if (badge.id === 'level-5' && state.readingLevel >= 5) shouldUnlock = true;
-            if (badge.id === 'level-10' && state.readingLevel >= 10) shouldUnlock = true;
-            if (badge.id === 'level-15' && state.readingLevel >= 15) shouldUnlock = true;
-            if (badge.id === 'level-prestige' && state.readingLevel >= 16) shouldUnlock = true;
-            // Category Master: check if any category-*-gold badge is unlocked
-            if (badge.id === 'category-master') {
-              const hasGold = state.unlockedBadges.some((b: string) => b.endsWith('-gold'));
-              if (hasGold) shouldUnlock = true;
-            }
+            // Level badges (checked automatically via addLevelProgress, but also check here for migration)
+            if (badge.id === 'reached-intermediate' && state.levelProgress >= 1000) shouldUnlock = true;
+            if (badge.id === 'reached-advanced' && state.levelProgress >= 4000) shouldUnlock = true;
+            if (badge.id === 'reached-expert' && state.levelProgress >= 8000) shouldUnlock = true;
+            if (badge.id === 'reached-master' && state.levelProgress >= 15000) shouldUnlock = true;
             break;
 
           case 'streak':
@@ -389,10 +337,6 @@ export default function CompleteScreen() {
     };
     checkBadges();
 
-    // Check level-up eligibility (Phase 6: Adaptive Difficulty)
-    const { checkLevelUpEligibility } = useSettingsStore.getState();
-    checkLevelUpEligibility();
-
     // Animation sequence
     // T+200ms: checkmark
     const t1 = setTimeout(() => {
@@ -425,7 +369,7 @@ export default function CompleteScreen() {
       if (t3) clearTimeout(t3);
       clearTimeout(t4);
     };
-  }, [wordsRead, wpm, displayName, params.categoryKey, params.textId, params.customTextId, incrementWordsRead, addDailyWordsRead, resetDailyUploadIfNewDay, incrementTextsCompleted, updateStreak, hapticFeedback, checkScale, checkOpacity, ctaOpacity, paywallOpacity, badgeScale, badgeOpacity, isFirstReading, addReadingHistory, incrementCategoryReadCount, unlockBadge, unlockReward]);
+  }, [wordsRead, wpm, displayName, params.categoryKey, params.textId, params.customTextId, incrementWordsRead, addDailyWordsRead, resetDailyUploadIfNewDay, incrementTextsCompleted, updateStreak, hapticFeedback, checkScale, checkOpacity, ctaOpacity, paywallOpacity, badgeScale, badgeOpacity, isFirstReading, addReadingHistory, incrementCategoryReadCount, unlockBadge, unlockReward, addLevelProgress]);
 
   const checkAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: checkScale.value }],
@@ -598,69 +542,17 @@ export default function CompleteScreen() {
                   />
                 </Animated.View>
 
-                {/* Continue to calibration */}
+                {/* Continue to journey setup */}
                 <Animated.View entering={FadeIn.delay(1300).duration(300)} style={styles.celebrationContinue}>
                   <GlassButton
                     title="Continue"
-                    onPress={() => setCalibrationStep('calibration')}
+                    onPress={() => setCalibrationStep('journey')}
                   />
                 </Animated.View>
               </Animated.View>
             )}
 
-            {/* Phase 2: Calibration */}
-            {calibrationStep === 'calibration' && (
-              <Animated.View entering={FadeIn.duration(400)} style={styles.calibrationFullContainer}>
-                {/* Checkmark */}
-                <Animated.View
-                  style={[
-                    styles.checkCircle,
-                    {
-                      backgroundColor: glass.fill,
-                      borderColor: glass.border,
-                      shadowOpacity: glass.shadowOpacity,
-                      transform: [{ scale: 1 }],
-                      opacity: 1,
-                    },
-                  ]}
-                >
-                  <Feather name="check" size={32} color={colors.primary} />
-                </Animated.View>
-
-                {/* Headline */}
-                <Text style={[styles.firstReadingHeadline, { color: colors.primary }]}>
-                  You just read with{'\n'}complete focus.
-                </Text>
-
-                {/* Compact Stats */}
-                <Text style={[styles.firstReadingStats, { color: colors.secondary }]}>
-                  {wordsRead} words · {timeDisplay}
-                </Text>
-
-                {/* Calibration Slider */}
-                <View style={styles.calibrationContainer}>
-                  <View style={[styles.calibrationDivider, { backgroundColor: glass.border }]} />
-                  <Text style={[styles.calibrationQuestion, { color: colors.primary }]}>
-                    How was that vocabulary?
-                  </Text>
-                  <View style={styles.calibrationSliderContainer}>
-                    <TickerSlider
-                      value={calibrationValue}
-                      onValueChange={setCalibrationValue}
-                      leftLabel="Too Easy"
-                      centerLabel="Just Right"
-                      rightLabel="Challenging"
-                    />
-                  </View>
-                  <GlassButton
-                    title="Continue"
-                    onPress={handleCalibrationComplete}
-                  />
-                </View>
-              </Animated.View>
-            )}
-
-            {/* Phase 3: Journey Setup */}
+            {/* Phase 2: Journey Setup */}
             {calibrationStep === 'journey' && (
               <Animated.View entering={FadeIn.duration(400)} style={styles.journeyContainer}>
                 <Text style={[styles.journeyHeadline, { color: colors.primary }]}>
@@ -670,13 +562,13 @@ export default function CompleteScreen() {
                 <GlassCard style={styles.journeyCard}>
                   <View style={styles.journeyLevelCard}>
                     <Text style={[styles.journeyLevelTitle, { color: colors.primary }]}>
-                      Level {readingLevel} · {LEVEL_TITLES[readingLevel] || 'Reader'}
+                      Level 1 · Beginner
                     </Text>
                     <View style={[styles.journeyProgressBar, { backgroundColor: glass.border }]}>
-                      <View style={[styles.journeyProgressFill, { backgroundColor: colors.primary, width: '12.5%' }]} />
+                      <View style={[styles.journeyProgressFill, { backgroundColor: colors.primary, width: `${Math.min(100, (wordsRead / 1000) * 100)}%` }]} />
                     </View>
                     <Text style={[styles.journeyLevelSubtitle, { color: colors.muted }]}>
-                      1/8 texts · Read texts → Level up → Unlock harder vocabulary
+                      {wordsRead.toLocaleString()} / 1,000 words to Intermediate
                     </Text>
                   </View>
                 </GlassCard>
@@ -709,7 +601,6 @@ export default function CompleteScreen() {
                 wordColor={wordColor}
                 backgroundTheme={backgroundTheme}
                 dailyGoal={selectedGoal}
-                readingLevel={readingLevel}
                 onSubscribe={handlePaywallComplete}
                 onContinueFree={handlePaywallComplete}
               />
@@ -896,37 +787,6 @@ export default function CompleteScreen() {
                     {textsCompleted} reads done. Unlock unlimited uploads and 6 more categories.
                   </Text>
                 </Pressable>
-              </Animated.View>
-            )}
-
-            {/* Level-up prompt (Adaptive Difficulty) */}
-            {levelUpAvailable && (
-              <Animated.View entering={FadeIn.delay(1700).duration(400)} style={styles.levelUpSection}>
-                <Text style={[styles.levelUpTitle, { color: colors.primary }]}>
-                  You've mastered Level {readingLevel}.
-                </Text>
-                <Text style={[styles.levelUpSubtitle, { color: colors.secondary }]}>
-                  Ready for a new challenge?
-                </Text>
-                <View style={styles.levelUpActions}>
-                  <GlassButton
-                    title={`Level Up to ${readingLevel + 1}`}
-                    onPress={() => {
-                      if (hapticFeedback) {
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                      }
-                      acceptLevelUp();
-                    }}
-                  />
-                  <Pressable
-                    onPress={dismissLevelUp}
-                    style={styles.levelUpDismiss}
-                  >
-                    <Text style={[styles.levelUpDismissText, { color: colors.muted }]}>
-                      Master Level {readingLevel} First
-                    </Text>
-                  </Pressable>
-                </View>
               </Animated.View>
             )}
 
@@ -1255,82 +1115,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
-  // Level-up prompt
-  levelUpSection: {
-    width: '100%',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 16,
-  },
-  levelUpTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  levelUpSubtitle: {
-    fontSize: 15,
-    fontWeight: '400',
-    textAlign: 'center',
-  },
-  levelUpActions: {
-    width: '100%',
-    gap: 8,
-    marginTop: 8,
-  },
-  levelUpDismiss: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  levelUpDismissText: {
-    fontSize: 14,
-    fontWeight: '400',
-  },
-  // Calibration styles
-  calibrationSection: {
-    width: '100%',
-    alignItems: 'center',
-    gap: 16,
-    marginTop: 24,
-  },
-  calibrationHeadline: {
-    fontSize: 24,
-    fontWeight: '300',
-    letterSpacing: -0.3,
-    textAlign: 'center',
-    lineHeight: 32,
-  },
-  calibrationSubtitle: {
-    fontSize: 15,
-    fontWeight: '400',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  calibrationDivider: {
-    width: 60,
-    height: 1,
-    backgroundColor: 'rgba(128, 128, 128, 0.2)',
-    marginVertical: 8,
-  },
-  calibrationQuestion: {
-    fontSize: 18,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  calibrationButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  calibrationButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    borderWidth: 0.5,
-  },
-  calibrationButtonText: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
   // Journey setup styles
   journeySection: {
     width: '100%',
@@ -1408,17 +1192,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
-  calibrationContainer: {
-    alignItems: 'center',
-    marginTop: 32,
-    gap: 16,
-    width: '100%',
-  },
-  calibrationSliderContainer: {
-    width: '100%',
-    paddingHorizontal: 16,
-    marginVertical: 8,
-  },
   journeyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1471,12 +1244,5 @@ const styles = StyleSheet.create({
   upgradeBannerSubtitle: {
     fontSize: 13,
     fontWeight: '400',
-  },
-  // Calibration full container (for phase 2)
-  calibrationFullContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
   },
 });

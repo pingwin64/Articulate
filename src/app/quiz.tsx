@@ -33,6 +33,7 @@ export default function QuizScreen() {
   const {
     customTexts,
     updateComprehension,
+    addQuizProgress,
     isPremium,
     canUseFreeQuiz,
     useFreeQuiz,
@@ -102,7 +103,12 @@ export default function QuizScreen() {
 
     if (currentQ >= questions.length - 1) {
       const finalScore = correct ? score + 1 : score;
+      const scorePercent = questions.length > 0
+        ? Math.round((finalScore / questions.length) * 100)
+        : 0;
       updateComprehension(finalScore, questions.length);
+      // Add quiz bonus to level progress (100 base + 25 for 80%+ + 25 for 100%)
+      addQuizProgress(scorePercent);
       setFinished(true);
     } else {
       setCurrentQ((q) => q + 1);
