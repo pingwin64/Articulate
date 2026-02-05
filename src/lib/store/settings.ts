@@ -151,6 +151,12 @@ export interface SettingsState {
   startTrial: () => void;
   checkTrialExpired: () => boolean;
 
+  // Profile Customization
+  profileImage: string | null;
+  setProfileImage: (v: string | null) => void;
+  profileColor: string;
+  setProfileColor: (v: string) => void;
+
   // Theme
   themeMode: 'light' | 'dark' | 'system';
   setThemeMode: (v: 'light' | 'dark' | 'system') => void;
@@ -419,6 +425,12 @@ export const useSettingsStore = create<SettingsState>()(
         }
         return false;
       },
+
+      // Profile Customization
+      profileImage: null,
+      setProfileImage: (v) => set({ profileImage: v }),
+      profileColor: '#A78BFA', // Default purple
+      setProfileColor: (v) => set({ profileColor: v }),
 
       // Theme
       themeMode: 'light',
@@ -1055,6 +1067,8 @@ export const useSettingsStore = create<SettingsState>()(
         hasOnboarded: false,
         isFirstReading: false,
         isPremium: false,
+        profileImage: null,
+        profileColor: '#A78BFA',
         themeMode: 'light',
         backgroundTheme: 'default',
         fontFamily: 'sourceSerif',
@@ -1132,7 +1146,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'articulate-settings',
-      version: 13,
+      version: 14,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -1256,6 +1270,11 @@ export const useSettingsStore = create<SettingsState>()(
           // Old level fields are deprecated but kept for reference (will be ignored)
           // readingLevel, maxEarnedLevel, readingLevelTier, textsCompletedAtLevel,
           // recentQuizScoresAtLevel, levelUpAvailable
+        }
+        if (version < 14) {
+          // v14: Profile customization
+          persisted.profileImage = persisted.profileImage ?? null;
+          persisted.profileColor = persisted.profileColor ?? '#A78BFA';
         }
         return persisted;
       },

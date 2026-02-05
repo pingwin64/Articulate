@@ -8,8 +8,11 @@ import {
   Alert,
   Linking,
   Share,
+  Image,
+  ActionSheetIOS,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import * as ImagePicker from 'expo-image-picker';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -132,22 +135,31 @@ function LockedSettingRow({
   );
 }
 
-function GradientOrb() {
+function ProfileOrb({ onEdit }: { onEdit: () => void }) {
   const { colors, glass, isDark } = useTheme();
-  const wordColor = useSettingsStore((s) => s.wordColor);
-  const resolved = WordColors.find((c) => c.key === wordColor);
-  const accentColor = resolved?.color ?? colors.primary;
-  const accentColor44 = accentColor + '44';
+  const profileImage = useSettingsStore((s) => s.profileImage);
+  const profileColor = useSettingsStore((s) => s.profileColor);
+  const accentColor44 = profileColor + '44';
 
   return (
-    <View style={styles.orbContainer}>
-      <LinearGradient
-        colors={[accentColor, accentColor44]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.orb, { borderColor: glass.border }]}
-      />
-    </View>
+    <Pressable onPress={onEdit} style={styles.orbContainer}>
+      {profileImage ? (
+        <Image
+          source={{ uri: profileImage }}
+          style={[styles.orb, { borderColor: glass.border }]}
+        />
+      ) : (
+        <LinearGradient
+          colors={[profileColor, accentColor44]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.orb, { borderColor: glass.border }]}
+        />
+      )}
+      <View style={[styles.editBadge, { backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)', borderColor: glass.border }]}>
+        <Feather name="edit-2" size={12} color={colors.primary} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -275,6 +287,8 @@ export default function SettingsScreen() {
   const {
     isPremium,
     trialActive,
+    profileImage, setProfileImage,
+    profileColor, setProfileColor,
     themeMode, setThemeMode,
     backgroundTheme, setBackgroundTheme,
     fontFamily, setFontFamily,
@@ -307,6 +321,8 @@ export default function SettingsScreen() {
   } = useSettingsStore(useShallow((s) => ({
     isPremium: s.isPremium,
     trialActive: s.trialActive,
+    profileImage: s.profileImage, setProfileImage: s.setProfileImage,
+    profileColor: s.profileColor, setProfileColor: s.setProfileColor,
     themeMode: s.themeMode, setThemeMode: s.setThemeMode,
     backgroundTheme: s.backgroundTheme, setBackgroundTheme: s.setBackgroundTheme,
     fontFamily: s.fontFamily, setFontFamily: s.setFontFamily,
@@ -362,6 +378,86 @@ export default function SettingsScreen() {
       setPaywallContext(context);
     }
   }, [hapticFeedback, setPaywallContext]);
+
+  // Profile color options
+  const PROFILE_COLORS = [
+    '#A78BFA', // Purple (default)
+    '#60A5FA', // Blue
+    '#34D399', // Green
+    '#F472B6', // Pink
+    '#FBBF24', // Yellow
+    '#F87171', // Red
+    '#818CF8', // Indigo
+    '#2DD4BF', // Teal
+  ];
+
+  const handleEditProfile = useCallback(() => {
+    // Pro users get photo + color options, free users only get color
+    if (isPremium || trialActive) {
+      const options = profileImage
+        ? ['Choose Photo', 'Change Color', 'Remove Photo', 'Cancel']
+        : ['Choose Photo', 'Change Color', 'Cancel'];
+      const cancelIndex = profileImage ? 3 : 2;
+      const destructiveIndex = profileImage ? 2 : undefined;
+
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          cancelButtonIndex: cancelIndex,
+          destructiveButtonIndex: destructiveIndex,
+        },
+        async (buttonIndex) => {
+          if (buttonIndex === 0) {
+            // Choose photo
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Permission needed', 'Please allow access to your photos to set a profile picture.');
+              return;
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ['images'],
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+            if (!result.canceled && result.assets[0]) {
+              setProfileImage(result.assets[0].uri);
+            }
+          } else if (buttonIndex === 1) {
+            // Change color
+            ActionSheetIOS.showActionSheetWithOptions(
+              {
+                options: ['Purple', 'Blue', 'Green', 'Pink', 'Yellow', 'Red', 'Indigo', 'Teal', 'Cancel'],
+                cancelButtonIndex: 8,
+              },
+              (colorIndex) => {
+                if (colorIndex < 8) {
+                  setProfileColor(PROFILE_COLORS[colorIndex]);
+                  setProfileImage(null); // Clear image when choosing color
+                }
+              }
+            );
+          } else if (buttonIndex === 2 && profileImage) {
+            // Remove photo
+            setProfileImage(null);
+          }
+        }
+      );
+    } else {
+      // Free users: color only
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Purple', 'Blue', 'Green', 'Pink', 'Yellow', 'Red', 'Indigo', 'Teal', 'Cancel'],
+          cancelButtonIndex: 8,
+        },
+        (colorIndex) => {
+          if (colorIndex < 8) {
+            setProfileColor(PROFILE_COLORS[colorIndex]);
+          }
+        }
+      );
+    }
+  }, [isPremium, trialActive, profileImage, setProfileImage, setProfileColor]);
 
   const handleSetFontFamily = useCallback((v: FontFamilyKey) => {
     setFontFamily(v);
@@ -476,9 +572,9 @@ export default function SettingsScreen() {
       >
           {/* Profile identity */}
           <View style={styles.profileSection}>
-            <GradientOrb />
+            <ProfileOrb onEdit={handleEditProfile} />
             <Text style={[styles.identityTitle, { color: colors.primary }]}>
-              {readingLevelLabel} Reader
+              {readingLevelLabel}
             </Text>
             <Text style={[styles.identitySubtitle, { color: colors.muted }]}>
               {formatNumber(totalWordsRead)} words{currentStreak > 0 ? ` \u00B7 ${currentStreak} day streak` : ''}
@@ -1166,15 +1262,28 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    overflow: 'hidden',
+    position: 'relative',
   },
   orb: {
     width: 88,
     height: 88,
     borderRadius: 44,
     borderCurve: 'continuous',
+    overflow: 'hidden',
     borderWidth: 1,
     boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },
   identityTitle: {
     fontSize: 20,

@@ -61,9 +61,9 @@ export interface BackgroundTheme {
 
 export const BackgroundThemes: BackgroundTheme[] = [
   { key: 'default', label: 'Default', light: '#FFFFFF', dark: '#000000' },
-  { key: 'black', label: 'Black', light: '#000000', dark: '#000000' },
-  { key: 'charcoal', label: 'Charcoal', light: '#1C1C1E', dark: '#1C1C1E' },
-  { key: 'slate', label: 'Slate', light: '#2C3E50', dark: '#2C3E50' },
+  { key: 'black', label: 'Black', light: '#000000', dark: '#000000', darkOnly: true },
+  { key: 'charcoal', label: 'Charcoal', light: '#1C1C1E', dark: '#1C1C1E', darkOnly: true },
+  { key: 'slate', label: 'Slate', light: '#2C3E50', dark: '#2C3E50', darkOnly: true },
   { key: 'paper', label: 'Paper', light: '#FDFBF7', dark: '#1A1714', premium: true },
   { key: 'stone', label: 'Stone', light: '#F0EFED', dark: '#161618', premium: true },
   { key: 'sepia', label: 'Sepia', light: '#F5EDDC', dark: '#1D1508', premium: true },
