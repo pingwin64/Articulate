@@ -11,7 +11,6 @@ import Animated, {
   FadeIn,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore, getTierName } from '../lib/store/settings';
@@ -117,18 +116,8 @@ export default function CompleteScreen() {
   const [selectedGoal, setSelectedGoal] = useState(dailyWordGoal);
   const [calibrationValue, setCalibrationValue] = useState(0.5); // 0 = challenging, 1 = too easy
 
-  // Tick sound for goal selection (disabled - sound file not bundled)
-  const tickSoundRef = useRef<Audio.Sound | null>(null);
-
-  const playTickSound = useCallback(async () => {
-    if (tickSoundRef.current) {
-      try {
-        await tickSoundRef.current.setPositionAsync(0);
-        await tickSoundRef.current.playAsync();
-      } catch (e) {
-        // Ignore playback errors
-      }
-    }
+  // Haptic feedback for goal selection
+  const playTickSound = useCallback(() => {
     if (hapticFeedback) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }

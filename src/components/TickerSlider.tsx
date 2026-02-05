@@ -7,7 +7,6 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 
@@ -30,41 +29,10 @@ export function TickerSlider({
   const trackWidth = useSharedValue(0);
   const thumbX = useSharedValue(0);
   const lastTickX = useRef(0);
-  const soundRef = useRef<Audio.Sound | null>(null);
   const isDragging = useRef(false);
 
-  // Load tick sound on mount
-  useEffect(() => {
-    const loadSound = async () => {
-      try {
-        const { sound } = await Audio.Sound.createAsync(
-          require('../../assets/sounds/tick.mp3'),
-          { volume: 0.3 }
-        );
-        soundRef.current = sound;
-      } catch (e) {
-        // Sound not available - will fall back to haptic only
-        console.log('Tick sound not loaded, using haptic only');
-      }
-    };
-    loadSound();
-
-    return () => {
-      soundRef.current?.unloadAsync();
-    };
-  }, []);
-
-  const playTick = useCallback(async () => {
-    // Play sound if available
-    if (soundRef.current) {
-      try {
-        await soundRef.current.setPositionAsync(0);
-        await soundRef.current.playAsync();
-      } catch (e) {
-        // Ignore playback errors
-      }
-    }
-    // Always play haptic if enabled
+  // Play haptic feedback on tick
+  const playTick = useCallback(() => {
     if (hapticEnabled) {
       Haptics.selectionAsync();
     }
