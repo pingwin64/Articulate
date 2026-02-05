@@ -244,11 +244,12 @@ npx expo run:ios
 ## Premium / Free Boundaries
 
 **Free features:** sourceSerif font, default color, default background, 3 core categories (story, article, speech), 1 custom text upload per day, daily word goal tracking
-**Premium features:** all fonts, all colors, all backgrounds, all categories, unlimited custom texts, TTS, auto-play, chunk reading, breathing animation, quizzes, scan text (unlimited)
+**Premium features:** all fonts, all colors, all backgrounds, all categories, unlimited custom texts, TTS, auto-play, chunk reading, breathing animation, quizzes, scan text (unlimited), **entire library** (word bank, favorites, custom texts)
 
 When gating a feature for free users:
 - Show the control/button but trigger `setPaywallContext('locked_*')` on interaction
 - Use appropriate `PaywallContext` string for tracking
+- For library: use `'locked_library'` context
 
 ## Content System
 
@@ -508,3 +509,58 @@ Give free users a glimpse of locked premium content:
 - Show first text title: `Includes "Text Title" + X more`
 - Displayed on locked CategoryCard when `showPreview={true}`
 - Creates curiosity and FOMO for premium categories
+
+### 28. Library is Pro-Only
+
+The entire library feature (all three tabs) is gated for pro users:
+- **Words** (word bank), **Favs** (favorites), **Texts** (custom texts) — all locked
+- Home screen shelf books show lock icons for free users
+- Tapping any book triggers `setPaywallContext('locked_library')`
+- Library screen itself has a pro gate (locked state if `!isPremium`)
+- Profile "My Library" card also gates with paywall for free users
+
+Navigation pattern for library tabs:
+```tsx
+router.push({ pathname: '/library', params: { tab: 'words' } });
+router.push({ pathname: '/library', params: { tab: 'favorites' } });
+router.push({ pathname: '/library', params: { tab: 'texts' } });
+```
+
+### 29. Apple HIG Compliance (Touch Targets, Text, Contrast)
+
+**44pt Minimum Touch Targets:**
+- All buttons, icon buttons, toggles must have 44x44pt touch area
+- Use `hitSlop={12}` on small elements to extend touch area
+- `HitTargets` constant in `theme.ts`: `{ minimum: 44, hitSlop: 12 }`
+
+Components updated for HIG compliance:
+- `GlassSlider`: thumb 28px + 44px track height
+- `GlassSegmentedControl`: 44px height
+- `GlassToggle`: hitSlop for 44pt vertical
+- Header buttons: 44x44px
+
+**11pt Minimum Text Size:**
+- Never use font sizes below 11px
+- Badge text, tier pills, meta text — all must be ≥11px
+
+**Color Contrast (WCAG AA):**
+- Muted colors must have 4.5:1 contrast ratio
+- Light mode `muted`: `#757575` (was `#AAAAAA`)
+- Dark mode `muted`: `#8E8E93` (iOS system gray)
+
+### 30. Paywall Layout Psychology
+
+**Standard paywall flow (proven to convert):**
+1. **Headline** (hook)
+2. **Features** (build desire) — 4 compact checkmarks
+3. **Pricing** (after they're sold on value)
+4. **CTA** (action)
+
+**Wrong:** Putting prices at the top causes sticker shock before value is communicated.
+
+**Compact layout tips:**
+- Headline: 28px, tight spacing
+- Features: Simple checkmarks, no card wrapper, 4 items max
+- Plan cards: 100px min-height, tight padding
+- Remove duplicate social proof (don't show both pill AND footer text)
+- `bounces={false}` on ScrollView for cleaner feel

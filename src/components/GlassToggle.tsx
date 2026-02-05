@@ -52,6 +52,7 @@ export function GlassToggle({ value, onValueChange }: GlassToggleProps) {
       onPress={handlePress}
       accessibilityRole="switch"
       accessibilityState={{ checked: value }}
+      hitSlop={{ top: 8, bottom: 8, left: 0, right: 0 }} // Ensures 44pt vertical touch target
     >
       <Animated.View style={[styles.track, trackStyle]}>
         <Animated.View style={[styles.thumb, thumbStyle]} />

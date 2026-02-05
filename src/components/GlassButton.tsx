@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, type ViewStyle, type StyleProp } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -10,8 +10,18 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../hooks/useTheme';
-import { Radius } from '../design/theme';
+import { Radius, BackgroundThemes } from '../design/theme';
 import { useSettingsStore } from '../lib/store/settings';
+
+// Helper to determine if a color is "dark" (for contrast decisions)
+function isColorDark(hexColor: string): boolean {
+  const hex = hexColor.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance < 0.5;
+}
 
 interface GlassButtonProps {
   title: string;
@@ -29,10 +39,37 @@ export function GlassButton({
   disabled,
 }: GlassButtonProps) {
   const { colors, glass, isDark } = useTheme();
+  const backgroundTheme = useSettingsStore((s) => s.backgroundTheme);
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
   const pressed = useSharedValue(0);
 
   const isSolid = variant === 'solid';
+
+  // Compute if the current background is dark (for contrast)
+  const isDarkBackground = useMemo(() => {
+    const selectedBgTheme = BackgroundThemes.find((t) => t.key === backgroundTheme);
+    if (!selectedBgTheme) return isDark;
+    const bgColor = isDark ? selectedBgTheme.dark : selectedBgTheme.light;
+    return isColorDark(bgColor);
+  }, [backgroundTheme, isDark]);
+
+  // Contrast-aware colors
+  const buttonColors = useMemo(() => {
+    if (isDarkBackground) {
+      return {
+        solidBg: '#FFFFFF',
+        solidText: '#000000',
+        outlineBorder: 'rgba(255,255,255,0.3)',
+        outlineText: '#FFFFFF',
+      };
+    }
+    return {
+      solidBg: colors.primary,
+      solidText: isDark ? '#000' : '#FFF',
+      outlineBorder: glass.border,
+      outlineText: colors.primary,
+    };
+  }, [isDarkBackground, colors, glass, isDark]);
 
   const handlePress = () => {
     if (hapticEnabled) {
@@ -66,9 +103,9 @@ export function GlassButton({
         style={[
           styles.button,
           {
-            backgroundColor: isSolid ? colors.primary : 'transparent',
+            backgroundColor: isSolid ? buttonColors.solidBg : 'transparent',
             borderWidth: isSolid ? 0 : 1,
-            borderColor: glass.border,
+            borderColor: buttonColors.outlineBorder,
             opacity: disabled ? 0.5 : 1,
           },
           animatedStyle,
@@ -79,11 +116,7 @@ export function GlassButton({
           style={[
             styles.text,
             {
-              color: isSolid
-                ? isDark
-                  ? '#000'
-                  : '#FFF'
-                : colors.primary,
+              color: isSolid ? buttonColors.solidText : buttonColors.outlineText,
             },
           ]}
         >

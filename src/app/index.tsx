@@ -60,6 +60,18 @@ const ONBOARDING_WORDS = [
   'One', 'word.', 'Nothing', 'else.', 'Pure', 'focus.', 'Articulate.',
 ];
 
+// Helper to determine if a color is "dark" (for contrast decisions)
+function isColorDark(hexColor: string): boolean {
+  // Remove # if present
+  const hex = hexColor.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  // Luminance formula
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance < 0.5;
+}
+
 const ONBOARDING_FONTS: FontFamilyKey[] = ['sourceSerif', 'system', 'literata'];
 
 const ONBOARDING_CATEGORIES = categories.filter((c) =>
@@ -398,7 +410,7 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
                     style={[
                       styles.fontCardText,
                       {
-                        color: colors.primary,
+                        color: previewColor,
                         fontFamily: font.regular,
                       },
                     ]}
@@ -425,7 +437,7 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
             </Text>
           </View>
           <View style={styles.colorSwatches}>
-            {WordColors.filter(c => !c.rewardId).map((colorOption) => {
+            {WordColors.filter(c => !('rewardId' in c)).map((colorOption) => {
               const isSelected = wordColor === colorOption.key;
               const swatchColor = colorOption.color ?? colors.primary;
               return (
@@ -493,11 +505,41 @@ interface SelectableCategoryCardProps {
   hasSelection: boolean;
   onSelect: () => void;
   index: number;
+  isDarkBackground?: boolean;
 }
 
-function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, index }: SelectableCategoryCardProps) {
+function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, index, isDarkBackground }: SelectableCategoryCardProps) {
   const { colors, glass, isDark } = useTheme();
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
+
+  // Compute contrast-aware colors based on actual background darkness
+  const contrastColors = useMemo(() => {
+    if (isDarkBackground) {
+      // Light colors for dark backgrounds
+      return {
+        primary: '#FFFFFF',
+        secondary: 'rgba(255,255,255,0.7)',
+        muted: 'rgba(255,255,255,0.5)',
+        border: 'rgba(255,255,255,0.15)',
+        borderSelected: 'rgba(255,255,255,0.35)',
+        fill: 'rgba(255,255,255,0.08)',
+        iconBg: 'rgba(255,255,255,0.08)',
+        checkBg: 'rgba(255,255,255,0.15)',
+      };
+    } else {
+      // Default theme colors for light backgrounds
+      return {
+        primary: colors.primary,
+        secondary: colors.secondary,
+        muted: colors.muted,
+        border: glass.border,
+        borderSelected: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.2)',
+        fill: glass.fill,
+        iconBg: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+        checkBg: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
+      };
+    }
+  }, [isDarkBackground, colors, glass, isDark]);
 
   const scale = useSharedValue(1);
   const glowOpacity = useSharedValue(0);
@@ -567,11 +609,7 @@ function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, 
     opacity: checkOpacity.value,
   }));
 
-  const borderColor = isSelected
-    ? isDark
-      ? 'rgba(255,255,255,0.35)'
-      : 'rgba(0,0,0,0.2)'
-    : glass.border;
+  const borderColor = isSelected ? contrastColors.borderSelected : contrastColors.border;
 
   return (
     <Animated.View entering={FadeIn.delay(index * 120).duration(400)}>
@@ -588,7 +626,7 @@ function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, 
             style={[
               styles.selectableCard,
               {
-                backgroundColor: glass.fill,
+                backgroundColor: contrastColors.fill,
                 borderColor: borderColor,
                 borderWidth: isSelected ? 1 : 0.5,
               },
@@ -598,7 +636,7 @@ function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, 
               style={[
                 StyleSheet.absoluteFill,
                 {
-                  backgroundColor: isDark ? '#ffffff' : '#000000',
+                  backgroundColor: isDarkBackground ? '#ffffff' : '#000000',
                   borderRadius: 16,
                 },
                 tintAnimatedStyle,
@@ -607,17 +645,17 @@ function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, 
             <View style={styles.selectableCardContent}>
               <View style={styles.selectableContentRow}>
                 <View style={[styles.selectableIconCircle, {
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                  borderColor: glass.border,
+                  backgroundColor: contrastColors.iconBg,
+                  borderColor: contrastColors.border,
                 }]}>
-                  <Feather name={category.icon as any} size={20} color={colors.primary} />
+                  <Feather name={category.icon as any} size={20} color={contrastColors.primary} />
                 </View>
                 <View style={styles.catColumn}>
-                  <Text style={[styles.levelLabel, { color: colors.primary }]}>
+                  <Text style={[styles.levelLabel, { color: contrastColors.primary }]}>
                     {category.name}
                   </Text>
                   {CATEGORY_DESCRIPTIONS[category.key] && (
-                    <Text style={[styles.catDescription, { color: colors.secondary }]}>
+                    <Text style={[styles.catDescription, { color: contrastColors.secondary }]}>
                       {CATEGORY_DESCRIPTIONS[category.key]}
                     </Text>
                   )}
@@ -627,11 +665,11 @@ function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, 
             <Animated.View
               style={[
                 styles.checkmarkContainer,
-                { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)' },
+                { backgroundColor: contrastColors.checkBg },
                 checkContainerStyle,
               ]}
             >
-              <Text style={[styles.checkmark, { color: colors.primary }]}>✓</Text>
+              <Text style={[styles.checkmark, { color: contrastColors.primary }]}>✓</Text>
             </Animated.View>
           </View>
         </Pressable>
@@ -794,8 +832,31 @@ function OnboardingDailyGoal({ onNext }: { onNext: (goal: number) => void }) {
 // ─── Step 4: Your First Reading (Launch) ─────────────────────
 
 function OnboardingLaunch({ onNext }: { onNext: (categoryKey: string) => void }) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const backgroundTheme = useSettingsStore((s) => s.backgroundTheme);
   const [selected, setSelected] = useState<string | null>(null);
+
+  // Compute if the current background is dark (for contrast)
+  const isDarkBackground = useMemo(() => {
+    const selectedBgTheme = BackgroundThemes.find((t) => t.key === backgroundTheme);
+    if (!selectedBgTheme) return isDark;
+    const bgColor = isDark ? selectedBgTheme.dark : selectedBgTheme.light;
+    return isColorDark(bgColor);
+  }, [backgroundTheme, isDark]);
+
+  // Contrast-aware colors for text
+  const textColors = useMemo(() => {
+    if (isDarkBackground) {
+      return {
+        primary: '#FFFFFF',
+        secondary: 'rgba(255,255,255,0.7)',
+      };
+    }
+    return {
+      primary: colors.primary,
+      secondary: colors.secondary,
+    };
+  }, [isDarkBackground, colors]);
 
   const handleSelect = (key: string) => {
     setSelected(key);
@@ -806,13 +867,13 @@ function OnboardingLaunch({ onNext }: { onNext: (categoryKey: string) => void })
       <View style={styles.onboardingCenter}>
         <Animated.Text
           entering={FadeIn.duration(400)}
-          style={[styles.personalizeTitle, { color: colors.primary }]}
+          style={[styles.personalizeTitle, { color: textColors.primary }]}
         >
           Your first reading.
         </Animated.Text>
         <Animated.Text
           entering={FadeIn.delay(100).duration(400)}
-          style={[styles.personalizeSubtitle, { color: colors.secondary }]}
+          style={[styles.personalizeSubtitle, { color: textColors.secondary }]}
         >
           Pick what speaks to you. You'll want to come back.
         </Animated.Text>
@@ -825,6 +886,7 @@ function OnboardingLaunch({ onNext }: { onNext: (categoryKey: string) => void })
               hasSelection={selected !== null}
               onSelect={() => handleSelect(cat.key)}
               index={i}
+              isDarkBackground={isDarkBackground}
             />
           ))}
         </View>

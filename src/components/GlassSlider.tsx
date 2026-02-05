@@ -103,8 +103,9 @@ export function GlassSlider({
     width: thumbX.value,
   }));
 
+  // Thumb offset accounts for thumb width (28px / 2 = 14)
   const thumbStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: thumbX.value - 10 }],
+    transform: [{ translateX: thumbX.value - 14 }],
   }));
 
   return (
@@ -166,7 +167,7 @@ const styles = StyleSheet.create({
   },
   trackOuter: {
     flex: 1,
-    height: 40,
+    height: 44, // Apple HIG minimum touch target
     justifyContent: 'center',
   },
   track: {
@@ -182,10 +183,11 @@ const styles = StyleSheet.create({
   },
   thumb: {
     position: 'absolute',
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderCurve: 'continuous',
     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
+    // 44pt touch target achieved via trackOuter height + thumb size
   },
 });

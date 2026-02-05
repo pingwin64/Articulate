@@ -97,13 +97,13 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     borderWidth: 0.5,
     overflow: 'hidden',
-    height: 36,
+    height: 44, // Apple HIG minimum touch target
     position: 'relative',
   },
   pill: {
     position: 'absolute',
-    top: 2,
-    bottom: 2,
+    top: 3,
+    bottom: 3,
     left: 0,
     borderRadius: Radius.sm,
     borderCurve: 'continuous',

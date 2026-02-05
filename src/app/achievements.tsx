@@ -527,10 +527,10 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   badgeGridDescription: {
-    fontSize: 10,
+    fontSize: 11, // Apple HIG minimum text size
     fontWeight: '400',
     textAlign: 'center',
-    lineHeight: 13,
+    lineHeight: 14,
   },
   badgeProgressText: {
     fontSize: 12,
@@ -541,17 +541,17 @@ const styles = StyleSheet.create({
   tierPill: {
     position: 'absolute',
     bottom: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
   tierPillText: {
-    fontSize: 8,
+    fontSize: 11, // Apple HIG minimum text size
     fontWeight: '700',
     letterSpacing: 0.5,
   },
   rewardHint: {
-    fontSize: 9,
+    fontSize: 11, // Apple HIG minimum text size
     fontWeight: '500',
     textAlign: 'center',
     fontStyle: 'italic',

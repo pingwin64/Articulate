@@ -872,33 +872,6 @@ export default function SettingsScreen() {
               </View>
             </View>
             <View style={[styles.separator, { backgroundColor: glass.border }]} />
-            <View style={styles.settingBlock}>
-              <View style={styles.sliderHeader}>
-                <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                  Reading Level
-                </Text>
-                <Text style={[styles.sliderValue, { color: colors.muted }]}>
-                  Level {readingLevel} — {readingLevelLabel}
-                </Text>
-              </View>
-              <GlassSlider
-                value={readingLevel}
-                minimumValue={1}
-                maximumValue={maxEarnedLevel}
-                step={1}
-                onValueChange={(v: number) => setReadingLevel(v)}
-                leftLabel="1"
-                rightLabel={String(maxEarnedLevel)}
-              />
-              <Text style={{ fontSize: 12, fontWeight: '400', textAlign: 'center', marginTop: 4, color: colors.muted }}>
-                {readingLevel < maxEarnedLevel
-                  ? 'Reading easier content'
-                  : textsToNextLevel > 0
-                    ? `${textsCompletedAtLevel}/8 texts to next level`
-                    : 'Level up available!'}
-              </Text>
-            </View>
-            <View style={[styles.separator, { backgroundColor: glass.border }]} />
             <SettingRow label="Sentence Recap">
               <GlassToggle
                 value={sentenceRecap}

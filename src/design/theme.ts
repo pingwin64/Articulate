@@ -23,7 +23,7 @@ export const Colors: Record<ThemeMode, ColorPalette> = {
     stroke: 'rgba(0,0,0,0.08)',
     primary: '#000000',
     secondary: '#666666',
-    muted: '#AAAAAA',
+    muted: '#757575', // WCAG AA compliant (4.6:1 contrast ratio)
     glassHighlight: 'rgba(255,255,255,0.8)',
     success: '#28A745',
     warning: '#FF9500',
@@ -36,7 +36,7 @@ export const Colors: Record<ThemeMode, ColorPalette> = {
     stroke: 'rgba(255,255,255,0.12)',
     primary: '#FFFFFF',
     secondary: '#999999',
-    muted: '#555555',
+    muted: '#8E8E93', // iOS system gray, WCAG AA compliant
     glassHighlight: 'rgba(255,255,255,0.15)',
     success: '#34C759',
     warning: '#FFD60A',
@@ -61,9 +61,13 @@ export interface BackgroundTheme {
 
 export const BackgroundThemes: BackgroundTheme[] = [
   { key: 'default', label: 'Default', light: '#FFFFFF', dark: '#000000' },
+  { key: 'black', label: 'Black', light: '#000000', dark: '#000000' },
+  { key: 'charcoal', label: 'Charcoal', light: '#1C1C1E', dark: '#1C1C1E' },
+  { key: 'slate', label: 'Slate', light: '#2C3E50', dark: '#2C3E50' },
   { key: 'paper', label: 'Paper', light: '#FDFBF7', dark: '#1A1714', premium: true },
   { key: 'stone', label: 'Stone', light: '#F0EFED', dark: '#161618', premium: true },
   { key: 'sepia', label: 'Sepia', light: '#F5EDDC', dark: '#1D1508', premium: true },
+  { key: 'cream', label: 'Cream', light: '#FFFDD0', dark: '#1A1914', premium: true },
   // Reward themes - unlocked via achievements
   { key: 'midnight', label: 'Midnight', light: '#0A0A12', dark: '#0A0A12', darkOnly: true, rewardId: 'streak-30-theme', proAccessible: true },
   { key: 'aurora', label: 'Aurora', light: '#0D1B2A', dark: '#0D1B2A', darkOnly: true, rewardId: 'streak-100-theme' },
@@ -136,6 +140,12 @@ export const Springs = {
   snappy: { damping: 18, stiffness: 250 },
 } as const;
 
+// Apple HIG touch target minimum
+export const HitTargets = {
+  minimum: 44, // 44pt minimum touch target
+  hitSlop: 12, // Standard hitSlop for small elements
+} as const;
+
 export const GlassStyles = {
   light: {
     fill: 'rgba(0,0,0,0.03)',
@@ -153,11 +163,16 @@ export const GlassStyles = {
 
 export const WordColors = [
   { key: 'default', label: 'Default', color: null },
+  { key: 'white', label: 'White', color: '#FFFFFF' },
+  { key: 'cream', label: 'Cream', color: '#F5F5DC' },
   { key: 'crimson', label: 'Crimson', color: '#DC3545' },
   { key: 'ocean', label: 'Ocean', color: '#0A84FF' },
   { key: 'forest', label: 'Forest', color: '#28A745' },
   { key: 'amber', label: 'Amber', color: '#FF9500' },
   { key: 'violet', label: 'Violet', color: '#AF52DE' },
+  { key: 'slate', label: 'Slate', color: '#64748B' },
+  { key: 'charcoal', label: 'Charcoal', color: '#36454F' },
+  { key: 'graphite', label: 'Graphite', color: '#2C2C2C' },
   // Reward colors - unlocked via achievements
   { key: 'scholar-ink', label: 'Scholar Ink', color: '#1B4332', rewardId: 'quiz-scholar-color' },
   { key: 'depth', label: 'Depth', color: '#4A0E4E', rewardId: 'texts-100-color' },

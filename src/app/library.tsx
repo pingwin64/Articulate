@@ -206,6 +206,36 @@ export default function LibraryScreen() {
     });
   }, [savedWords, hapticFeedback, router]);
 
+  // Pro-only gate - show locked state for free users
+  if (!isPremium) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.bg }]}>
+        <View style={styles.lockedState}>
+          <GlassCard>
+            <View style={styles.lockedCard}>
+              <Feather name="lock" size={32} color={colors.muted} />
+              <Text style={[styles.lockedTitle, { color: colors.primary }]}>
+                Library is a Pro feature
+              </Text>
+              <Text style={[styles.lockedSubtitle, { color: colors.muted }]}>
+                Save favorites, custom texts, and build your personal word bank.
+              </Text>
+              <GlassButton
+                title="Unlock My Library"
+                onPress={() => setPaywallContext('locked_library')}
+              />
+            </View>
+          </GlassCard>
+        </View>
+        <Paywall
+          visible={showPaywall}
+          onDismiss={() => setPaywallContext(null)}
+          context={paywallContext}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <ScrollView
@@ -792,8 +822,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   tabBadgeText: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 12, // Meets Apple HIG minimum (11pt)
+    fontWeight: '600',
   },
   // Search
   searchBar: {

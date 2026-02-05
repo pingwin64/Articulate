@@ -82,7 +82,7 @@ export default function RootLayout() {
             headerShown: false,
             contentStyle: { backgroundColor: colors.bg },
             animation: 'fade',
-            animationDuration: 200,
+            animationDuration: 250, // iOS-standard transition timing
           }}
         >
           <Stack.Screen name="index" />
@@ -176,6 +176,20 @@ export default function RootLayout() {
               sheetGrabberVisible: true,
               sheetAllowedDetents: [0.75, 1.0],
               contentStyle: { backgroundColor: 'transparent' },
+            }}
+          />
+          <Stack.Screen
+            name="referral"
+            options={{
+              presentation: 'formSheet',
+              sheetGrabberVisible: true,
+              sheetAllowedDetents: [0.85, 1.0],
+              headerShown: true,
+              title: 'Refer Friends',
+              headerStyle: { backgroundColor: colors.bg },
+              headerTintColor: colors.primary,
+              headerTitleStyle: { color: colors.primary },
+              contentStyle: { backgroundColor: colors.bg },
             }}
           />
         </Stack>

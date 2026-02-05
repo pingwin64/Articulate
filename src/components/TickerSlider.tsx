@@ -14,6 +14,7 @@ interface TickerSliderProps {
   value: number; // 0-1
   onValueChange: (value: number) => void;
   leftLabel?: string;
+  centerLabel?: string;
   rightLabel?: string;
 }
 
@@ -21,6 +22,7 @@ export function TickerSlider({
   value,
   onValueChange,
   leftLabel,
+  centerLabel,
   rightLabel,
 }: TickerSliderProps) {
   const { colors, isDark } = useTheme();
@@ -112,11 +114,16 @@ export function TickerSlider({
 
   return (
     <View style={styles.container}>
-      {(leftLabel || rightLabel) && (
+      {(leftLabel || centerLabel || rightLabel) && (
         <View style={styles.labelsRow}>
           <Text style={[styles.label, { color: colors.secondary }]}>
             {leftLabel || ''}
           </Text>
+          {centerLabel && (
+            <Text style={[styles.label, { color: colors.secondary }]}>
+              {centerLabel}
+            </Text>
+          )}
           <Text style={[styles.label, { color: colors.secondary }]}>
             {rightLabel || ''}
           </Text>

@@ -186,6 +186,12 @@ function getContextualCopy(context: PaywallContext | null): ContextualCopy {
         subheadline: 'Tap any word to unlock its meaning instantly.',
         featureOrder: [0, 1, 2, 3, 4, 5],
       };
+    case 'locked_library':
+      return {
+        headline: 'Build your personal library',
+        subheadline: 'Save favorites, custom texts, and build a word bank that grows with you.',
+        featureOrder: [0, 1, 2, 3, 4, 5],
+      };
     case 'generic':
     default:
       return {
@@ -445,6 +451,9 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
     return fallback;
   };
 
+  // Show only first 4 features for compact layout
+  const compactFeatures = orderedFeatures.slice(0, 4);
+
   const content = (
       <View style={[styles.container, { backgroundColor: colors.bg }]}>
         <SafeAreaView style={styles.flex}>
@@ -459,8 +468,9 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
             style={styles.flex}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
+            bounces={false}
           >
-            {/* Hero */}
+            {/* Hero - Compact */}
             <Animated.View entering={FadeIn.delay(100).duration(400)} style={styles.headlineSection}>
               <Text style={[styles.headline, { color: colors.primary }]}>
                 {copy.headline}
@@ -468,70 +478,22 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
               <Text style={[styles.subheadline, { color: colors.secondary }]}>
                 {copy.subheadline}
               </Text>
-              {showStreakLine && (
-                <Text style={[styles.streakLine, { color: colors.warning }]}>
-                  {currentStreak === 1
-                    ? "You're building momentum — lock it in"
-                    : `Keep your ${currentStreak}-day streak going strong`
-                  }
-                </Text>
-              )}
             </Animated.View>
 
-            {/* Social Proof Pill */}
-            <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.socialProofContainer}>
-              <View style={[
-                styles.socialProofPill,
-                { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)' }
-              ]}>
-                <Feather name="star" size={14} color={colors.secondary} />
-                <Text style={[styles.socialProofText, { color: colors.secondary }]}>
-                  Join 10,000+ readers improving every day
-                </Text>
-              </View>
-            </Animated.View>
-
-            {/* Feature Highlights */}
-            <Animated.View entering={FadeIn.delay(300).duration(400)}>
-              <GlassCard>
-                <View style={styles.featureList}>
-                  {orderedFeatures.map((feature) => (
-                    <View key={feature.text} style={styles.featureRow}>
-                      <View style={[styles.featureIconBg, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)' }]}>
-                        <Feather name={feature.icon} size={16} color={colors.primary} />
-                      </View>
-                      <Text style={[styles.featureText, { color: colors.primary }]}>
-                        {feature.text}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </GlassCard>
-            </Animated.View>
-
-            {/* Trial-Expired Personalization */}
-            {context === 'trial_expired' && trialExpiredItems.length > 0 && (
-              <Animated.View entering={FadeIn.delay(400).duration(400)}>
-                <GlassCard>
-                  <Text style={[styles.trialExpiredTitle, { color: colors.primary }]}>
-                    What you'll get back
+            {/* Feature Highlights - Compact checkmarks, BEFORE prices */}
+            <Animated.View entering={FadeIn.delay(150).duration(400)} style={styles.featureSection}>
+              {compactFeatures.map((feature) => (
+                <View key={feature.text} style={styles.featureRowCompact}>
+                  <Feather name="check" size={16} color={colors.success} />
+                  <Text style={[styles.featureTextCompact, { color: colors.secondary }]}>
+                    {feature.text}
                   </Text>
-                  <View style={styles.trialExpiredList}>
-                    {trialExpiredItems.map((item) => (
-                      <View key={item} style={styles.trialExpiredRow}>
-                        <Feather name="check" size={14} color={colors.success} />
-                        <Text style={[styles.trialExpiredItem, { color: colors.secondary }]}>
-                          {item}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </GlassCard>
-              </Animated.View>
-            )}
+                </View>
+              ))}
+            </Animated.View>
 
-            {/* Plan Selection */}
-            <Animated.View entering={FadeIn.delay(500).duration(400)} style={styles.planSection}>
+            {/* Plan Selection - After features (standard paywall flow) */}
+            <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.planSection}>
               <View style={styles.planRow}>
                 {/* Weekly */}
                 <Pressable
@@ -554,9 +516,6 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                   <Text style={[styles.planPeriod, { color: colors.secondary }]}>
                     per week
                   </Text>
-                  <Text style={[styles.planNote, { color: colors.muted }]}>
-                    {getDailyRate('WEEKLY', 7, '~$0.43/day')}
-                  </Text>
                 </Pressable>
 
                 {/* Monthly */}
@@ -573,7 +532,7 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                 >
                   <View style={[styles.bestValueBadge, { backgroundColor: colors.primary }]}>
                     <Text style={[styles.bestValueText, { color: colors.bg }]}>
-                      MOST POPULAR
+                      POPULAR
                     </Text>
                   </View>
                   <Text style={[styles.planName, { color: colors.primary }]}>
@@ -584,9 +543,6 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                   </Text>
                   <Text style={[styles.planPeriod, { color: colors.secondary }]}>
                     per month
-                  </Text>
-                  <Text style={[styles.planNote, { color: colors.muted }]}>
-                    {getDailyRate('MONTHLY', 30, '~$0.33/day')}
                   </Text>
                 </Pressable>
 
@@ -615,30 +571,34 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                   <Text style={[styles.planPeriod, { color: colors.secondary }]}>
                     one-time
                   </Text>
-                  <Text style={[styles.planNote, { color: colors.muted }]}>
-                    Pay once, done
-                  </Text>
                 </Pressable>
               </View>
-
-              {/* Savings callout */}
-              {selectedPlan === 'lifetime' && (
-                <Text style={[styles.savingsText, { color: colors.success }]}>
-                  Pay once, own forever
-                </Text>
-              )}
             </Animated.View>
 
-            {/* Credibility */}
-            <Animated.View entering={FadeIn.delay(600).duration(400)}>
-              <Text style={[styles.credibilityText, { color: colors.muted }]}>
-                Join 10,000+ readers improving their focus daily
-              </Text>
-            </Animated.View>
+            {/* Trial-Expired Personalization */}
+            {context === 'trial_expired' && trialExpiredItems.length > 0 && (
+              <Animated.View entering={FadeIn.delay(250).duration(400)}>
+                <GlassCard>
+                  <Text style={[styles.trialExpiredTitle, { color: colors.primary }]}>
+                    What you'll get back
+                  </Text>
+                  <View style={styles.trialExpiredList}>
+                    {trialExpiredItems.slice(0, 3).map((item) => (
+                      <View key={item} style={styles.trialExpiredRow}>
+                        <Feather name="check" size={14} color={colors.success} />
+                        <Text style={[styles.trialExpiredItem, { color: colors.secondary }]}>
+                          {item}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </GlassCard>
+              </Animated.View>
+            )}
           </ScrollView>
 
-          {/* CTAs */}
-          <Animated.View entering={FadeIn.delay(700).duration(300)} style={styles.ctaContainer}>
+          {/* CTAs - Fixed at bottom */}
+          <Animated.View entering={FadeIn.delay(300).duration(300)} style={styles.ctaContainer}>
             {/* App Store required subscription disclosure */}
             <Text style={[styles.subscriptionTerms, { color: colors.muted }]}>
               {selectedPlan !== 'lifetime'
@@ -653,26 +613,26 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
               <GlassButton title={ctaText} onPress={handleSubscribe} />
             )}
             <View style={styles.secondaryRow}>
-              <Pressable onPress={handleRestore} disabled={isLoading}>
+              <Pressable onPress={handleRestore} disabled={isLoading} hitSlop={12}>
                 <Text style={[styles.secondaryLink, { color: colors.muted }]}>
                   Restore Purchase
                 </Text>
               </Pressable>
               <Text style={[styles.dot, { color: colors.muted }]}>{'\u00B7'}</Text>
-              <Pressable onPress={handleClose} disabled={isLoading}>
+              <Pressable onPress={handleClose} disabled={isLoading} hitSlop={12}>
                 <Text style={[styles.secondaryLink, { color: colors.muted }]}>
                   Continue Free
                 </Text>
               </Pressable>
             </View>
             <View style={styles.legalRow}>
-              <Pressable onPress={() => { handleClose(); router.push('/privacy'); }}>
+              <Pressable onPress={() => { handleClose(); router.push('/privacy'); }} hitSlop={8}>
                 <Text style={[styles.legalLink, { color: colors.muted }]}>
                   Privacy
                 </Text>
               </Pressable>
               <Text style={[styles.dot, { color: colors.muted }]}>{'\u00B7'}</Text>
-              <Pressable onPress={() => { handleClose(); router.push('/tos'); }}>
+              <Pressable onPress={() => { handleClose(); router.push('/tos'); }} hitSlop={8}>
                 <Text style={[styles.legalLink, { color: colors.muted }]}>
                   Terms
                 </Text>
@@ -713,34 +673,34 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
   },
   closeButton: {
-    width: 36,
-    height: 36,
+    width: 44, // Apple HIG minimum touch target
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
-    gap: 24,
+    gap: 16,
     flexGrow: 1,
     justifyContent: 'flex-start',
-    paddingTop: 20,
-    paddingBottom: 24,
+    paddingTop: 8,
+    paddingBottom: 16,
   },
   headlineSection: {
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
   },
   headline: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '300',
     letterSpacing: -0.5,
     textAlign: 'center',
   },
   subheadline: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '400',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 20,
   },
   streakLine: {
     fontSize: 14,
@@ -807,7 +767,7 @@ const styles = StyleSheet.create({
   },
   // Plans
   planSection: {
-    gap: 10,
+    gap: 8,
   },
   planRow: {
     flexDirection: 'row',
@@ -817,36 +777,36 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 6,
+    borderRadius: 14,
     borderCurve: 'continuous',
     gap: 2,
-    minHeight: 140,
+    minHeight: 100,
   },
   bestValueBadge: {
     position: 'absolute',
-    top: -10,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    top: -8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
     borderCurve: 'continuous',
   },
   bestValueText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   planName: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '600',
   },
   planPrice: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
   },
   planPeriod: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '400',
   },
   planNote: {
@@ -865,10 +825,27 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
   },
+  // Compact feature list (no card wrapper)
+  featureSection: {
+    gap: 6,
+    paddingHorizontal: 4,
+  },
+  featureRowCompact: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  featureTextCompact: {
+    fontSize: 14,
+    fontWeight: '400',
+    flex: 1,
+    lineHeight: 18,
+  },
   ctaContainer: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
-    gap: 12,
+    paddingBottom: Spacing.md,
+    paddingTop: Spacing.sm,
+    gap: 10,
   },
   secondaryRow: {
     flexDirection: 'row',

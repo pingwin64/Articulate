@@ -20,6 +20,7 @@ import { GlassButton } from '../components/GlassButton';
 import { NumberRoll } from '../components/NumberRoll';
 import { Paywall } from '../components/Paywall';
 import { TickerSlider } from '../components/TickerSlider';
+import { GoalScrollPicker } from '../components/GoalScrollPicker';
 import { OnboardingPaywall } from '../components/OnboardingPaywall';
 import { Spacing } from '../design/theme';
 import { ALL_BADGES, getBadgeById, type Badge } from '../lib/data/badges';
@@ -129,10 +130,10 @@ export default function CompleteScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     // Map 0-1 to levels 3-7
-    // 0 = Challenging (level 3)
+    // 0 = Too Easy (level 7)
     // 0.5 = Just Right (level 5)
-    // 1 = Too Easy (level 7)
-    const level = Math.round(3 + calibrationValue * 4);
+    // 1 = Challenging (level 3)
+    const level = Math.round(7 - calibrationValue * 4);
     setReadingLevel(level);
     setCalibrationStep('journey');
   }, [hapticFeedback, calibrationValue, setReadingLevel]);
@@ -646,8 +647,9 @@ export default function CompleteScreen() {
                     <TickerSlider
                       value={calibrationValue}
                       onValueChange={setCalibrationValue}
-                      leftLabel="Challenging"
-                      rightLabel="Too Easy"
+                      leftLabel="Too Easy"
+                      centerLabel="Just Right"
+                      rightLabel="Challenging"
                     />
                   </View>
                   <GlassButton
@@ -683,30 +685,12 @@ export default function CompleteScreen() {
                   You read {wordsRead} words in {timeDisplay}.{'\n'}How much feels right daily?
                 </Text>
 
-                <View style={styles.goalPicker}>
-                  {[50, 100, 150, 200].map((goal) => (
-                    <Pressable
-                      key={goal}
-                      onPress={() => {
-                        playTickSound();
-                        setSelectedGoal(goal);
-                      }}
-                      style={[
-                        styles.goalOption,
-                        {
-                          backgroundColor: selectedGoal === goal ? colors.primary : glass.fill,
-                          borderColor: selectedGoal === goal ? colors.primary : glass.border,
-                        },
-                      ]}
-                    >
-                      <Text style={[
-                        styles.goalOptionText,
-                        { color: selectedGoal === goal ? colors.bg : colors.primary },
-                      ]}>
-                        {goal}
-                      </Text>
-                    </Pressable>
-                  ))}
+                <View style={styles.goalPickerContainer}>
+                  <GoalScrollPicker
+                    value={selectedGoal}
+                    onValueChange={setSelectedGoal}
+                    options={[50, 100, 150, 200, 250, 300]}
+                  />
                 </View>
                 <Text style={[styles.goalEstimate, { color: colors.muted }]}>
                   ~{Math.round(selectedGoal / 10)} min/day
@@ -1395,22 +1379,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-  goalPicker: {
-    flexDirection: 'row',
-    gap: 12,
+  goalPickerContainer: {
+    width: '100%',
     marginTop: 8,
-  },
-  goalOption: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  goalOptionText: {
-    fontSize: 18,
-    fontWeight: '600',
   },
   goalEstimate: {
     fontSize: 13,
