@@ -879,7 +879,8 @@ export default function SettingsScreen() {
               </Text>
               <View style={styles.swatchRow}>
                 {BackgroundThemes.map((theme) => {
-                  const bgColor = isDark ? theme.dark : theme.light;
+                  // Always show light variant for preview (darkOnly themes only have one color anyway)
+                  const bgColor = theme.light;
                   const isSelected = backgroundTheme === theme.key;
                   const isDefault = theme.key === 'default';
                   // Check if this is a reward theme
