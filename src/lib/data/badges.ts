@@ -322,6 +322,41 @@ const LEVEL_BADGES: Badge[] = [
   },
 ];
 
+// Difficulty badges (3)
+const DIFFICULTY_BADGES: Badge[] = [
+  {
+    id: 'difficulty-advanced-5',
+    name: 'Challenge Seeker',
+    description: 'Complete 5 advanced texts',
+    category: 'special',
+    tier: 'silver',
+    icon: 'trending-up',
+    threshold: 5,
+  },
+  {
+    id: 'difficulty-advanced-10',
+    name: 'Challenge Master',
+    description: 'Complete 10 advanced texts',
+    category: 'special',
+    tier: 'gold',
+    icon: 'award',
+    threshold: 10,
+    reward: {
+      type: 'color',
+      id: 'difficulty-master-color',
+      name: 'Master Ink Color',
+    },
+  },
+  {
+    id: 'difficulty-all-levels',
+    name: 'Well Rounded',
+    description: 'Complete 5 texts at each difficulty level',
+    category: 'special',
+    tier: 'gold',
+    icon: 'layers',
+  },
+];
+
 // Special badges (6+)
 const SPECIAL_BADGES: Badge[] = [
   {
@@ -398,6 +433,7 @@ export const ALL_BADGES: Badge[] = [
   ...QUIZ_BADGES,
   ...SPECIAL_BADGES,
   ...LEVEL_BADGES,
+  ...DIFFICULTY_BADGES,
 ];
 
 // Helper to get badge by ID

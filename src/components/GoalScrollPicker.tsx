@@ -24,14 +24,16 @@ export function GoalScrollPicker({
   const lastIndex = useRef(-1);
 
   const selectedIndex = options.indexOf(value);
-  const initialOffset = selectedIndex >= 0 ? selectedIndex * ITEM_HEIGHT : 0;
 
   useEffect(() => {
-    // Scroll to initial value
-    if (scrollRef.current && selectedIndex >= 0) {
-      scrollRef.current.scrollTo({ y: selectedIndex * ITEM_HEIGHT, animated: false });
-    }
-  }, []);
+    // Scroll to initial value after a brief delay to ensure layout is ready
+    const timeout = setTimeout(() => {
+      if (scrollRef.current && selectedIndex >= 0) {
+        scrollRef.current.scrollTo({ y: selectedIndex * ITEM_HEIGHT, animated: false });
+      }
+    }, 50);
+    return () => clearTimeout(timeout);
+  }, [selectedIndex]);
 
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = event.nativeEvent.contentOffset.y;
@@ -62,8 +64,9 @@ export function GoalScrollPicker({
 
   return (
     <View style={styles.container}>
-      {/* Selection indicator */}
+      {/* Selection indicator - behind the scroll view */}
       <View
+        pointerEvents="none"
         style={[
           styles.selectionIndicator,
           {
@@ -76,10 +79,7 @@ export function GoalScrollPicker({
       <ScrollView
         ref={scrollRef}
         style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingVertical: ITEM_HEIGHT }, // One item padding top/bottom
-        ]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         snapToInterval={ITEM_HEIGHT}
         decelerationRate="fast"
@@ -87,8 +87,15 @@ export function GoalScrollPicker({
         onMomentumScrollEnd={handleScrollEnd}
         onScrollEndDrag={handleScrollEnd}
         scrollEventThrottle={16}
+        nestedScrollEnabled={true}
+        bounces={true}
+        alwaysBounceVertical={true}
+        overScrollMode="always"
       >
-        {options.map((opt, idx) => {
+        {/* Top spacer - one item height so first item can be centered */}
+        <View style={styles.spacer} />
+
+        {options.map((opt) => {
           const isSelected = opt === value;
           return (
             <View key={opt} style={styles.item}>
@@ -118,6 +125,9 @@ export function GoalScrollPicker({
             </View>
           );
         })}
+
+        {/* Bottom spacer - one item height so last item can be centered */}
+        <View style={styles.spacer} />
       </ScrollView>
     </View>
   );
@@ -137,12 +147,17 @@ const styles = StyleSheet.create({
     height: ITEM_HEIGHT,
     borderRadius: 12,
     borderWidth: 0.5,
+    zIndex: 0,
   },
   scrollView: {
     width: '100%',
+    zIndex: 1,
   },
   scrollContent: {
     alignItems: 'center',
+  },
+  spacer: {
+    height: ITEM_HEIGHT,
   },
   item: {
     height: ITEM_HEIGHT,

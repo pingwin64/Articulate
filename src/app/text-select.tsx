@@ -1,14 +1,32 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { StyleSheet, View, Text, ScrollView, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
-import { categories, TextEntry } from '../lib/data/categories';
+import { categories, TextEntry, TextDifficulty } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { Feather } from '@expo/vector-icons';
 import { Spacing } from '../design/theme';
+
+type DifficultyFilter = 'all' | TextDifficulty;
+
+// Difficulty badge colors - subtle glass aesthetic
+const DIFFICULTY_COLORS = {
+  beginner: {
+    bg: 'rgba(34, 197, 94, 0.12)',
+    text: '#22C55E',
+  },
+  intermediate: {
+    bg: 'rgba(234, 179, 8, 0.12)',
+    text: '#EAB308',
+  },
+  advanced: {
+    bg: 'rgba(168, 85, 247, 0.12)',
+    text: '#A855F7',
+  },
+};
 
 export default function TextSelectScreen() {
   const { colors, glass, isDark } = useTheme();
@@ -20,12 +38,37 @@ export default function TextSelectScreen() {
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
 
   const [lockedMessage, setLockedMessage] = useState<string | null>(null);
+  const [difficultyFilter, setDifficultyFilter] = useState<DifficultyFilter>('all');
 
   // FormSheet workaround: params may be empty, fall back to store
   const categoryKey = params.categoryKey || selectedCategoryKey || undefined;
 
   const category = categories.find((c) => c.key === categoryKey);
   const userReadsInCategory = categoryKey ? (categoryReadCounts[categoryKey] ?? 0) : 0;
+
+  // Filter texts by difficulty
+  const filteredTexts = useMemo(() => {
+    if (!category) return [];
+    if (difficultyFilter === 'all') return category.texts;
+    return category.texts.filter((t) => t.textDifficulty === difficultyFilter);
+  }, [category, difficultyFilter]);
+
+  // Count texts by difficulty for filter badges
+  const difficultyCounts = useMemo(() => {
+    if (!category) return { beginner: 0, intermediate: 0, advanced: 0 };
+    return {
+      beginner: category.texts.filter((t) => t.textDifficulty === 'beginner').length,
+      intermediate: category.texts.filter((t) => t.textDifficulty === 'intermediate').length,
+      advanced: category.texts.filter((t) => t.textDifficulty === 'advanced').length,
+    };
+  }, [category]);
+
+  const handleFilterChange = (filter: DifficultyFilter) => {
+    if (hapticEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setDifficultyFilter(filter);
+  };
 
   // Check if a text is unlocked based on requiredReads
   const isTextUnlocked = (entry: TextEntry): boolean => {
@@ -87,6 +130,73 @@ export default function TextSelectScreen() {
         Choose a text to read
       </Text>
 
+      {/* Difficulty Filter Tabs */}
+      <View style={styles.filterContainer}>
+        <Pressable
+          onPress={() => handleFilterChange('all')}
+          style={[
+            styles.filterChip,
+            { backgroundColor: difficultyFilter === 'all' ? glass.fill : 'transparent' },
+            difficultyFilter === 'all' && { borderColor: glass.border, borderWidth: 1 },
+          ]}
+        >
+          <Text style={[styles.filterChipText, { color: difficultyFilter === 'all' ? colors.primary : colors.muted }]}>
+            All
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => handleFilterChange('beginner')}
+          style={[
+            styles.filterChip,
+            { backgroundColor: difficultyFilter === 'beginner' ? DIFFICULTY_COLORS.beginner.bg : 'transparent' },
+            difficultyFilter === 'beginner' && { borderColor: DIFFICULTY_COLORS.beginner.text + '40', borderWidth: 1 },
+          ]}
+        >
+          <Text style={[styles.filterChipText, { color: difficultyFilter === 'beginner' ? DIFFICULTY_COLORS.beginner.text : colors.muted }]}>
+            Beginner
+          </Text>
+          {difficultyCounts.beginner > 0 && (
+            <Text style={[styles.filterCount, { color: difficultyFilter === 'beginner' ? DIFFICULTY_COLORS.beginner.text : colors.muted }]}>
+              {difficultyCounts.beginner}
+            </Text>
+          )}
+        </Pressable>
+        <Pressable
+          onPress={() => handleFilterChange('intermediate')}
+          style={[
+            styles.filterChip,
+            { backgroundColor: difficultyFilter === 'intermediate' ? DIFFICULTY_COLORS.intermediate.bg : 'transparent' },
+            difficultyFilter === 'intermediate' && { borderColor: DIFFICULTY_COLORS.intermediate.text + '40', borderWidth: 1 },
+          ]}
+        >
+          <Text style={[styles.filterChipText, { color: difficultyFilter === 'intermediate' ? DIFFICULTY_COLORS.intermediate.text : colors.muted }]}>
+            Inter.
+          </Text>
+          {difficultyCounts.intermediate > 0 && (
+            <Text style={[styles.filterCount, { color: difficultyFilter === 'intermediate' ? DIFFICULTY_COLORS.intermediate.text : colors.muted }]}>
+              {difficultyCounts.intermediate}
+            </Text>
+          )}
+        </Pressable>
+        <Pressable
+          onPress={() => handleFilterChange('advanced')}
+          style={[
+            styles.filterChip,
+            { backgroundColor: difficultyFilter === 'advanced' ? DIFFICULTY_COLORS.advanced.bg : 'transparent' },
+            difficultyFilter === 'advanced' && { borderColor: DIFFICULTY_COLORS.advanced.text + '40', borderWidth: 1 },
+          ]}
+        >
+          <Text style={[styles.filterChipText, { color: difficultyFilter === 'advanced' ? DIFFICULTY_COLORS.advanced.text : colors.muted }]}>
+            Advanced
+          </Text>
+          {difficultyCounts.advanced > 0 && (
+            <Text style={[styles.filterCount, { color: difficultyFilter === 'advanced' ? DIFFICULTY_COLORS.advanced.text : colors.muted }]}>
+              {difficultyCounts.advanced}
+            </Text>
+          )}
+        </Pressable>
+      </View>
+
       {lockedMessage && (
         <Animated.View entering={FadeIn.duration(200)} style={styles.lockedToast}>
           <Feather name="lock" size={14} color={colors.muted} />
@@ -96,9 +206,10 @@ export default function TextSelectScreen() {
         </Animated.View>
       )}
       <View style={styles.list}>
-        {category.texts.map((entry, i) => {
+        {filteredTexts.map((entry, i) => {
           const unlocked = isTextUnlocked(entry);
           const readsNeeded = (entry.requiredReads ?? 0) - userReadsInCategory;
+          const difficultyColor = entry.textDifficulty ? DIFFICULTY_COLORS[entry.textDifficulty] : null;
 
           return (
             <Animated.View
@@ -117,9 +228,17 @@ export default function TextSelectScreen() {
                           styles.name,
                           { color: unlocked ? colors.primary : colors.muted },
                         ]}
+                        numberOfLines={1}
                       >
                         {entry.title}
                       </Text>
+                      {entry.textDifficulty && difficultyColor && (
+                        <View style={[styles.difficultyBadge, { backgroundColor: difficultyColor.bg }]}>
+                          <Text style={[styles.difficultyBadgeText, { color: difficultyColor.text }]}>
+                            {entry.textDifficulty === 'intermediate' ? 'Inter.' : entry.textDifficulty.charAt(0).toUpperCase() + entry.textDifficulty.slice(1)}
+                          </Text>
+                        </View>
+                      )}
                       {!unlocked && (
                         <Feather
                           name="lock"
@@ -234,5 +353,40 @@ const styles = StyleSheet.create({
   lockedToastText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  // Filter tabs
+  filterContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: Spacing.md,
+    flexWrap: 'wrap',
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  filterCount: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  // Difficulty badge on text rows
+  difficultyBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 4,
+  },
+  difficultyBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
 });

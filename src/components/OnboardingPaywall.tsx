@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   Pressable,
   ScrollView,
-  ActivityIndicator,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -15,7 +15,6 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 import { GlassButton } from './GlassButton';
-import { GlassCard } from './GlassCard';
 import {
   FontFamilies,
   WordColors,
@@ -30,56 +29,41 @@ import {
 } from '../lib/purchases';
 import type { PurchasesPackage } from 'react-native-purchases';
 
-// ─── Types ────────────────────────────────────────────────────
-
-export type OnboardingPaywallVariant = 'A' | 'B' | 'C' | 'D';
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface OnboardingPaywallProps {
   fontFamily: FontFamilyKey;
   wordColor: WordColorKey;
   backgroundTheme: string;
   dailyGoal: number;
-  variant?: OnboardingPaywallVariant;
   onSubscribe: () => void;
   onContinueFree: () => void;
 }
 
 type Plan = 'weekly' | 'monthly' | 'lifetime';
 
-// ─── Feature Lists ────────────────────────────────────────────
-
 const PRO_FEATURES = [
-  { icon: 'droplet' as const, text: 'All fonts, colors & backgrounds' },
-  { icon: 'book-open' as const, text: '12 categories — Philosophy, Poetry & more' },
-  { icon: 'clipboard' as const, text: 'Unlimited custom text uploads' },
-  { icon: 'help-circle' as const, text: 'Comprehension quizzes' },
-  { icon: 'volume-2' as const, text: 'AI narration' },
-  { icon: 'zap' as const, text: 'Auto-play, breathing & chunk modes' },
+  { icon: 'check' as const, text: 'Keep your personalized setup — fonts, colors, background' },
+  { icon: 'check' as const, text: 'Your library — upload anything, save words, bookmark favorites' },
+  { icon: 'check' as const, text: 'All 12 categories: Philosophy, Poetry, Science & more' },
+  { icon: 'check' as const, text: "Unlimited quizzes to track what you're learning" },
 ];
-
-// ─── Component ────────────────────────────────────────────────
 
 export function OnboardingPaywall({
   fontFamily,
   wordColor,
   backgroundTheme,
   dailyGoal,
-  variant: propVariant,
   onSubscribe,
   onContinueFree,
 }: OnboardingPaywallProps) {
   const { colors, glass, isDark } = useTheme();
   const { setIsPremium, hapticFeedback } = useSettingsStore();
 
-  // Dev toggle for variant testing
-  const [devVariant, setDevVariant] = useState<OnboardingPaywallVariant>(propVariant ?? 'C');
-  const variant = __DEV__ ? devVariant : (propVariant ?? 'C');
-
   const [selectedPlan, setSelectedPlan] = useState<Plan>('monthly');
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch offerings
   useEffect(() => {
     getOfferings().then(setPackages).catch(() => {});
   }, []);
@@ -99,23 +83,6 @@ export function OnboardingPaywall({
   const chosePremiumColor = wordColor !== 'default';
   const chosePremiumBg = backgroundTheme !== 'default';
   const hasAnyPremiumChoice = chosePremiumFont || chosePremiumColor || chosePremiumBg;
-
-  // Generate personalized headline for Variant C
-  const getSmartHeadline = () => {
-    if (chosePremiumFont && chosePremiumColor && chosePremiumBg) {
-      return "Your perfect setup is ready";
-    }
-    if (chosePremiumFont) {
-      return `Keep your ${fontConfig.label} style`;
-    }
-    if (chosePremiumColor && colorConfig) {
-      return `Keep your ${colorConfig.label} look`;
-    }
-    if (chosePremiumBg && bgConfig) {
-      return `Keep your ${bgConfig.label} background`;
-    }
-    return "Unlock your full reading space";
-  };
 
   const handleSelectPlan = (plan: Plan) => {
     if (hapticFeedback) {
@@ -177,337 +144,208 @@ export function OnboardingPaywall({
     }
   };
 
-  // ─── Render Variant Content ─────────────────────────────────
-
-  const renderVariantContent = () => {
-    switch (variant) {
-      case 'A':
-        return renderVariantA();
-      case 'B':
-        return renderVariantB();
-      case 'C':
-        return renderVariantC();
-      case 'D':
-        return renderVariantD();
-      default:
-        return renderVariantC();
-    }
-  };
-
-  // Variant A: Settings Preview
-  const renderVariantA = () => (
-    <>
-      <Text style={[styles.headline, { color: colors.primary }]}>
-        Your reading space is ready
-      </Text>
-      <Text style={[styles.subheadline, { color: colors.secondary }]}>
-        {hasAnyPremiumChoice
-          ? "Keep the look you've created"
-          : "Personalize it even more with Pro"}
-      </Text>
-
-      {/* Preview Card */}
-      <Animated.View entering={FadeIn.delay(100).duration(400)}>
-        <View
-          style={[
-            styles.previewCard,
-            {
-              backgroundColor: previewBgColor,
-              borderColor: glass.border,
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.previewText,
-              {
-                color: previewColor,
-                fontFamily: fontConfig.regular,
-              },
-            ]}
-          >
-            Articulate
-          </Text>
-          {hasAnyPremiumChoice && (
-            <View style={styles.previewBadges}>
-              {chosePremiumFont && (
-                <Text style={[styles.previewBadge, { color: colors.secondary }]}>
-                  {fontConfig.label}
-                </Text>
-              )}
-              {chosePremiumColor && colorConfig && (
-                <Text style={[styles.previewBadge, { color: colors.secondary }]}>
-                  {colorConfig.label}
-                </Text>
-              )}
-              {chosePremiumBg && bgConfig && (
-                <Text style={[styles.previewBadge, { color: colors.secondary }]}>
-                  {bgConfig.label}
-                </Text>
-              )}
-            </View>
-          )}
-        </View>
-      </Animated.View>
-    </>
-  );
-
-  // Variant B: Goal-Focused
-  const renderVariantB = () => (
-    <>
-      <Text style={[styles.headline, { color: colors.primary }]}>
-        You want to read{'\n'}{dailyGoal} words daily
-      </Text>
-      <Text style={[styles.subheadline, { color: colors.secondary }]}>
-        Pro readers are 3x more likely to hit their goals
-      </Text>
-
-      <Animated.View entering={FadeIn.delay(100).duration(400)} style={styles.goalStats}>
-        <View style={[styles.statCard, { backgroundColor: glass.fill, borderColor: glass.border }]}>
-          <Feather name="target" size={24} color={colors.primary} />
-          <Text style={[styles.statValue, { color: colors.primary }]}>{dailyGoal}</Text>
-          <Text style={[styles.statLabel, { color: colors.secondary }]}>words/day</Text>
-        </View>
-        <View style={[styles.statCard, { backgroundColor: glass.fill, borderColor: glass.border }]}>
-          <Feather name="trending-up" size={24} color={colors.primary} />
-          <Text style={[styles.statValue, { color: colors.primary }]}>Beginner</Text>
-          <Text style={[styles.statLabel, { color: colors.secondary }]}>starting level</Text>
-        </View>
-      </Animated.View>
-    </>
-  );
-
-  // Variant C: Feature Relevance (Smart)
-  const renderVariantC = () => (
-    <>
-      <Text style={[styles.headline, { color: colors.primary }]}>
-        {getSmartHeadline()}
-      </Text>
-      <Text style={[styles.subheadline, { color: colors.secondary }]}>
-        {hasAnyPremiumChoice
-          ? "Your choices require Pro to keep"
-          : "Unlock the full reading experience"}
-      </Text>
-
-      {hasAnyPremiumChoice && (
-        <Animated.View entering={FadeIn.delay(100).duration(400)} style={styles.chosenFeatures}>
-          {chosePremiumFont && (
-            <View style={[styles.chosenFeature, { backgroundColor: glass.fill, borderColor: glass.border }]}>
-              <Feather name="type" size={16} color={colors.primary} />
-              <Text style={[styles.chosenFeatureText, { color: colors.primary }]}>
-                {fontConfig.label} font
-              </Text>
-            </View>
-          )}
-          {chosePremiumColor && colorConfig && (
-            <View style={[styles.chosenFeature, { backgroundColor: glass.fill, borderColor: glass.border }]}>
-              <View style={[styles.colorDot, { backgroundColor: previewColor }]} />
-              <Text style={[styles.chosenFeatureText, { color: colors.primary }]}>
-                {colorConfig.label} color
-              </Text>
-            </View>
-          )}
-          {chosePremiumBg && bgConfig && (
-            <View style={[styles.chosenFeature, { backgroundColor: glass.fill, borderColor: glass.border }]}>
-              <Feather name="layers" size={16} color={colors.primary} />
-              <Text style={[styles.chosenFeatureText, { color: colors.primary }]}>
-                {bgConfig.label} background
-              </Text>
-            </View>
-          )}
-        </Animated.View>
-      )}
-    </>
-  );
-
-  // Variant D: Before/After Split
-  const renderVariantD = () => (
-    <>
-      <Text style={[styles.headline, { color: colors.primary }]}>
-        Free vs Your Setup
-      </Text>
-      <Text style={[styles.subheadline, { color: colors.secondary }]}>
-        See what you'll unlock with Pro
-      </Text>
-
-      <Animated.View entering={FadeIn.delay(100).duration(400)} style={styles.splitContainer}>
-        {/* Free side */}
-        <View style={[styles.splitCard, { backgroundColor: glass.fill, borderColor: glass.border }]}>
-          <Text style={[styles.splitLabel, { color: colors.muted }]}>FREE</Text>
-          <View style={[styles.splitPreview, { backgroundColor: isDark ? '#000' : '#FFF' }]}>
-            <Text style={[styles.splitPreviewText, { color: colors.primary }]}>
-              Aa
-            </Text>
-          </View>
-          <Text style={[styles.splitDetail, { color: colors.muted }]}>Default font</Text>
-          <Text style={[styles.splitDetail, { color: colors.muted }]}>Default colors</Text>
-        </View>
-
-        {/* Pro side */}
-        <View style={[styles.splitCard, styles.splitCardPro, { backgroundColor: glass.fill, borderColor: colors.primary }]}>
-          <Text style={[styles.splitLabel, { color: colors.primary }]}>YOUR SETUP</Text>
-          <View style={[styles.splitPreview, { backgroundColor: previewBgColor }]}>
-            <Text
-              style={[
-                styles.splitPreviewText,
-                { color: previewColor, fontFamily: fontConfig.regular },
-              ]}
-            >
-              Aa
-            </Text>
-          </View>
-          {chosePremiumFont && (
-            <Text style={[styles.splitDetail, { color: colors.secondary }]}>{fontConfig.label}</Text>
-          )}
-          {chosePremiumColor && colorConfig && (
-            <Text style={[styles.splitDetail, { color: colors.secondary }]}>{colorConfig.label}</Text>
-          )}
-          {chosePremiumBg && bgConfig && (
-            <Text style={[styles.splitDetail, { color: colors.secondary }]}>{bgConfig.label}</Text>
-          )}
-        </View>
-      </Animated.View>
-    </>
-  );
+  // Build the customization labels
+  const customizations: string[] = [];
+  if (chosePremiumFont) customizations.push(fontConfig.label);
+  if (chosePremiumColor && colorConfig) customizations.push(colorConfig.label);
+  if (chosePremiumBg && bgConfig) customizations.push(bgConfig.label);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <SafeAreaView style={styles.flex}>
+      <SafeAreaView style={styles.flex} edges={['bottom']}>
         <ScrollView
           style={styles.flex}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          {/* Dev Toggle */}
-          {__DEV__ && (
-            <View style={styles.devToggle}>
-              {(['A', 'B', 'C', 'D'] as const).map((v) => (
-                <Pressable
-                  key={v}
-                  onPress={() => setDevVariant(v)}
-                  style={[
-                    styles.devToggleButton,
-                    {
-                      backgroundColor: devVariant === v ? colors.primary : glass.fill,
-                      borderColor: devVariant === v ? colors.primary : glass.border,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.devToggleText,
-                      { color: devVariant === v ? colors.bg : colors.primary },
-                    ]}
-                  >
-                    {v}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
+          {/* Header */}
+          <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
+            <Text style={[styles.headline, { color: colors.primary }]}>
+              {hasAnyPremiumChoice
+                ? "Your reading space"
+                : "Unlock your full\nreading space"}
+            </Text>
+            {hasAnyPremiumChoice && (
+              <Text style={[styles.subheadline, { color: colors.secondary }]}>
+                Keep the look you've created
+              </Text>
+            )}
+          </Animated.View>
 
-          {/* Variant Content */}
-          <View style={styles.content}>
-            {renderVariantContent()}
-          </View>
-
-          {/* Features List */}
-          <View style={styles.featuresSection}>
-            {PRO_FEATURES.slice(0, 4).map((feature, i) => (
-              <Animated.View
-                key={feature.text}
-                entering={FadeIn.delay(200 + i * 50).duration(300)}
-                style={styles.featureRow}
-              >
-                <Feather name={feature.icon} size={18} color={colors.primary} />
-                <Text style={[styles.featureText, { color: colors.secondary }]}>
-                  {feature.text}
-                </Text>
-              </Animated.View>
-            ))}
-          </View>
-
-          {/* Plan Selection */}
-          <View style={styles.plansSection}>
-            <Pressable
-              onPress={() => handleSelectPlan('weekly')}
+          {/* Preview Card */}
+          <Animated.View
+            entering={FadeIn.delay(100).duration(400)}
+            style={styles.previewSection}
+          >
+            <View
               style={[
-                styles.planCard,
+                styles.previewCard,
                 {
-                  backgroundColor: selectedPlan === 'weekly' ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)') : glass.fill,
-                  borderColor: selectedPlan === 'weekly' ? colors.primary : glass.border,
-                  borderWidth: selectedPlan === 'weekly' ? 2 : 1,
+                  backgroundColor: previewBgColor,
+                  borderColor: glass.border,
                 },
               ]}
             >
-              <Text style={[styles.planTitle, { color: colors.primary }]}>Weekly</Text>
-              <Text style={[styles.planPrice, { color: colors.primary }]}>$2.99/wk</Text>
-              <Text style={[styles.planDetail, { color: colors.muted }]}>Cancel anytime</Text>
-            </Pressable>
+              <Text
+                style={[
+                  styles.previewText,
+                  {
+                    color: previewColor,
+                    fontFamily: fontConfig.regular,
+                  },
+                ]}
+              >
+                Articulate
+              </Text>
+            </View>
+            {customizations.length > 0 && (
+              <Text style={[styles.customizationLabel, { color: colors.muted }]}>
+                {customizations.join(' · ')}
+              </Text>
+            )}
+          </Animated.View>
 
+          {/* Features */}
+          <Animated.View
+            entering={FadeIn.delay(200).duration(400)}
+            style={styles.featuresSection}
+          >
+            {PRO_FEATURES.map((feature, i) => (
+              <View key={feature.text} style={styles.featureRow}>
+                <Feather name="check" size={18} color={colors.primary} />
+                <Text style={[styles.featureText, { color: colors.secondary }]}>
+                  {feature.text}
+                </Text>
+              </View>
+            ))}
+          </Animated.View>
+
+          {/* Plans */}
+          <Animated.View
+            entering={FadeIn.delay(300).duration(400)}
+            style={styles.plansSection}
+          >
+            {/* Monthly - Featured */}
             <Pressable
               onPress={() => handleSelectPlan('monthly')}
               style={[
                 styles.planCard,
+                styles.planCardFeatured,
                 {
-                  backgroundColor: selectedPlan === 'monthly' ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)') : glass.fill,
+                  backgroundColor: selectedPlan === 'monthly'
+                    ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)')
+                    : glass.fill,
                   borderColor: selectedPlan === 'monthly' ? colors.primary : glass.border,
                   borderWidth: selectedPlan === 'monthly' ? 2 : 1,
                 },
               ]}
             >
-              <View style={styles.planHeader}>
-                <Text style={[styles.planTitle, { color: colors.primary }]}>Monthly</Text>
-                <View style={[styles.planBadge, { backgroundColor: colors.primary }]}>
-                  <Text style={[styles.planBadgeText, { color: colors.bg }]}>POPULAR</Text>
-                </View>
+              <View style={[styles.popularBadge, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.popularBadgeText, { color: colors.bg }]}>
+                  MOST POPULAR
+                </Text>
               </View>
-              <Text style={[styles.planPrice, { color: colors.primary }]}>$9.99/mo</Text>
-              <Text style={[styles.planDetail, { color: colors.muted }]}>~$0.33/day</Text>
+              <View style={styles.planContent}>
+                <View style={styles.planLeft}>
+                  <Text style={[styles.planTitle, { color: colors.primary }]}>Monthly</Text>
+                  <Text style={[styles.planSubtitle, { color: colors.muted }]}>
+                    Just $0.33/day
+                  </Text>
+                </View>
+                <Text style={[styles.planPrice, { color: colors.primary }]}>$9.99</Text>
+              </View>
             </Pressable>
 
+            {/* Weekly */}
+            <Pressable
+              onPress={() => handleSelectPlan('weekly')}
+              style={[
+                styles.planCard,
+                {
+                  backgroundColor: selectedPlan === 'weekly'
+                    ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)')
+                    : glass.fill,
+                  borderColor: selectedPlan === 'weekly' ? colors.primary : glass.border,
+                  borderWidth: selectedPlan === 'weekly' ? 2 : 1,
+                },
+              ]}
+            >
+              <View style={styles.planContent}>
+                <View style={styles.planLeft}>
+                  <Text style={[styles.planTitle, { color: colors.primary }]}>Weekly</Text>
+                  <Text style={[styles.planSubtitle, { color: colors.muted }]}>
+                    $0.43/day · Try it first
+                  </Text>
+                </View>
+                <Text style={[styles.planPrice, { color: colors.primary }]}>$2.99</Text>
+              </View>
+            </Pressable>
+
+            {/* Lifetime */}
             <Pressable
               onPress={() => handleSelectPlan('lifetime')}
               style={[
                 styles.planCard,
+                styles.planCardFeatured,
                 {
-                  backgroundColor: selectedPlan === 'lifetime' ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)') : glass.fill,
+                  backgroundColor: selectedPlan === 'lifetime'
+                    ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)')
+                    : glass.fill,
                   borderColor: selectedPlan === 'lifetime' ? colors.primary : glass.border,
                   borderWidth: selectedPlan === 'lifetime' ? 2 : 1,
                 },
               ]}
             >
-              <Text style={[styles.planTitle, { color: colors.primary }]}>Lifetime</Text>
-              <Text style={[styles.planPrice, { color: colors.primary }]}>$19.99</Text>
-              <Text style={[styles.planDetail, { color: colors.muted }]}>One-time payment</Text>
+              <View style={[styles.savingsBadge, { backgroundColor: '#22C55E' }]}>
+                <Text style={[styles.savingsBadgeText, { color: '#FFF' }]}>
+                  SAVE 60%
+                </Text>
+              </View>
+              <View style={styles.planContent}>
+                <View style={styles.planLeft}>
+                  <Text style={[styles.planTitle, { color: colors.primary }]}>Lifetime</Text>
+                  <Text style={[styles.planSubtitle, { color: colors.muted }]}>
+                    One payment, forever yours
+                  </Text>
+                </View>
+                <Text style={[styles.planPrice, { color: colors.primary }]}>$24.99</Text>
+              </View>
             </Pressable>
-          </View>
+          </Animated.View>
         </ScrollView>
 
-        {/* CTA Section */}
-        <View style={styles.ctaSection}>
+        {/* CTA Section - Fixed at bottom */}
+        <Animated.View
+          entering={FadeIn.delay(400).duration(400)}
+          style={[styles.ctaSection, { borderTopColor: glass.border }]}
+        >
           <GlassButton
-            title={isLoading ? 'Processing...' : 'Unlock Pro'}
+            title={isLoading ? 'Processing...' : 'Continue'}
             onPress={handlePurchase}
             disabled={isLoading}
           />
-          <Pressable onPress={onContinueFree} style={styles.skipButton}>
-            <Text style={[styles.skipText, { color: colors.secondary }]}>
-              Continue Free
-            </Text>
-          </Pressable>
-          <Pressable onPress={handleRestore} style={styles.restoreButton}>
-            <Text style={[styles.restoreText, { color: colors.muted }]}>
-              Restore Purchases
-            </Text>
-          </Pressable>
-        </View>
+          <Text style={[styles.cancelText, { color: colors.muted }]}>
+            Cancel anytime
+          </Text>
+          <View style={styles.bottomLinks}>
+            <Pressable onPress={onContinueFree} style={styles.linkButton}>
+              <Text style={[styles.linkText, { color: colors.secondary }]}>
+                Continue Free
+              </Text>
+            </Pressable>
+            <Text style={[styles.linkDivider, { color: colors.muted }]}>·</Text>
+            <Pressable onPress={handleRestore} style={styles.linkButton}>
+              <Text style={[styles.linkText, { color: colors.muted }]}>
+                Restore
+              </Text>
+            </Pressable>
+          </View>
+        </Animated.View>
       </SafeAreaView>
     </View>
   );
 }
-
-// ─── Styles ───────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
@@ -518,154 +356,55 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xl,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.md,
   },
-  devToggle: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
+  header: {
+    alignItems: 'center',
     marginBottom: Spacing.lg,
   },
-  devToggleButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  devToggleText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  content: {
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
   headline: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 26,
+    fontWeight: '600',
     textAlign: 'center',
-    marginBottom: Spacing.sm,
+    letterSpacing: -0.5,
   },
   subheadline: {
     fontSize: 16,
     textAlign: 'center',
+    marginTop: 6,
+  },
+  // Preview
+  previewSection: {
+    alignItems: 'center',
     marginBottom: Spacing.lg,
   },
-  // Variant A: Preview Card
   previewCard: {
     width: '100%',
-    padding: Spacing.xl,
+    paddingVertical: 32,
+    paddingHorizontal: Spacing.lg,
     borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
-    marginTop: Spacing.md,
   },
   previewText: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: '400',
   },
-  previewBadges: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: Spacing.md,
-  },
-  previewBadge: {
-    fontSize: 12,
+  customizationLabel: {
+    fontSize: 13,
+    marginTop: 10,
     fontWeight: '500',
-  },
-  // Variant B: Goal Stats
-  goalStats: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.md,
-  },
-  statCard: {
-    flex: 1,
-    padding: Spacing.lg,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    gap: 4,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  statLabel: {
-    fontSize: 12,
-  },
-  // Variant C: Chosen Features
-  chosenFeatures: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: Spacing.md,
-  },
-  chosenFeature: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  chosenFeatureText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  colorDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  // Variant D: Split View
-  splitContainer: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.md,
-  },
-  splitCard: {
-    flex: 1,
-    padding: Spacing.md,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    gap: 8,
-  },
-  splitCardPro: {
-    borderWidth: 2,
-  },
-  splitLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  splitPreview: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  splitPreviewText: {
-    fontSize: 28,
-    fontWeight: '400',
-  },
-  splitDetail: {
-    fontSize: 12,
   },
   // Features
   featuresSection: {
-    gap: Spacing.md,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
+    gap: 12,
   },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: 10,
   },
   featureText: {
     fontSize: 15,
@@ -673,60 +412,89 @@ const styles = StyleSheet.create({
   },
   // Plans
   plansSection: {
-    flexDirection: 'row',
-    gap: Spacing.md,
+    gap: 10,
   },
   planCard: {
-    flex: 1,
-    padding: Spacing.md,
-    borderRadius: 12,
-    alignItems: 'center',
-    gap: 4,
+    borderRadius: 14,
+    overflow: 'hidden',
   },
-  planHeader: {
+  planCardFeatured: {
+    position: 'relative',
+  },
+  popularBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderBottomLeftRadius: 8,
+  },
+  popularBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  savingsBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderBottomLeftRadius: 8,
+  },
+  savingsBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  planContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  planLeft: {
+    gap: 2,
   },
   planTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
   },
-  planBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  planBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
+  planSubtitle: {
+    fontSize: 13,
   },
   planPrice: {
     fontSize: 20,
     fontWeight: '700',
   },
-  planDetail: {
-    fontSize: 12,
-  },
   // CTA
   ctaSection: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
-    gap: Spacing.sm,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderTopWidth: 0.5,
   },
-  skipButton: {
-    paddingVertical: Spacing.sm,
+  cancelText: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  bottomLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 8,
+    gap: 12,
   },
-  skipText: {
-    fontSize: 16,
+  linkButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  linkText: {
+    fontSize: 15,
     fontWeight: '500',
   },
-  restoreButton: {
-    paddingVertical: Spacing.xs,
-    alignItems: 'center',
-  },
-  restoreText: {
-    fontSize: 13,
+  linkDivider: {
+    fontSize: 15,
   },
 });

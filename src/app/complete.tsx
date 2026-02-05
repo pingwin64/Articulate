@@ -13,17 +13,28 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { useSettingsStore, getCurrentLevel, getLevelName } from '../lib/store/settings';
-import { categories } from '../lib/data/categories';
+import { useSettingsStore, getCurrentLevel, getLevelName, TextDifficultyLevel } from '../lib/store/settings';
+import { categories, TextDifficulty } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { NumberRoll } from '../components/NumberRoll';
 import { Paywall } from '../components/Paywall';
 import { GoalScrollPicker } from '../components/GoalScrollPicker';
 import { OnboardingPaywall } from '../components/OnboardingPaywall';
+import { StreakCelebrationPopup } from '../components/StreakCelebrationPopup';
 import { Spacing } from '../design/theme';
 import { ALL_BADGES, getBadgeById, type Badge } from '../lib/data/badges';
 import { cancelStreakAtRiskReminder } from '../lib/notifications';
+
+// Difficulty multipliers for level progress
+const DIFFICULTY_MULTIPLIERS: Record<TextDifficulty, number> = {
+  beginner: 1.0,
+  intermediate: 1.25,
+  advanced: 1.5,
+};
+
+// Streak celebration milestones
+const STREAK_CELEBRATION_MILESTONES = [3, 5, 7, 14, 21, 30, 50, 75, 100, 150, 200, 250, 300, 365];
 
 export default function CompleteScreen() {
   // Debug: Log on mount
@@ -87,6 +98,10 @@ export default function CompleteScreen() {
     fontFamily,
     wordColor,
     backgroundTheme,
+    incrementDifficultyCount,
+    beginnerTextsCompleted,
+    intermediateTextsCompleted,
+    advancedTextsCompleted,
   } = useSettingsStore();
 
   // First reading flow state: 'celebration' = normal completion, 'journey' = goal setup, 'paywall' = onboarding paywall
@@ -170,6 +185,8 @@ export default function CompleteScreen() {
   const [newBadge, setNewBadge] = React.useState<Badge | null>(null);
   // Badge-triggered upsell for free users
   const [showBadgeUpsell, setShowBadgeUpsell] = React.useState(false);
+  // Streak celebration popup
+  const [showStreakCelebration, setShowStreakCelebration] = React.useState(false);
 
   // Checkmark animation
   const checkScale = useSharedValue(0);
@@ -231,8 +248,18 @@ export default function CompleteScreen() {
     const { recordWeeklyReading } = useSettingsStore.getState();
     recordWeeklyReading(wordsRead, wpm);
 
-    // Add level progress (new 5-level system)
-    addLevelProgress(wordsRead);
+    // Get text difficulty and apply multiplier for level progress
+    const textDifficulty = textEntry?.textDifficulty;
+    const difficultyMultiplier = textDifficulty ? DIFFICULTY_MULTIPLIERS[textDifficulty] : 1.0;
+    const adjustedWords = Math.round(wordsRead * difficultyMultiplier);
+
+    // Add level progress (new 5-level system) with difficulty multiplier
+    addLevelProgress(adjustedWords);
+
+    // Increment difficulty count if text has difficulty
+    if (textDifficulty) {
+      incrementDifficultyCount(textDifficulty as TextDifficultyLevel);
+    }
 
     // Update weekly challenge progress
     const { checkWeeklyChallenge, incrementWeeklyChallengeProgress } = useSettingsStore.getState();
@@ -277,6 +304,13 @@ export default function CompleteScreen() {
             if (badge.id === 'reached-advanced' && state.levelProgress >= 4000) shouldUnlock = true;
             if (badge.id === 'reached-expert' && state.levelProgress >= 8000) shouldUnlock = true;
             if (badge.id === 'reached-master' && state.levelProgress >= 15000) shouldUnlock = true;
+            // Difficulty badges
+            if (badge.id === 'difficulty-advanced-5' && state.advancedTextsCompleted >= 5) shouldUnlock = true;
+            if (badge.id === 'difficulty-advanced-10' && state.advancedTextsCompleted >= 10) shouldUnlock = true;
+            if (badge.id === 'difficulty-all-levels' &&
+              state.beginnerTextsCompleted >= 5 &&
+              state.intermediateTextsCompleted >= 5 &&
+              state.advancedTextsCompleted >= 5) shouldUnlock = true;
             break;
 
           case 'streak':
@@ -334,6 +368,18 @@ export default function CompleteScreen() {
           }, 2500);
         }
       }
+
+      // Check for streak celebration milestone
+      const celebrationState = useSettingsStore.getState();
+      if (
+        STREAK_CELEBRATION_MILESTONES.includes(celebrationState.currentStreak) &&
+        !celebrationState.shownStreakCelebrations.includes(celebrationState.currentStreak)
+      ) {
+        // Delay: after badge animation if present, otherwise 2s
+        const delay = newlyUnlocked.length > 0 ? 3500 : 2000;
+        setTimeout(() => setShowStreakCelebration(true), delay);
+        celebrationState.markStreakCelebrationShown(celebrationState.currentStreak);
+      }
     };
     checkBadges();
 
@@ -369,7 +415,7 @@ export default function CompleteScreen() {
       if (t3) clearTimeout(t3);
       clearTimeout(t4);
     };
-  }, [wordsRead, wpm, displayName, params.categoryKey, params.textId, params.customTextId, incrementWordsRead, addDailyWordsRead, resetDailyUploadIfNewDay, incrementTextsCompleted, updateStreak, hapticFeedback, checkScale, checkOpacity, ctaOpacity, paywallOpacity, badgeScale, badgeOpacity, isFirstReading, addReadingHistory, incrementCategoryReadCount, unlockBadge, unlockReward, addLevelProgress]);
+  }, [wordsRead, wpm, displayName, params.categoryKey, params.textId, params.customTextId, incrementWordsRead, addDailyWordsRead, resetDailyUploadIfNewDay, incrementTextsCompleted, updateStreak, hapticFeedback, checkScale, checkOpacity, ctaOpacity, paywallOpacity, badgeScale, badgeOpacity, isFirstReading, addReadingHistory, incrementCategoryReadCount, unlockBadge, unlockReward, addLevelProgress, incrementDifficultyCount, textEntry]);
 
   const checkAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: checkScale.value }],
@@ -613,6 +659,13 @@ export default function CompleteScreen() {
           visible={showPaywall}
           onDismiss={() => setPaywallContext(null)}
           context={paywallContext}
+        />
+
+        {/* Streak celebration popup */}
+        <StreakCelebrationPopup
+          visible={showStreakCelebration}
+          streak={currentStreak}
+          onDismiss={() => setShowStreakCelebration(false)}
         />
       </View>
     );
@@ -901,6 +954,13 @@ export default function CompleteScreen() {
         visible={showPaywall}
         onDismiss={() => setPaywallContext(null)}
         context={paywallContext}
+      />
+
+      {/* Streak celebration popup */}
+      <StreakCelebrationPopup
+        visible={showStreakCelebration}
+        streak={currentStreak}
+        onDismiss={() => setShowStreakCelebration(false)}
       />
     </View>
   );

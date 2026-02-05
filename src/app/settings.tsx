@@ -1202,6 +1202,57 @@ export default function SettingsScreen() {
             </Pressable>
           </GlassCard>
 
+          {/* DEV ONLY: Streak Celebration Testing */}
+          {__DEV__ && (
+            <>
+              <SectionHeader title="Dev Testing" icon="code" />
+              <GlassCard>
+                <View style={styles.devTestRow}>
+                  <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                    Test Streak Celebration
+                  </Text>
+                </View>
+                <View style={styles.devTestButtons}>
+                  {[3, 7, 14, 30, 50, 100, 365].map((milestone) => (
+                    <Pressable
+                      key={milestone}
+                      onPress={() => {
+                        useSettingsStore.setState({
+                          currentStreak: milestone,
+                          shownStreakCelebrations: [],
+                        });
+                        Alert.alert(
+                          'Streak Set',
+                          `Streak set to ${milestone}. Complete a reading to see the celebration.`
+                        );
+                      }}
+                      style={({ pressed }) => [
+                        styles.devTestButton,
+                        { backgroundColor: pressed ? glass.border : glass.fill, borderColor: glass.border },
+                      ]}
+                    >
+                      <Text style={[styles.devTestButtonText, { color: colors.primary }]}>
+                        {milestone}d
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Pressable
+                  onPress={() => {
+                    useSettingsStore.setState({ shownStreakCelebrations: [] });
+                    Alert.alert('Reset', 'Celebration history cleared.');
+                  }}
+                  style={styles.settingRowNoBorder}
+                >
+                  <Text style={[styles.settingLabel, { color: colors.secondary }]}>
+                    Clear Celebration History
+                  </Text>
+                  <Feather name="refresh-cw" size={16} color={colors.secondary} />
+                </Pressable>
+              </GlassCard>
+            </>
+          )}
+
           {/* Section 9: Data */}
           <SectionHeader title="Data" icon="trash-2" />
           <GlassCard>
@@ -1602,6 +1653,26 @@ const styles = StyleSheet.create({
   },
   shareButtonText: {
     fontSize: 15,
+    fontWeight: '600',
+  },
+  // Dev testing
+  devTestRow: {
+    paddingVertical: 8,
+  },
+  devTestButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingVertical: 12,
+  },
+  devTestButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 0.5,
+  },
+  devTestButtonText: {
+    fontSize: 14,
     fontWeight: '600',
   },
 });

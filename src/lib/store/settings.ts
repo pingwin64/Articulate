@@ -134,6 +134,8 @@ export interface ReadingHistoryEntry {
   wpm: number;
 }
 
+export type TextDifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
+
 export interface SettingsState {
   // Onboarding
   hasOnboarded: boolean;
@@ -351,6 +353,16 @@ export interface SettingsState {
   addFavoriteText: (categoryKey: string, textId: string) => void;
   removeFavoriteText: (categoryKey: string, textId: string) => void;
   isFavoriteText: (categoryKey: string, textId: string) => boolean;
+
+  // Difficulty Tracking
+  beginnerTextsCompleted: number;
+  intermediateTextsCompleted: number;
+  advancedTextsCompleted: number;
+  incrementDifficultyCount: (difficulty: TextDifficultyLevel) => void;
+
+  // Streak Celebrations
+  shownStreakCelebrations: number[];
+  markStreakCelebrationShown: (milestone: number) => void;
 
   // Computed helper
   trialDaysRemaining: () => number;
@@ -1052,6 +1064,32 @@ export const useSettingsStore = create<SettingsState>()(
         );
       },
 
+      // Difficulty Tracking
+      beginnerTextsCompleted: 0,
+      intermediateTextsCompleted: 0,
+      advancedTextsCompleted: 0,
+      incrementDifficultyCount: (difficulty) => {
+        const state = get();
+        const updates: Partial<SettingsState> = {};
+        if (difficulty === 'beginner') {
+          updates.beginnerTextsCompleted = state.beginnerTextsCompleted + 1;
+        } else if (difficulty === 'intermediate') {
+          updates.intermediateTextsCompleted = state.intermediateTextsCompleted + 1;
+        } else if (difficulty === 'advanced') {
+          updates.advancedTextsCompleted = state.advancedTextsCompleted + 1;
+        }
+        set(updates);
+      },
+
+      // Streak Celebrations
+      shownStreakCelebrations: [],
+      markStreakCelebrationShown: (milestone) =>
+        set((s) => ({
+          shownStreakCelebrations: s.shownStreakCelebrations.includes(milestone)
+            ? s.shownStreakCelebrations
+            : [...s.shownStreakCelebrations, milestone],
+        })),
+
       // Computed helper
       trialDaysRemaining: () => {
         const state = get();
@@ -1142,11 +1180,15 @@ export const useSettingsStore = create<SettingsState>()(
         favoriteWords: [],
         savedWords: [],
         favoriteTexts: [],
+        beginnerTextsCompleted: 0,
+        intermediateTextsCompleted: 0,
+        advancedTextsCompleted: 0,
+        shownStreakCelebrations: [],
       }),
     }),
     {
       name: 'articulate-settings',
-      version: 14,
+      version: 16,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -1275,6 +1317,16 @@ export const useSettingsStore = create<SettingsState>()(
           // v14: Profile customization
           persisted.profileImage = persisted.profileImage ?? null;
           persisted.profileColor = persisted.profileColor ?? '#A78BFA';
+        }
+        if (version < 15) {
+          // v15: Difficulty tracking
+          persisted.beginnerTextsCompleted = persisted.beginnerTextsCompleted ?? 0;
+          persisted.intermediateTextsCompleted = persisted.intermediateTextsCompleted ?? 0;
+          persisted.advancedTextsCompleted = persisted.advancedTextsCompleted ?? 0;
+        }
+        if (version < 16) {
+          // v16: Streak celebration tracking
+          persisted.shownStreakCelebrations = persisted.shownStreakCelebrations ?? [];
         }
         return persisted;
       },
