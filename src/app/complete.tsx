@@ -13,7 +13,7 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { useSettingsStore, getCurrentLevel, getLevelName, TextDifficultyLevel } from '../lib/store/settings';
+import { useSettingsStore, getCurrentLevel, getLevelName, TextDifficultyLevel, STREAK_MILESTONES } from '../lib/store/settings';
 import { categories, TextDifficulty } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
@@ -32,9 +32,6 @@ const DIFFICULTY_MULTIPLIERS: Record<TextDifficulty, number> = {
   intermediate: 1.25,
   advanced: 1.5,
 };
-
-// Streak celebration milestones
-const STREAK_CELEBRATION_MILESTONES = [3, 5, 7, 14, 21, 30, 50, 75, 100, 150, 200, 250, 300, 365];
 
 export default function CompleteScreen() {
   // Debug: Log on mount
@@ -102,6 +99,7 @@ export default function CompleteScreen() {
     beginnerTextsCompleted,
     intermediateTextsCompleted,
     advancedTextsCompleted,
+    markStreakCelebrationShown,
   } = useSettingsStore();
 
   // First reading flow state: 'celebration' = normal completion, 'journey' = goal setup, 'paywall' = onboarding paywall
@@ -372,13 +370,13 @@ export default function CompleteScreen() {
       // Check for streak celebration milestone
       const celebrationState = useSettingsStore.getState();
       if (
-        STREAK_CELEBRATION_MILESTONES.includes(celebrationState.currentStreak) &&
+        STREAK_MILESTONES.includes(celebrationState.currentStreak) &&
         !celebrationState.shownStreakCelebrations.includes(celebrationState.currentStreak)
       ) {
         // Delay: after badge animation if present, otherwise 2s
         const delay = newlyUnlocked.length > 0 ? 3500 : 2000;
         setTimeout(() => setShowStreakCelebration(true), delay);
-        celebrationState.markStreakCelebrationShown(celebrationState.currentStreak);
+        // NOTE: markStreakCelebrationShown is now called in onDismiss to prevent race condition
       }
     };
     checkBadges();
@@ -665,7 +663,10 @@ export default function CompleteScreen() {
         <StreakCelebrationPopup
           visible={showStreakCelebration}
           streak={currentStreak}
-          onDismiss={() => setShowStreakCelebration(false)}
+          onDismiss={() => {
+            markStreakCelebrationShown(currentStreak);
+            setShowStreakCelebration(false);
+          }}
         />
       </View>
     );
@@ -960,7 +961,10 @@ export default function CompleteScreen() {
       <StreakCelebrationPopup
         visible={showStreakCelebration}
         streak={currentStreak}
-        onDismiss={() => setShowStreakCelebration(false)}
+        onDismiss={() => {
+          markStreakCelebrationShown(currentStreak);
+          setShowStreakCelebration(false);
+        }}
       />
     </View>
   );

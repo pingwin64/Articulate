@@ -26,6 +26,9 @@ export type VoiceGender = 'male' | 'female';
 // New 5-level system thresholds (words)
 export const LEVEL_THRESHOLDS = [0, 1000, 4000, 8000, 15000];
 export const LEVEL_NAMES = ['Beginner', 'Intermediate', 'Advanced', 'Expert', 'Master'] as const;
+
+// Streak celebration milestones - single source of truth
+export const STREAK_MILESTONES = [3, 5, 7, 14, 21, 30, 50, 75, 100, 150, 200, 250, 300, 365];
 export type LevelName = typeof LEVEL_NAMES[number];
 
 // Compute current level from levelProgress (1-5)

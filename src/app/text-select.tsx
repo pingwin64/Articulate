@@ -143,6 +143,11 @@ export default function TextSelectScreen() {
           <Text style={[styles.filterChipText, { color: difficultyFilter === 'all' ? colors.primary : colors.muted }]}>
             All
           </Text>
+          {category && category.texts.length > 0 && (
+            <Text style={[styles.filterCount, { color: difficultyFilter === 'all' ? colors.primary : colors.muted }]}>
+              {category.texts.length}
+            </Text>
+          )}
         </Pressable>
         <Pressable
           onPress={() => handleFilterChange('beginner')}
@@ -170,7 +175,7 @@ export default function TextSelectScreen() {
           ]}
         >
           <Text style={[styles.filterChipText, { color: difficultyFilter === 'intermediate' ? DIFFICULTY_COLORS.intermediate.text : colors.muted }]}>
-            Inter.
+            Intermediate
           </Text>
           {difficultyCounts.intermediate > 0 && (
             <Text style={[styles.filterCount, { color: difficultyFilter === 'intermediate' ? DIFFICULTY_COLORS.intermediate.text : colors.muted }]}>
@@ -235,7 +240,7 @@ export default function TextSelectScreen() {
                       {entry.textDifficulty && difficultyColor && (
                         <View style={[styles.difficultyBadge, { backgroundColor: difficultyColor.bg }]}>
                           <Text style={[styles.difficultyBadgeText, { color: difficultyColor.text }]}>
-                            {entry.textDifficulty === 'intermediate' ? 'Inter.' : entry.textDifficulty.charAt(0).toUpperCase() + entry.textDifficulty.slice(1)}
+                            {entry.textDifficulty.charAt(0).toUpperCase() + entry.textDifficulty.slice(1)}
                           </Text>
                         </View>
                       )}

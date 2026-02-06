@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, View, Text, Modal, Pressable, useWindowDimensions } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { StyleSheet, View, Text, Modal, Pressable, useWindowDimensions, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
   FadeIn,
@@ -11,15 +11,17 @@ import Animated, {
   withDelay,
   cancelAnimation,
 } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import * as Sharing from 'expo-sharing';
+import { captureRef } from 'react-native-view-shot';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { useSettingsStore } from '../lib/store/settings';
+import { useSettingsStore, STREAK_MILESTONES } from '../lib/store/settings';
 import { GlassCard } from './GlassCard';
 import { GlassButton } from './GlassButton';
 import { NumberRoll } from './NumberRoll';
+import { StreakShareCard } from './StreakShareCard';
 import { Spacing, HitTargets } from '../design/theme';
-
-const MILESTONES = [3, 5, 7, 14, 21, 30, 50, 75, 100, 150, 200, 250, 300, 365];
 
 interface StreakCelebrationPopupProps {
   visible: boolean;
@@ -41,7 +43,7 @@ function getStreakPercentile(streak: number): number {
 }
 
 function getNextMilestone(streak: number): number | null {
-  for (const m of MILESTONES) {
+  for (const m of STREAK_MILESTONES) {
     if (m > streak) return m;
   }
   return null;
@@ -149,6 +151,15 @@ function ConfettiBolt({
   );
 }
 
+// Get motivational message based on streak
+function getStreakMessage(streak: number): string {
+  if (streak >= 365) return 'One year of reading!';
+  if (streak >= 100) return 'Legendary dedication';
+  if (streak >= 50) return 'Unstoppable!';
+  if (streak >= 14) return 'Keep the momentum going';
+  return 'Building the habit!';
+}
+
 export function StreakCelebrationPopup({
   visible,
   streak,
@@ -156,7 +167,10 @@ export function StreakCelebrationPopup({
 }: StreakCelebrationPopupProps) {
   const { colors, glass } = useTheme();
   const reduceMotion = useSettingsStore((s) => s.reduceMotion);
+  const hapticFeedback = useSettingsStore((s) => s.hapticFeedback);
   const { width: screenWidth } = useWindowDimensions();
+
+  const shareCardRef = useRef<View>(null);
 
   const percentile = getStreakPercentile(streak);
   const nextMilestone = getNextMilestone(streak);
@@ -165,6 +179,45 @@ export function StreakCelebrationPopup({
   const nextMilestoneText = nextMilestone
     ? `${nextMilestone - streak} more day${nextMilestone - streak === 1 ? '' : 's'} to reach ${nextMilestone}!`
     : "You've achieved legendary status!";
+
+  // Haptic on modal appear
+  useEffect(() => {
+    if (visible && hapticFeedback) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  }, [visible, hapticFeedback]);
+
+  const handleCtaPress = () => {
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    onDismiss();
+  };
+
+  const handleShare = async () => {
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    try {
+      // Capture the share card as image
+      const uri = await captureRef(shareCardRef, {
+        format: 'png',
+        quality: 1,
+      });
+
+      // Share the image
+      await Sharing.shareAsync(uri, {
+        mimeType: 'image/png',
+        dialogTitle: 'Share your streak',
+      });
+    } catch (error) {
+      // Fallback to text share if capture fails
+      await Share.share({
+        message: `I just hit a ${streak}-day reading streak on Articulate!\n\nImprove your reading skills one word at a time.`,
+      });
+    }
+  };
 
   return (
     <Modal
@@ -248,9 +301,30 @@ export function StreakCelebrationPopup({
             entering={FadeIn.delay(1000).duration(400)}
             style={styles.ctaContainer}
           >
-            <GlassButton title={ctaCopy} onPress={onDismiss} />
+            <GlassButton title={ctaCopy} onPress={handleCtaPress} />
+            <Pressable
+              onPress={handleShare}
+              style={({ pressed }) => [
+                styles.shareButton,
+                { opacity: pressed ? 0.6 : 1 },
+              ]}
+            >
+              <Feather name="share" size={18} color={colors.secondary} />
+              <Text style={[styles.shareButtonText, { color: colors.secondary }]}>
+                Share
+              </Text>
+            </Pressable>
           </Animated.View>
         </SafeAreaView>
+
+        {/* Off-screen share card for capture */}
+        <View style={styles.offScreenContainer} pointerEvents="none">
+          <StreakShareCard
+            ref={shareCardRef}
+            streak={streak}
+            message={getStreakMessage(streak)}
+          />
+        </View>
       </View>
     </Modal>
   );
@@ -327,5 +401,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.lg,
     zIndex: 1,
+    gap: 12,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+  },
+  shareButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  offScreenContainer: {
+    position: 'absolute',
+    left: -9999,
+    top: -9999,
+    opacity: 0,
   },
 });

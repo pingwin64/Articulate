@@ -14,6 +14,13 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Difficulty badge colors - consistent with text-select.tsx
+const DIFFICULTY_COLORS = {
+  beginner: { bg: 'rgba(34, 197, 94, 0.12)', text: '#22C55E' },
+  intermediate: { bg: 'rgba(234, 179, 8, 0.12)', text: '#EAB308' },
+  advanced: { bg: 'rgba(168, 85, 247, 0.12)', text: '#A855F7' },
+};
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
@@ -417,9 +424,18 @@ export default function ReadingScreen() {
 
           {/* Word counter */}
           <View style={styles.counterRow}>
-            <Text style={[styles.counter, { color: colors.muted }]}>
-              {Math.min(currentIndex + chunkSize, totalWords)} / {totalWords}
-            </Text>
+            <View style={styles.counterInner}>
+              <Text style={[styles.counter, { color: colors.muted }]}>
+                {Math.min(currentIndex + chunkSize, totalWords)} / {totalWords}
+              </Text>
+              {text?.textDifficulty && (
+                <View style={[styles.difficultyBadge, { backgroundColor: DIFFICULTY_COLORS[text.textDifficulty].bg }]}>
+                  <Text style={[styles.difficultyBadgeText, { color: DIFFICULTY_COLORS[text.textDifficulty].text }]}>
+                    {text.textDifficulty.charAt(0).toUpperCase() + text.textDifficulty.slice(1)}
+                  </Text>
+                </View>
+              )}
+            </View>
             {(() => {
               const remaining = totalWords - currentIndex;
               const show = remaining === 15 || (remaining <= 3 && remaining >= 1);
@@ -624,10 +640,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 4,
   },
+  counterInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   counter: {
     fontSize: 13,
     fontWeight: '400',
     letterSpacing: 0.5,
+  },
+  difficultyBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  difficultyBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   tapArea: {
     flex: 1,
