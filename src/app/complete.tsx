@@ -78,7 +78,7 @@ export default function CompleteScreen() {
     hasShownThirdReadingNudge,
     setHasShownThirdReadingNudge,
     addDailyWordsRead,
-    resetDailyUploadIfNewDay,
+    resetDailyIfNewDay,
     addReadingHistory,
     incrementCategoryReadCount,
     categoryReadCounts,
@@ -206,7 +206,7 @@ export default function CompleteScreen() {
     didRun.current = true;
 
     // Record stats
-    resetDailyUploadIfNewDay(); // ensure daily counters are fresh
+    resetDailyIfNewDay(); // ensure daily counters are fresh
     incrementWordsRead(wordsRead);
     addDailyWordsRead(wordsRead);
     incrementTextsCompleted();
@@ -382,13 +382,10 @@ export default function CompleteScreen() {
     checkBadges();
 
     // Animation sequence
-    // T+200ms: checkmark
+    // T+200ms: checkmark (simple fade-in, no bounce)
     const t1 = setTimeout(() => {
-      checkScale.value = withSequence(
-        withSpring(1.1, { damping: 12, stiffness: 180 }),
-        withSpring(1.0, { damping: 15, stiffness: 150 })
-      );
-      checkOpacity.value = withTiming(1, { duration: 200 });
+      checkScale.value = withTiming(1, { duration: 300 });
+      checkOpacity.value = withTiming(1, { duration: 300 });
     }, 200);
 
     // T+400ms: haptic
@@ -413,7 +410,7 @@ export default function CompleteScreen() {
       if (t3) clearTimeout(t3);
       clearTimeout(t4);
     };
-  }, [wordsRead, wpm, displayName, params.categoryKey, params.textId, params.customTextId, incrementWordsRead, addDailyWordsRead, resetDailyUploadIfNewDay, incrementTextsCompleted, updateStreak, hapticFeedback, checkScale, checkOpacity, ctaOpacity, paywallOpacity, badgeScale, badgeOpacity, isFirstReading, addReadingHistory, incrementCategoryReadCount, unlockBadge, unlockReward, addLevelProgress, incrementDifficultyCount, textEntry]);
+  }, [wordsRead, wpm, displayName, params.categoryKey, params.textId, params.customTextId, incrementWordsRead, addDailyWordsRead, resetDailyIfNewDay, incrementTextsCompleted, updateStreak, hapticFeedback, checkScale, checkOpacity, ctaOpacity, paywallOpacity, badgeScale, badgeOpacity, isFirstReading, addReadingHistory, incrementCategoryReadCount, unlockBadge, unlockReward, addLevelProgress, incrementDifficultyCount, textEntry]);
 
   const checkAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: checkScale.value }],
@@ -844,14 +841,6 @@ export default function CompleteScreen() {
               </Animated.View>
             )}
 
-            {/* Tomorrow's preview — Commitment & Consistency */}
-            <Animated.View entering={FadeIn.delay(1900).duration(300)}>
-              <Text style={[styles.tomorrowPreview, { color: colors.muted }]}>
-                {nextText
-                  ? `Tomorrow: continue your streak with "${nextText.title}"`
-                  : 'Keep your streak alive — read again tomorrow'}
-              </Text>
-            </Animated.View>
           </View>
         </ScrollView>
 
@@ -885,27 +874,6 @@ export default function CompleteScreen() {
             />
           )}
           <View style={styles.secondaryActions}>
-            {isBundledText && (
-              <>
-                <Pressable
-                  onPress={handleToggleFavorite}
-                  style={({ pressed }) => [
-                    styles.secondaryButton,
-                    { opacity: pressed ? 0.6 : 1 },
-                  ]}
-                >
-                  <Feather
-                    name={isFavorited ? 'heart' : 'heart'}
-                    size={16}
-                    color={isFavorited ? colors.primary : colors.secondary}
-                  />
-                  <Text style={[styles.secondaryButtonText, { color: isFavorited ? colors.primary : colors.secondary }]}>
-                    {isFavorited ? 'Saved' : 'Save'}
-                  </Text>
-                </Pressable>
-                <View style={[styles.actionDivider, { backgroundColor: colors.muted + '30' }]} />
-              </>
-            )}
             <Pressable
               onPress={handleReadAgain}
               style={({ pressed }) => [
@@ -913,27 +881,11 @@ export default function CompleteScreen() {
                 { opacity: pressed ? 0.6 : 1 },
               ]}
             >
-              <Feather name="refresh-cw" size={16} color={colors.secondary} />
-              <Text style={[styles.secondaryButtonText, { color: colors.secondary }]}>
+              <Feather name="refresh-cw" size={18} color={colors.primary} />
+              <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>
                 Read Again
               </Text>
             </Pressable>
-            <View style={[styles.actionDivider, { backgroundColor: colors.muted + '30' }]} />
-            <Pressable
-              onPress={() => {
-                router.push({ pathname: '/library', params: { tab: 'words' } });
-              }}
-              style={({ pressed }) => [
-                styles.secondaryButton,
-                { opacity: pressed ? 0.6 : 1 },
-              ]}
-            >
-              <Feather name="bookmark" size={16} color={colors.secondary} />
-              <Text style={[styles.secondaryButtonText, { color: colors.secondary }]}>
-                Word Bank
-              </Text>
-            </Pressable>
-            <View style={[styles.actionDivider, { backgroundColor: colors.muted + '30' }]} />
             <Pressable
               onPress={handleShareProgress}
               style={({ pressed }) => [
@@ -941,8 +893,8 @@ export default function CompleteScreen() {
                 { opacity: pressed ? 0.6 : 1 },
               ]}
             >
-              <Feather name="share" size={16} color={colors.secondary} />
-              <Text style={[styles.secondaryButtonText, { color: colors.secondary }]}>
+              <Feather name="share" size={18} color={colors.primary} />
+              <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>
                 Share
               </Text>
             </Pressable>
@@ -1131,34 +1083,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
-  tomorrowPreview: {
-    fontSize: 13,
-    fontWeight: '400',
-    textAlign: 'center',
-    fontStyle: 'italic',
-    marginTop: 8,
-  },
   secondaryActions: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 16,
-    paddingVertical: 8,
+    gap: 32,
+    paddingVertical: 12,
   },
   secondaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
   },
   secondaryButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  actionDivider: {
-    width: 1,
-    height: 20,
+    fontSize: 15,
+    fontWeight: '600',
   },
   // Badge upsell
   badgeUpsellContainer: {

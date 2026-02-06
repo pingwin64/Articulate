@@ -36,17 +36,15 @@ interface ContextualCopy {
 }
 
 const FEATURES = [
-  { icon: 'clipboard' as const, text: 'Read in any style that clicks for you' },
-  { icon: 'droplet' as const, text: 'Customize fonts, colors & themes to match your style' },
-  { icon: 'book-open' as const, text: '9 premium categories — Philosophy, Poetry, Science & more' },
-  { icon: 'zap' as const, text: 'Train your focus with auto-play, breathing & chunk modes' },
-  { icon: 'volume-2' as const, text: 'Listen while you read with AI narration' },
-  { icon: 'help-circle' as const, text: 'Test comprehension with quizzes after every reading' },
+  { icon: 'check' as const, text: 'Your library — upload anything, save words, bookmark favorites' },
+  { icon: 'check' as const, text: 'All 12 categories: Philosophy, Poetry, Science & more' },
+  { icon: 'check' as const, text: 'Customize fonts, colors & backgrounds to match your style' },
+  { icon: 'check' as const, text: 'Unlimited quizzes to lock in what you learn' },
 ];
 
-const DEFAULT_ORDER = [0, 1, 2, 3, 4, 5];
+const DEFAULT_ORDER = [0, 1, 2, 3];
 
-function getContextualCopy(context: PaywallContext | null): ContextualCopy {
+function getContextualCopy(context: PaywallContext | null, currentStreak?: number): ContextualCopy {
   switch (context) {
     case 'post_onboarding':
       return {
@@ -58,139 +56,159 @@ function getContextualCopy(context: PaywallContext | null): ContextualCopy {
       return {
         headline: "There's more to explore",
         subheadline: 'Unlock poetry, history, mindfulness, and every future category.',
-        featureOrder: [2, 0, 1, 3, 4, 5],
+        featureOrder: [1, 0, 2, 3],
       };
     case 'custom_text_limit':
       return {
         headline: 'Save unlimited texts',
         subheadline: 'Read anything you want, anytime you want.',
-        featureOrder: [0, 2, 1, 3, 4, 5],
+        featureOrder: [0, 1, 2, 3],
       };
     case 'locked_font':
       return {
-        headline: 'Make it yours',
+        headline: 'Find your perfect font',
         subheadline: 'Choose from 6 fonts designed for comfortable reading.',
-        featureOrder: [1, 0, 2, 3, 4, 5],
+        featureOrder: [2, 0, 1, 3],
       };
     case 'locked_color':
       return {
-        headline: 'Make it yours',
+        headline: 'Set the mood',
         subheadline: 'Pick your perfect reading color from 6 curated options.',
-        featureOrder: [1, 0, 2, 3, 4, 5],
+        featureOrder: [2, 0, 1, 3],
       };
     case 'locked_size':
       return {
-        headline: 'Make it yours',
+        headline: 'Size it right',
         subheadline: 'Adjust word size for your most comfortable reading experience.',
-        featureOrder: [1, 0, 2, 3, 4, 5],
+        featureOrder: [2, 0, 1, 3],
       };
     case 'locked_bold':
       return {
-        headline: 'Make it yours',
+        headline: 'Sharpen your view',
         subheadline: 'Toggle bold text for sharper, easier reading.',
-        featureOrder: [1, 0, 2, 3, 4, 5],
+        featureOrder: [2, 0, 1, 3],
       };
     case 'locked_background':
       return {
-        headline: 'Make it yours',
+        headline: 'Create your space',
         subheadline: 'Set the perfect background for your reading environment.',
-        featureOrder: [1, 0, 2, 3, 4, 5],
+        featureOrder: [2, 0, 1, 3],
       };
     case 'locked_autoplay':
       return {
         headline: "Sit back. We've got this.",
         subheadline: 'Let Articulate pace your reading automatically.',
-        featureOrder: [3, 0, 1, 2, 4, 5],
+        featureOrder: DEFAULT_ORDER,
       };
     case 'locked_chunk':
       return {
         headline: 'Speed up without losing focus',
         subheadline: 'See 2-3 words at a time for a natural reading flow.',
-        featureOrder: [3, 0, 1, 2, 4, 5],
+        featureOrder: DEFAULT_ORDER,
       };
     case 'locked_breathing':
       return {
         headline: 'Breathe. Read. Flow.',
         subheadline: 'Breathing animation syncs your reading with your breath.',
-        featureOrder: [3, 0, 1, 2, 4, 5],
+        featureOrder: DEFAULT_ORDER,
       };
     case 'locked_tts':
       return {
         headline: 'Hear every word',
         subheadline: 'Text-to-speech narration speaks each word as you read.',
-        featureOrder: [4, 0, 1, 2, 3, 5],
+        featureOrder: DEFAULT_ORDER,
       };
     case 'locked_quiz':
       return {
         headline: 'Did you really get it?',
         subheadline: 'Take a quick quiz to lock in what you just read.',
-        featureOrder: [5, 0, 1, 2, 3, 4],
+        featureOrder: [3, 0, 1, 2],
       };
     case 'trial_expired':
       return {
         headline: 'Your customizations are waiting',
         subheadline: 'Your fonts, colors, and settings are saved. Unlock them again.',
-        featureOrder: [1, 0, 2, 3, 4, 5],
+        featureOrder: [2, 0, 1, 3],
       };
     case 'locked_daily_upload':
       return {
         headline: 'Upload unlimited texts',
         subheadline: 'Read anything you want, every day — no limits.',
-        featureOrder: [0, 2, 1, 3, 4, 5],
+        featureOrder: [0, 1, 2, 3],
       };
     case 'locked_scan':
       return {
         headline: 'Scan any page, anytime',
         subheadline: 'Turn photos into readable text with unlimited scans.',
-        featureOrder: [0, 1, 2, 3, 4, 5],
+        featureOrder: [0, 1, 2, 3],
       };
     case 'streak_save':
       return {
-        headline: "Don't lose your streak",
+        headline: currentStreak && currentStreak > 0
+          ? `Don't lose your ${currentStreak}-day streak`
+          : "Don't lose your streak",
         subheadline: 'Unlock the full library so you always have something to read.',
-        featureOrder: [2, 0, 1, 3, 4, 5],
+        featureOrder: [1, 0, 2, 3],
       };
     case 'goal_almost':
       return {
         headline: "You're almost there",
         subheadline: 'Finish your daily goal faster with auto-play and the full library.',
-        featureOrder: [3, 2, 0, 1, 4, 5],
+        featureOrder: [1, 0, 2, 3],
       };
     case 'settings_upgrade':
       return {
         headline: 'Read your way',
         subheadline: 'Unlock all fonts, colors, themes, and reading tools.',
-        featureOrder: [1, 0, 2, 3, 4, 5],
+        featureOrder: [2, 0, 1, 3],
       };
     case 'locked_insights':
       return {
         headline: "See how far you've come",
         subheadline: 'Track your reading journey with weekly charts and trends.',
-        featureOrder: [0, 2, 1, 3, 4, 5],
+        featureOrder: [0, 1, 2, 3],
       };
     case 'locked_level_up':
       return {
         headline: 'Keep leveling up',
         subheadline: 'Unlock advanced reading levels with AI-generated content.',
-        featureOrder: [2, 0, 1, 3, 4, 5],
+        featureOrder: [1, 0, 2, 3],
       };
     case 'locked_word_bank':
       return {
         headline: 'Never forget a word',
         subheadline: 'Save the words that matter. Build a vocabulary that grows with you.',
-        featureOrder: [0, 1, 2, 3, 4, 5],
+        featureOrder: [0, 1, 2, 3],
       };
     case 'locked_definition':
       return {
         headline: 'Curious? Go deeper.',
         subheadline: 'Tap any word to unlock its meaning instantly.',
-        featureOrder: [0, 1, 2, 3, 4, 5],
+        featureOrder: [0, 1, 2, 3],
       };
     case 'locked_library':
       return {
         headline: 'Build your personal library',
         subheadline: 'Save favorites, custom texts, and build a word bank that grows with you.',
-        featureOrder: [0, 1, 2, 3, 4, 5],
+        featureOrder: [0, 1, 2, 3],
+      };
+    case 'locked_library_words':
+      return {
+        headline: 'Never forget a word',
+        subheadline: 'Save words as you read. Build a vocabulary that grows with you.',
+        featureOrder: [0, 1, 2, 3],
+      };
+    case 'locked_library_faves':
+      return {
+        headline: 'Keep what matters',
+        subheadline: 'Save your favorites and pick up where you left off.',
+        featureOrder: [0, 1, 2, 3],
+      };
+    case 'locked_library_texts':
+      return {
+        headline: 'Your texts, always ready',
+        subheadline: 'Upload anything. Read it your way, anytime.',
+        featureOrder: [0, 1, 2, 3],
       };
     case 'generic':
     default:
@@ -240,7 +258,7 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
   }, [visible]);
 
   const context = propContext ?? storeContext;
-  const copy = useMemo(() => getContextualCopy(context), [context]);
+  const copy = useMemo(() => getContextualCopy(context, currentStreak), [context, currentStreak]);
   const orderedFeatures = useMemo(
     () => copy.featureOrder.map((i) => FEATURES[i]),
     [copy.featureOrder]
@@ -418,7 +436,15 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
       case 'locked_insights':
         return 'See Your Journey';
       case 'locked_level_up':
-        return 'Level Up Now';
+        return 'Unlock Advanced Content';
+      case 'locked_library':
+        return 'Open Your Library';
+      case 'locked_library_words':
+        return 'Start Saving Words';
+      case 'locked_library_faves':
+        return 'Save Your Favorites';
+      case 'locked_library_texts':
+        return 'Upload Your Texts';
       case 'settings_upgrade':
         return 'Unlock All Settings';
       case 'trial_expired':
@@ -428,13 +454,14 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
       case 'goal_almost':
         return 'Finish Strong';
       default:
-        return 'Unlock the Full Experience';
+        return 'Continue';
     }
   };
 
+  // CTA includes trial info for subscription plans
   const ctaText = selectedPlan === 'lifetime'
-    ? getContextCTA()
-    : `Start ${TRIAL_DAYS}-Day Free Trial — ${getContextCTA()}`;
+    ? 'Unlock Forever'
+    : 'Start 3-Day Free Trial';
 
   // Helper to get price string from packages or fallback
   const getPriceString = (type: string, fallback: string): string => {
@@ -451,8 +478,8 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
     return fallback;
   };
 
-  // Show only first 4 features for compact layout
-  const compactFeatures = orderedFeatures.slice(0, 4);
+  // All 4 features (already compact)
+  const compactFeatures = orderedFeatures;
 
   const content = (
       <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -470,6 +497,16 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
             showsVerticalScrollIndicator={false}
             bounces={false}
           >
+            {/* Social Proof */}
+            <Animated.View entering={FadeIn.delay(50).duration(300)} style={styles.socialProofContainer}>
+              <View style={[styles.socialProofPill, { backgroundColor: glass.fill }]}>
+                <Feather name="users" size={14} color={colors.secondary} />
+                <Text style={[styles.socialProofText, { color: colors.secondary }]}>
+                  Join 10,000+ focused readers
+                </Text>
+              </View>
+            </Animated.View>
+
             {/* Hero - Compact */}
             <Animated.View entering={FadeIn.delay(100).duration(400)} style={styles.headlineSection}>
               <Text style={[styles.headline, { color: colors.primary }]}>
@@ -495,6 +532,34 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
             {/* Plan Selection - After features (standard paywall flow) */}
             <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.planSection}>
               <View style={styles.planRow}>
+                {/* Monthly - Featured */}
+                <Pressable
+                  style={[
+                    styles.planCard,
+                    {
+                      backgroundColor: glass.fill,
+                      borderColor: selectedPlan === 'monthly' ? colors.primary : glass.border,
+                      borderWidth: selectedPlan === 'monthly' ? 1.5 : 0.5,
+                    },
+                  ]}
+                  onPress={() => handleSelectPlan('monthly')}
+                >
+                  <View style={[styles.bestValueBadge, { backgroundColor: colors.primary }]}>
+                    <Text style={[styles.bestValueText, { color: colors.bg }]}>
+                      MOST POPULAR
+                    </Text>
+                  </View>
+                  <Text style={[styles.planName, { color: colors.primary }]}>
+                    Monthly
+                  </Text>
+                  <Text style={[styles.planPrice, { color: colors.primary }]}>
+                    {getPriceString('MONTHLY', '$9.99')}
+                  </Text>
+                  <Text style={[styles.planPeriod, { color: colors.muted }]}>
+                    Just $0.33/day
+                  </Text>
+                </Pressable>
+
                 {/* Weekly */}
                 <Pressable
                   style={[
@@ -513,36 +578,8 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                   <Text style={[styles.planPrice, { color: colors.primary }]}>
                     {getPriceString('WEEKLY', '$2.99')}
                   </Text>
-                  <Text style={[styles.planPeriod, { color: colors.secondary }]}>
-                    per week
-                  </Text>
-                </Pressable>
-
-                {/* Monthly */}
-                <Pressable
-                  style={[
-                    styles.planCard,
-                    {
-                      backgroundColor: glass.fill,
-                      borderColor: selectedPlan === 'monthly' ? colors.primary : glass.border,
-                      borderWidth: selectedPlan === 'monthly' ? 1.5 : 0.5,
-                    },
-                  ]}
-                  onPress={() => handleSelectPlan('monthly')}
-                >
-                  <View style={[styles.bestValueBadge, { backgroundColor: colors.primary }]}>
-                    <Text style={[styles.bestValueText, { color: colors.bg }]}>
-                      POPULAR
-                    </Text>
-                  </View>
-                  <Text style={[styles.planName, { color: colors.primary }]}>
-                    Monthly
-                  </Text>
-                  <Text style={[styles.planPrice, { color: colors.primary }]}>
-                    {getPriceString('MONTHLY', '$9.99')}
-                  </Text>
-                  <Text style={[styles.planPeriod, { color: colors.secondary }]}>
-                    per month
+                  <Text style={[styles.planPeriod, { color: colors.muted }]}>
+                    $0.43/day
                   </Text>
                 </Pressable>
 
@@ -558,6 +595,11 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                   ]}
                   onPress={() => handleSelectPlan('lifetime')}
                 >
+                  <View style={[styles.lifetimeBadge, { backgroundColor: '#22C55E' }]}>
+                    <Text style={[styles.bestValueText, { color: '#FFF' }]}>
+                      BEST VALUE
+                    </Text>
+                  </View>
                   <Text style={[styles.planName, { color: colors.primary }]}>
                     Lifetime
                   </Text>
@@ -566,10 +608,10 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                     numberOfLines={1}
                     adjustsFontSizeToFit
                   >
-                    {getPriceString('LIFETIME', '$19.99')}
+                    {getPriceString('LIFETIME', '$24.99')}
                   </Text>
-                  <Text style={[styles.planPeriod, { color: colors.secondary }]}>
-                    one-time
+                  <Text style={[styles.planPeriod, { color: colors.muted }]}>
+                    One-time
                   </Text>
                 </Pressable>
               </View>
@@ -599,12 +641,6 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
 
           {/* CTAs - Fixed at bottom */}
           <Animated.View entering={FadeIn.delay(300).duration(300)} style={styles.ctaContainer}>
-            {/* App Store required subscription disclosure */}
-            <Text style={[styles.subscriptionTerms, { color: colors.muted }]}>
-              {selectedPlan !== 'lifetime'
-                ? `Auto-renews ${selectedPlan === 'weekly' ? 'weekly' : 'monthly'}. Cancel anytime.`
-                : 'One-time purchase. No subscription.'}
-            </Text>
             {isLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="small" color={colors.primary} />
@@ -612,6 +648,12 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
             ) : (
               <GlassButton title={ctaText} onPress={handleSubscribe} />
             )}
+            {/* App Store required subscription disclosure */}
+            <Text style={[styles.subscriptionTerms, { color: colors.muted }]}>
+              {selectedPlan !== 'lifetime'
+                ? `Auto-renews ${selectedPlan === 'weekly' ? 'weekly' : 'monthly'}. Cancel anytime.`
+                : 'One-time purchase. No subscription.'}
+            </Text>
             <View style={styles.secondaryRow}>
               <Pressable onPress={handleRestore} disabled={isLoading} hitSlop={12}>
                 <Text style={[styles.secondaryLink, { color: colors.muted }]}>
@@ -786,14 +828,24 @@ const styles = StyleSheet.create({
   },
   bestValueBadge: {
     position: 'absolute',
-    top: -8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderCurve: 'continuous',
+    top: 0,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+  },
+  lifetimeBadge: {
+    position: 'absolute',
+    top: 0,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
   },
   bestValueText: {
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
@@ -827,7 +879,7 @@ const styles = StyleSheet.create({
   },
   // Compact feature list (no card wrapper)
   featureSection: {
-    gap: 6,
+    gap: 10,
     paddingHorizontal: 4,
   },
   featureRowCompact: {

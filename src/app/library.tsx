@@ -49,6 +49,8 @@ export default function LibraryScreen() {
     showPaywall,
     setPaywallContext,
     paywallContext,
+    getFreeTextExpiry,
+    cleanupExpiredFreeTexts,
   } = useSettingsStore();
 
   const params = useLocalSearchParams<{ tab?: string }>();
@@ -206,8 +208,15 @@ export default function LibraryScreen() {
     });
   }, [savedWords, hapticFeedback, router]);
 
-  // Pro-only gate - show locked state for free users
-  if (!isPremium) {
+  // Cleanup expired texts on mount (for free users)
+  useEffect(() => {
+    if (!isPremium) {
+      cleanupExpiredFreeTexts();
+    }
+  }, [isPremium, cleanupExpiredFreeTexts]);
+
+  // Pro-only gate for Words and Favorites tabs (Texts tab is accessible to free users)
+  if (!isPremium && (resolvedTab === 'words' || resolvedTab === 'favorites')) {
     return (
       <View style={[styles.container, { backgroundColor: colors.bg }]}>
         <View style={styles.lockedState}>
@@ -215,14 +224,17 @@ export default function LibraryScreen() {
             <View style={styles.lockedCard}>
               <Feather name="lock" size={32} color={colors.muted} />
               <Text style={[styles.lockedTitle, { color: colors.primary }]}>
-                Library is a Pro feature
+                {resolvedTab === 'words' ? 'Word Bank is a Pro feature' : 'Favorites is a Pro feature'}
               </Text>
               <Text style={[styles.lockedSubtitle, { color: colors.muted }]}>
-                Save favorites, custom texts, and build your personal word bank.
+                {resolvedTab === 'words' ? 'Save words as you read. Build a vocabulary that grows with you.' :
+                 'Save your favorites and pick up where you left off.'}
               </Text>
               <GlassButton
-                title="Unlock My Library"
-                onPress={() => setPaywallContext('locked_library')}
+                title={resolvedTab === 'words' ? 'Start Saving Words' : 'Save Your Favorites'}
+                onPress={() => setPaywallContext(
+                  resolvedTab === 'words' ? 'locked_library_words' : 'locked_library_faves'
+                )}
               />
             </View>
           </GlassCard>
@@ -235,6 +247,10 @@ export default function LibraryScreen() {
       </View>
     );
   }
+
+  // Calculate expiry for free user's text
+  const freeTextExpiry = !isPremium ? getFreeTextExpiry() : null;
+  const expiryHours = freeTextExpiry ? Math.ceil(freeTextExpiry / (60 * 60 * 1000)) : null;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -282,10 +298,14 @@ export default function LibraryScreen() {
             <Text style={[styles.tabButtonText, { color: activeTab === 'favorites' ? colors.primary : colors.muted }]}>
               Favorites
             </Text>
-            {favoriteTexts.length > 0 && (
-              <View style={[styles.tabBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' }]}>
-                <Text style={[styles.tabBadgeText, { color: colors.muted }]}>{favoriteTexts.length}</Text>
-              </View>
+            {isPremium ? (
+              favoriteTexts.length > 0 && (
+                <View style={[styles.tabBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' }]}>
+                  <Text style={[styles.tabBadgeText, { color: colors.muted }]}>{favoriteTexts.length}</Text>
+                </View>
+              )
+            ) : (
+              <Feather name="lock" size={14} color={colors.muted} />
             )}
           </Pressable>
           <Pressable
@@ -517,10 +537,18 @@ export default function LibraryScreen() {
                                 · {ct.timesRead}x read
                               </Text>
                             )}
-                            {ct.lastReadAt && (
+                            {ct.lastReadAt && isPremium && (
                               <Text style={[styles.textCardMetaText, { color: colors.muted }]}>
                                 · {formatDate(ct.lastReadAt)}
                               </Text>
+                            )}
+                            {!isPremium && expiryHours !== null && expiryHours > 0 && (
+                              <View style={styles.expiryBadge}>
+                                <Feather name="clock" size={11} color={colors.secondary} />
+                                <Text style={[styles.expiryText, { color: colors.secondary }]}>
+                                  {expiryHours}h left
+                                </Text>
+                              </View>
                             )}
                           </View>
                         </View>
@@ -535,6 +563,23 @@ export default function LibraryScreen() {
                     </GlassCard>
                   </Animated.View>
                 ))}
+                {/* Upgrade prompt for free users */}
+                {!isPremium && (
+                  <Animated.View entering={FadeIn.delay(200).duration(300)} style={styles.upgradePrompt}>
+                    <Text style={[styles.upgradePromptText, { color: colors.muted }]}>
+                      Want unlimited texts that never expire?
+                    </Text>
+                    <Pressable
+                      onPress={() => setPaywallContext('locked_library_texts')}
+                      style={styles.upgradePromptLink}
+                    >
+                      <Text style={[styles.upgradePromptLinkText, { color: colors.primary }]}>
+                        Upgrade to Pro
+                      </Text>
+                      <Feather name="arrow-right" size={14} color={colors.primary} />
+                    </Pressable>
+                  </Animated.View>
+                )}
               </View>
             )}
           </>
@@ -908,6 +953,36 @@ const styles = StyleSheet.create({
     height: 32,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  expiryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginLeft: 4,
+  },
+  expiryText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  upgradePrompt: {
+    alignItems: 'center',
+    paddingTop: 16,
+    paddingBottom: 8,
+    gap: 6,
+  },
+  upgradePromptText: {
+    fontSize: 13,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  upgradePromptLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  upgradePromptLinkText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   // Empty state
   emptyState: {

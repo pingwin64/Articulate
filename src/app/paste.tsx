@@ -36,17 +36,17 @@ export default function PasteScreen() {
   const {
     addCustomText, hapticFeedback, isPremium, customTexts, updateCustomText, removeCustomText,
     setPaywallContext, showPaywall, paywallContext,
-    dailyUploadUsed, resetDailyUploadIfNewDay, useDailyUpload,
+    canFreeUserUpload, getFreeTextExpiry, getFreeUserActiveText, cleanupExpiredFreeTexts,
   } = useSettingsStore();
 
   const editingText = params.editTextId
     ? customTexts.find((t) => t.id === params.editTextId)
     : undefined;
 
-  // Reset daily upload if new day
+  // Clean up expired texts on mount
   React.useEffect(() => {
-    resetDailyUploadIfNewDay();
-  }, [resetDailyUploadIfNewDay]);
+    cleanupExpiredFreeTexts();
+  }, [cleanupExpiredFreeTexts]);
 
   const textInputRef = useRef<TextInput>(null);
   const [title, setTitle] = useState(editingText?.title ?? '');
@@ -60,27 +60,33 @@ export default function PasteScreen() {
 
   const isUrl = URL_REGEX.test(text.trim());
 
-  // Daily gate: full-screen lock for free users who have used their daily upload
-  const isDailyGated = !isPremium && !editingText && dailyUploadUsed;
+  // Check if free user can upload (no active text, or text has expired)
+  const canUpload = canFreeUserUpload();
+  const activeText = getFreeUserActiveText();
 
-  // Countdown timer to midnight
-  const [timeToReset, setTimeToReset] = useState('');
+  // Gate: free users with an active (non-expired) text cannot add another
+  const isGated = !isPremium && !editingText && !canUpload && activeText !== null;
+
+  // Countdown timer to expiry
+  const [timeToExpiry, setTimeToExpiry] = useState('');
   useEffect(() => {
-    if (!isDailyGated) return;
+    if (!isGated) return;
     const tick = () => {
-      const now = new Date();
-      const midnight = new Date(now);
-      midnight.setHours(24, 0, 0, 0);
-      const diff = midnight.getTime() - now.getTime();
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      setTimeToReset(`${h}h ${m}m`);
+      const expiry = getFreeTextExpiry();
+      if (expiry === null || expiry <= 0) {
+        setTimeToExpiry('0h 0m');
+        return;
+      }
+      const h = Math.floor(expiry / 3600000);
+      const m = Math.floor((expiry % 3600000) / 60000);
+      setTimeToExpiry(`${h}h ${m}m`);
     };
     tick();
     const interval = setInterval(tick, 60000);
     return () => clearInterval(interval);
-  }, [isDailyGated]);
+  }, [isGated]);
 
+  // Free user can have 1 text at a time - if they have one, replacing is allowed
   const atLimit = !isPremium && customTexts.length >= 1 && !editingText;
 
   // Shared helper: create or replace a custom text
@@ -88,15 +94,10 @@ export default function PasteScreen() {
     const trimmedTitle = title.trim() || 'My Text';
     const trimmedText = text.trim();
 
-    // If at storage limit, replace existing text instead of adding
+    // If at storage limit (free user with existing text), replace it
     if (atLimit && customTexts.length > 0) {
       const existingId = customTexts[0].id;
       removeCustomText(existingId);
-    }
-
-    // Mark daily upload as used for free users
-    if (!isPremium) {
-      useDailyUpload();
     }
 
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -112,7 +113,7 @@ export default function PasteScreen() {
     };
     addCustomText(customText);
     return id;
-  }, [title, text, wordCount, atLimit, customTexts, removeCustomText, addCustomText, isPremium, useDailyUpload]);
+  }, [title, text, wordCount, atLimit, customTexts, removeCustomText, addCustomText]);
 
   const handleStartReading = useCallback(() => {
     if (wordCount === 0) return;
@@ -336,25 +337,30 @@ export default function PasteScreen() {
     router.back();
   };
 
-  // Full-screen daily gate overlay
-  if (isDailyGated) {
+  // Full-screen gate overlay - free user already has an active text
+  if (isGated) {
     return (
       <View style={[styles.container, { backgroundColor: colors.bg }]}>
         <SafeAreaView style={[styles.flex, styles.gateContainer]}>
-          <Feather name="lock" size={40} color={colors.muted} />
+          <Feather name="clock" size={40} color={colors.muted} />
           <Text style={[styles.gateHeadline, { color: colors.primary }]}>
-            Come back tomorrow
+            You already have a text
           </Text>
           <Text style={[styles.gateCountdown, { color: colors.secondary }]}>
-            Your daily text resets in {timeToReset}
+            Your current text expires in {timeToExpiry}
           </Text>
           <Text style={[styles.gateSubtext, { color: colors.muted }]}>
-            1 free text per day
+            Free: 1 text at a time (24h access)
           </Text>
           <View style={styles.gateActions}>
             <GlassButton
+              title="View My Text"
+              variant="outline"
+              onPress={() => router.replace({ pathname: '/library', params: { tab: 'myTexts' } })}
+            />
+            <GlassButton
               title="Unlock Unlimited Texts"
-              onPress={() => setPaywallContext('locked_daily_upload')}
+              onPress={() => setPaywallContext('custom_text_limit')}
             />
             <Pressable onPress={() => router.back()} style={styles.gateWaitButton}>
               <Text style={[styles.gateWaitText, { color: colors.muted }]}>
@@ -572,7 +578,7 @@ export default function PasteScreen() {
             />
             {!isPremium && !editingText && (
               <Text style={[styles.dailyLimitHint, { color: colors.muted }]}>
-                Free users: 1 upload per day
+                Free: 1 text for 24 hours
               </Text>
             )}
           </Animated.View>

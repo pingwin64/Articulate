@@ -71,7 +71,9 @@ export type PaywallContext =
   | 'locked_breathing' | 'locked_tts' | 'locked_quiz'
   | 'locked_daily_upload' | 'locked_scan' | 'streak_save' | 'goal_almost'
   | 'trial_expired' | 'settings_upgrade' | 'locked_insights'
-  | 'locked_level_up' | 'locked_definition' | 'locked_word_bank' | 'locked_library' | 'generic';
+  | 'locked_level_up' | 'locked_definition' | 'locked_word_bank'
+  | 'locked_library' | 'locked_library_words' | 'locked_library_faves' | 'locked_library_texts'
+  | 'generic';
 
 export interface SavedWord {
   id: string;
@@ -288,11 +290,12 @@ export interface SettingsState {
   selectedCategoryKey: string | null;
   setSelectedCategoryKey: (v: string | null) => void;
 
-  // Daily upload limit (free users)
-  dailyUploadDate: string | null;
-  dailyUploadUsed: boolean;
-  resetDailyUploadIfNewDay: () => void;
-  useDailyUpload: () => void;
+  // Free user text limit (1 text, expires after 24h)
+  cleanupExpiredFreeTexts: () => void;
+  canFreeUserUpload: () => boolean;
+  getFreeTextExpiry: () => number | null;
+  getFreeUserActiveText: () => CustomText | null;
+  resetDailyIfNewDay: () => void;
 
   // Daily word goal
   dailyWordGoal: number;
@@ -778,9 +781,9 @@ export const useSettingsStore = create<SettingsState>()(
         } else {
           const state = get();
           // Skip frequency limiting for intentional upgrade actions
-          // All locked_* contexts are intentional taps; also settings_upgrade, custom_text_limit, trial_expired
+          // All locked_* contexts are intentional taps; also settings_upgrade, custom_text_limit, trial_expired, generic
           const isIntentional = ctx.startsWith('locked_') || ctx === 'settings_upgrade'
-            || ctx === 'custom_text_limit' || ctx === 'trial_expired';
+            || ctx === 'custom_text_limit' || ctx === 'trial_expired' || ctx === 'generic';
           // Frequency limiting only for passive/proactive paywalls
           if (!isIntentional && !state.canShowPaywall()) return;
           set({ paywallContext: ctx, showPaywall: true, lastPaywallShown: new Date().toISOString() });
@@ -821,23 +824,88 @@ export const useSettingsStore = create<SettingsState>()(
       selectedCategoryKey: null,
       setSelectedCategoryKey: (v) => set({ selectedCategoryKey: v }),
 
-      // Daily upload limit
-      dailyUploadDate: null,
-      dailyUploadUsed: false,
-      resetDailyUploadIfNewDay: () => {
+      // Free user text limit (1 text, expires after 24h)
+      cleanupExpiredFreeTexts: () => {
+        const state = get();
+        if (state.isPremium) return; // Premium users keep everything
+
+        const now = Date.now();
+        const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+        const expiredIds = state.customTexts
+          .filter((t) => {
+            const createdTime = new Date(t.createdAt).getTime();
+            return now - createdTime > TWENTY_FOUR_HOURS;
+          })
+          .map((t) => t.id);
+
+        if (expiredIds.length > 0) {
+          set({
+            customTexts: state.customTexts.filter((t) => !expiredIds.includes(t.id)),
+          });
+        }
+      },
+
+      canFreeUserUpload: () => {
+        const state = get();
+        if (state.isPremium) return true;
+
+        // Free users can only have 1 text at a time
+        // Check if they have any non-expired texts
+        const now = Date.now();
+        const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+        const activeTexts = state.customTexts.filter((t) => {
+          const createdTime = new Date(t.createdAt).getTime();
+          return now - createdTime < TWENTY_FOUR_HOURS;
+        });
+
+        return activeTexts.length === 0;
+      },
+
+      getFreeTextExpiry: () => {
+        const state = get();
+        if (state.isPremium) return null;
+        if (state.customTexts.length === 0) return null;
+
+        const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+        // Get the most recent text
+        const sortedTexts = [...state.customTexts].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        const activeText = sortedTexts[0];
+        const createdTime = new Date(activeText.createdAt).getTime();
+        const expiryTime = createdTime + TWENTY_FOUR_HOURS;
+        const now = Date.now();
+
+        if (now >= expiryTime) return 0; // Already expired
+        return expiryTime - now; // Milliseconds until expiry
+      },
+
+      getFreeUserActiveText: () => {
+        const state = get();
+        if (state.isPremium) return null;
+        if (state.customTexts.length === 0) return null;
+
+        const now = Date.now();
+        const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+        // Find the active (non-expired) text
+        const activeTexts = state.customTexts.filter((t) => {
+          const createdTime = new Date(t.createdAt).getTime();
+          return now - createdTime < TWENTY_FOUR_HOURS;
+        });
+
+        return activeTexts.length > 0 ? activeTexts[0] : null;
+      },
+
+      // Daily reset helper (for daily words tracking)
+      resetDailyIfNewDay: () => {
         const state = get();
         const today = new Date().toDateString();
-        if (state.dailyUploadDate !== today) {
-          set({ dailyUploadDate: today, dailyUploadUsed: false });
-        }
-        // Also reset daily words if new day
         if (state.lastDailyResetDate !== today) {
           set({ dailyWordsToday: 0, lastDailyResetDate: today });
         }
-      },
-      useDailyUpload: () => {
-        const today = new Date().toDateString();
-        set({ dailyUploadDate: today, dailyUploadUsed: true });
       },
 
       // Daily word goal
@@ -858,7 +926,7 @@ export const useSettingsStore = create<SettingsState>()(
       canUseFreeQuiz: () => {
         const state = get();
         const today = new Date().toDateString();
-        // Reset state if new day (consistent with resetDailyUploadIfNewDay pattern)
+        // Reset state if new day
         if (state.lastFreeQuizDate !== today) {
           set({ freeQuizUsedToday: false, lastFreeQuizDate: today });
           return true;
@@ -1156,8 +1224,6 @@ export const useSettingsStore = create<SettingsState>()(
         trialStartDate: null,
         trialActive: false,
         selectedCategoryKey: null,
-        dailyUploadDate: null,
-        dailyUploadUsed: false,
         dailyWordGoal: 100,
         dailyWordsToday: 0,
         lastDailyResetDate: null,

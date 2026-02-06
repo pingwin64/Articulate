@@ -62,6 +62,11 @@ export default function RootLayout() {
     });
   }, []);
 
+  // Clean up expired free user texts on app start
+  useEffect(() => {
+    useSettingsStore.getState().cleanupExpiredFreeTexts();
+  }, []);
+
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded) {
       await SplashScreen.hideAsync();

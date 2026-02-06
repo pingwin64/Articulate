@@ -1267,7 +1267,7 @@ function Home() {
     totalWordsRead,
     textsCompleted,
     reduceMotion,
-    resetDailyUploadIfNewDay,
+    resetDailyIfNewDay,
     refillStreakAllowancesIfNewMonth,
     checkWeeklyChallenge,
   } = useSettingsStore();
@@ -1358,10 +1358,10 @@ function Home() {
 
   // Reset daily counters if new day, refill streak allowances, check weekly challenge
   useEffect(() => {
-    resetDailyUploadIfNewDay();
+    resetDailyIfNewDay();
     refillStreakAllowancesIfNewMonth();
     checkWeeklyChallenge();
-  }, [resetDailyUploadIfNewDay, refillStreakAllowancesIfNewMonth, checkWeeklyChallenge]);
+  }, [resetDailyIfNewDay, refillStreakAllowancesIfNewMonth, checkWeeklyChallenge]);
 
   // Streak "at risk" detection — warn at 20h (4-hour buffer before streak resets at 48h)
   const isStreakAtRisk = currentStreak > 0 && lastReadDate !== null && (() => {
@@ -1504,11 +1504,11 @@ function Home() {
                 },
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Unlock full access"
+              accessibilityLabel="Get Pro"
             >
-              <Feather name="zap" size={12} color={colors.primary} />
+              <Feather name="star" size={12} color={colors.primary} />
               <Text style={[styles.upgradePillText, { color: colors.primary }]}>
-                Unlock full access
+                Get Pro
               </Text>
             </Pressable>
           )}
@@ -1709,7 +1709,7 @@ function Home() {
               onPress={(e) => {
                 e.stopPropagation();
                 if (!isPremium) {
-                  setPaywallContext('locked_library');
+                  setPaywallContext('locked_library_words');
                 } else {
                   router.push({ pathname: '/library', params: { tab: 'words' } });
                 }
@@ -1727,28 +1727,24 @@ function Home() {
               onPress={(e) => {
                 e.stopPropagation();
                 if (!isPremium) {
-                  setPaywallContext('locked_library');
+                  setPaywallContext('locked_library_faves');
                 } else {
                   router.push({ pathname: '/library', params: { tab: 'favorites' } });
                 }
               }}
             />
 
-            {/* My Texts - Pro only */}
+            {/* My Texts - Accessible to all users (free users get 1 text, 24h) */}
             <BookSpine
               label="Texts"
               icon="file-text"
               color={isDark ? '#4A4A5A' : '#7A7A8A'}
               count={customTexts.length}
-              isLocked={!isPremium}
+              isLocked={false}
               index={2}
               onPress={(e) => {
                 e.stopPropagation();
-                if (!isPremium) {
-                  setPaywallContext('locked_library');
-                } else {
-                  router.push({ pathname: '/library', params: { tab: 'texts' } });
-                }
+                router.push({ pathname: '/library', params: { tab: 'myTexts' } });
               }}
             />
           </View>
