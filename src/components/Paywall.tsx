@@ -253,7 +253,7 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
   // Fetch offerings when paywall opens
   useEffect(() => {
     if (visible) {
-      getOfferings().then(setPackages).catch(() => {});
+      getOfferings().then(setPackages).catch((e) => { if (__DEV__) console.warn('[Paywall] Failed to load offerings:', e); });
     }
   }, [visible]);
 

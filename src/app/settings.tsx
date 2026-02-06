@@ -54,12 +54,13 @@ import {
 } from '../lib/notifications';
 import { restorePurchases } from '../lib/purchases';
 import { ALL_BADGES } from '../lib/data/badges';
+import type { FeatherIconName } from '../types/icons';
 
-function SectionHeader({ title, icon }: { title: string; icon?: string }) {
+function SectionHeader({ title, icon }: { title: string; icon?: FeatherIconName }) {
   const { colors } = useTheme();
   return (
     <View style={styles.sectionHeaderRow}>
-      {icon && <Feather name={icon as any} size={14} color={colors.secondary} />}
+      {icon && <Feather name={icon} size={14} color={colors.secondary} />}
       <Text style={[styles.sectionHeader, { color: colors.secondary }]}>
         {title}
       </Text>
@@ -811,13 +812,13 @@ export default function SettingsScreen() {
                     const circleColor = wc.color ?? colors.primary;
                     const isSelected = wordColor === wc.key;
                     const isRewardColor = 'rewardId' in wc && !!wc.rewardId;
-                    const isRewardUnlocked = isRewardColor ? unlockedRewards.includes((wc as any).rewardId) : true;
+                    const isRewardUnlocked = isRewardColor ? unlockedRewards.includes((wc as { rewardId: string }).rewardId) : true;
                     return (
                       <Pressable
                         key={wc.key}
                         onPress={() => {
                           if (isRewardColor && !isRewardUnlocked) {
-                            const rewardBadge = ALL_BADGES.find((b) => b.reward?.id === (wc as any).rewardId);
+                            const rewardBadge = ALL_BADGES.find((b) => b.reward?.id === (wc as { rewardId: string }).rewardId);
                             const badgeName = rewardBadge?.name ?? 'a special';
                             Alert.alert(
                               `${wc.label} Color`,

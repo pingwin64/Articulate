@@ -145,7 +145,7 @@ function BadgeGridCard({
           ]}
         >
           <Feather
-            name={badge.icon as any}
+            name={badge.icon}
             size={36}
             color={iconColor}
             style={{ opacity: unlocked ? 1 : 0.5 }}

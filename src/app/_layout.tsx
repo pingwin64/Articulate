@@ -22,6 +22,7 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useTheme } from '../hooks/useTheme';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { Toast } from '../components/Toast';
 import { useSettingsStore } from '../lib/store/settings';
 import { initPurchases } from '../lib/purchases';
 
@@ -47,7 +48,7 @@ export default function RootLayout() {
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
       if (enabled) setReduceMotion(true);
-    });
+    }).catch(() => {});
     const subscription = AccessibilityInfo.addEventListener(
       'reduceMotionChanged',
       (enabled) => setReduceMotion(enabled)
@@ -199,6 +200,7 @@ export default function RootLayout() {
           />
         </Stack>
         </ErrorBoundary>
+        <Toast />
       </View>
     </GestureHandlerRootView>
   );

@@ -30,7 +30,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
       headers: {
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": "https://mgwkhxlhhrvjgixptcnu.supabase.co",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Allow-Headers":
           "Content-Type, Authorization, apikey, x-client-info",
@@ -316,7 +316,7 @@ function json(data: unknown, status = 200) {
     status,
     headers: {
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": "https://mgwkhxlhhrvjgixptcnu.supabase.co",
     },
   });
 }

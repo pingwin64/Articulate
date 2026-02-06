@@ -19,6 +19,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
+import { useToastStore } from '../lib/store/toast';
 import { GlassButton } from '../components/GlassButton';
 import { Paywall } from '../components/Paywall';
 import { Spacing } from '../design/theme';
@@ -38,6 +39,7 @@ export default function PasteScreen() {
     setPaywallContext, showPaywall, paywallContext,
     canFreeUserUpload, getFreeTextExpiry, getFreeUserActiveText, cleanupExpiredFreeTexts,
   } = useSettingsStore();
+  const showToast = useToastStore((s) => s.showToast);
 
   const editingText = params.editTextId
     ? customTexts.find((t) => t.id === params.editTextId)
@@ -154,11 +156,11 @@ export default function PasteScreen() {
         text: text.trim(),
         wordCount,
       });
-      Alert.alert('Saved', 'Your text has been updated.');
+      showToast('Text updated', 'check');
       router.back();
     } else {
       createOrReplaceText();
-      Alert.alert('Saved', atLimit ? 'Your previous text has been replaced.' : 'Your text has been saved to your library.');
+      showToast(atLimit ? 'Text replaced' : 'Saved to library', 'check');
       router.back();
     }
   }, [wordCount, title, text, hapticFeedback, updateCustomText, editingText, router, createOrReplaceText, atLimit]);
@@ -193,8 +195,9 @@ export default function PasteScreen() {
         setText(article.text);
         setTextSource('url');
       }
-    } catch (error: any) {
-      Alert.alert('Extraction Failed', error.message || "Couldn't extract article from that URL");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Couldn't extract article from that URL";
+      Alert.alert('Extraction Failed', message);
     } finally {
       setIsLoading(false);
       setLoadingMessage('');
@@ -240,8 +243,9 @@ export default function PasteScreen() {
         setText(parsed.text);
         setTextSource('file');
       }
-    } catch (error: any) {
-      Alert.alert('Import Failed', error.message || "Couldn't read that file");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Couldn't read that file";
+      Alert.alert('Import Failed', message);
     } finally {
       setIsLoading(false);
       setLoadingMessage('');
@@ -299,8 +303,9 @@ export default function PasteScreen() {
           setTitle(firstLine);
         }
       }
-    } catch (error: any) {
-      Alert.alert('Scan Failed', error.message || "Couldn't extract text from that image");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Couldn't extract text from that image";
+      Alert.alert('Scan Failed', message);
     } finally {
       setIsLoading(false);
       setLoadingMessage('');
@@ -344,13 +349,13 @@ export default function PasteScreen() {
         <SafeAreaView style={[styles.flex, styles.gateContainer]}>
           <Feather name="clock" size={40} color={colors.muted} />
           <Text style={[styles.gateHeadline, { color: colors.primary }]}>
-            You already have a text
+            Your free text is still active
           </Text>
           <Text style={[styles.gateCountdown, { color: colors.secondary }]}>
             Your current text expires in {timeToExpiry}
           </Text>
           <Text style={[styles.gateSubtext, { color: colors.muted }]}>
-            Free: 1 text at a time (24h access)
+            Free plan: 1 text at a time, expires after 24 hours
           </Text>
           <View style={styles.gateActions}>
             <GlassButton
@@ -578,7 +583,7 @@ export default function PasteScreen() {
             />
             {!isPremium && !editingText && (
               <Text style={[styles.dailyLimitHint, { color: colors.muted }]}>
-                Free: 1 text for 24 hours
+                Free plan: 1 text at a time, expires after 24 hours
               </Text>
             )}
           </Animated.View>

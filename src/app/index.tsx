@@ -32,6 +32,7 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
+import type { FeatherIconName } from '../types/icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 import { categories } from '../lib/data/categories';
@@ -170,7 +171,7 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
   const glowOpacity = useSharedValue(0);
 
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then(setSystemReduceMotion);
+    AccessibilityInfo.isReduceMotionEnabled().then(setSystemReduceMotion).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -471,7 +472,7 @@ function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
           <View style={styles.colorSwatches}>
             {onboardingBackgrounds.map((theme) => {
               const isSelected = backgroundTheme === theme.key;
-              const swatchColor = isDark ? theme.dark : theme.light;
+              const swatchColor = theme.darkOnly ? theme.dark : theme.light;
               return (
                 <Pressable
                   key={theme.key}
@@ -559,20 +560,19 @@ function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, 
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
       scale.value = withSequence(
-        withSpring(1.02, { damping: 12, stiffness: 200 }),
-        withSpring(1, { damping: 12, stiffness: 200 })
+        withTiming(1.02, { duration: 150, easing: Easing.out(Easing.ease) }),
+        withTiming(1, { duration: 150, easing: Easing.inOut(Easing.ease) })
       );
-      glowOpacity.value = withTiming(1, { duration: 200 });
+      glowOpacity.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) });
       glowSpread.value = withSequence(
         withTiming(0, { duration: 0 }),
-        withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) })
+        withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) })
       );
       backgroundTint.value = withTiming(1, { duration: 200 });
       checkOpacity.value = withTiming(1, { duration: 150, easing: Easing.out(Easing.ease) });
       checkScale.value = withSequence(
         withTiming(0, { duration: 0 }),
-        withSpring(1.1, { damping: 8, stiffness: 200 }),
-        withSpring(1, { damping: 10, stiffness: 200 })
+        withTiming(1, { duration: 250, easing: Easing.out(Easing.ease) })
       );
       dimOpacity.value = withTiming(1, { duration: 200 });
     } else {
@@ -648,7 +648,7 @@ function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, 
                   backgroundColor: contrastColors.iconBg,
                   borderColor: contrastColors.border,
                 }]}>
-                  <Feather name={category.icon as any} size={20} color={contrastColors.primary} />
+                  <Feather name={category.icon} size={20} color={contrastColors.primary} />
                 </View>
                 <View style={styles.catColumn}>
                   <Text style={[styles.levelLabel, { color: contrastColors.primary }]}>
@@ -905,11 +905,6 @@ function OnboardingLaunch({ onNext }: { onNext: (categoryKey: string) => void })
 // ─── Onboarding Container ────────────────────────────────────
 
 function Onboarding() {
-  // Debug: Log on mount
-  if (__DEV__) {
-    console.log('[Onboarding] Component mounting, starting at page 0');
-  }
-
   const [page, setPage] = useState(0);
   const router = useRouter();
   const { setIsFirstReading } = useSettingsStore();
@@ -927,17 +922,8 @@ function Onboarding() {
   // Page 2: Category Selection → Navigate to reading
   // After reading completes, complete.tsx handles: daily goal → paywall
   const handleLaunch = useCallback((categoryKey: string) => {
-    if (__DEV__) {
-      console.log('[Onboarding] handleLaunch called with:', categoryKey);
-    }
     setIsFirstReading(true);
     const cat = categories.find((c) => c.key === categoryKey);
-    if (__DEV__) {
-      console.log('[Onboarding] Navigating to /reading with:', {
-        categoryKey,
-        textId: cat?.texts[0]?.id ?? '',
-      });
-    }
     router.replace({
       pathname: '/reading',
       params: { categoryKey, textId: cat?.texts[0]?.id ?? '' },
@@ -1021,7 +1007,7 @@ function CategoryTile({ category, index, onPress, textCount, isLocked = false }:
           ]}
         >
           <Feather
-            name={isLocked ? 'lock' : (category.icon as any)}
+            name={isLocked ? 'lock' : category.icon}
             size={24}
             color={isLocked ? colors.muted : colors.primary}
           />
@@ -1121,7 +1107,7 @@ interface BookSpineProps {
   label: string;
   color: string;
   count?: number;
-  icon?: string;
+  icon?: FeatherIconName;
   isLocked?: boolean;
   onPress: (e: any) => void;
   index: number; // For staggered entry
@@ -1225,7 +1211,7 @@ function BookSpine({ label, color, count, icon, isLocked, onPress, index }: Book
         {isLocked ? (
           <Feather name="lock" size={20} color="rgba(255,255,255,0.6)" />
         ) : icon ? (
-          <Feather name={icon as any} size={20} color="rgba(255,255,255,0.9)" />
+          <Feather name={icon} size={20} color="rgba(255,255,255,0.9)" />
         ) : null}
 
         {/* Label */}
@@ -1919,11 +1905,6 @@ function Home() {
 export default function IndexScreen() {
   const { hasOnboarded } = useSettingsStore();
   const { colors } = useTheme();
-
-  // Debug logging
-  if (__DEV__) {
-    console.log('[Index] Rendering with hasOnboarded:', hasOnboarded);
-  }
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>

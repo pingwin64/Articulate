@@ -13,18 +13,20 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
+import type { FeatherIconName } from '../types/icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 import { categories } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { Paywall } from '../components/Paywall';
+import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import { Spacing } from '../design/theme';
 
 type SortMode = 'recent' | 'alpha' | 'mostRead';
 type TabMode = 'myTexts' | 'favorites' | 'words';
 
-const SOURCE_ICONS: Record<string, string> = {
+const SOURCE_ICONS: Record<string, FeatherIconName> = {
   paste: 'clipboard',
   file: 'file-text',
   url: 'globe',
@@ -66,6 +68,14 @@ export default function LibraryScreen() {
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
   const [showCreateCollection, setShowCreateCollection] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
+
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message?: string;
+    confirmLabel: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   useEffect(() => {
     setActiveTab(resolvedTab);
@@ -115,7 +125,17 @@ export default function LibraryScreen() {
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => removeCustomText(id),
+        onPress: () => {
+          setConfirmDialog({
+            title: 'Delete Text?',
+            message: `"${text.title}" will be permanently removed.`,
+            confirmLabel: 'Delete',
+            onConfirm: () => {
+              removeCustomText(id);
+              setConfirmDialog(null);
+            },
+          });
+        },
       },
       { text: 'Cancel', style: 'cancel' },
     ]);
@@ -170,30 +190,30 @@ export default function LibraryScreen() {
   }, [favoriteTexts]);
 
   const handleRemoveFavorite = useCallback((categoryKey: string, textId: string) => {
-    Alert.alert('Remove from Library?', 'This text will be removed from your favorites.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: () => removeFavoriteText(categoryKey, textId),
+    setConfirmDialog({
+      title: 'Remove from Library?',
+      message: 'This text will be removed from your favorites.',
+      confirmLabel: 'Remove',
+      onConfirm: () => {
+        removeFavoriteText(categoryKey, textId);
+        setConfirmDialog(null);
       },
-    ]);
+    });
   }, [removeFavoriteText]);
 
   const handleRemoveWord = useCallback((id: string, word: string) => {
-    Alert.alert('Remove Word', `Remove "${word}" from your word bank?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: () => {
-          if (hapticFeedback) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }
-          removeSavedWord(id);
-        },
+    setConfirmDialog({
+      title: 'Remove Word',
+      message: `Remove "${word}" from your word bank?`,
+      confirmLabel: 'Remove',
+      onConfirm: () => {
+        if (hapticFeedback) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+        removeSavedWord(id);
+        setConfirmDialog(null);
       },
-    ]);
+    });
   }, [removeSavedWord, hapticFeedback]);
 
   const handleReadMyWords = useCallback(() => {
@@ -525,7 +545,7 @@ export default function LibraryScreen() {
                           )}
                           <View style={styles.textCardMeta}>
                             <Feather
-                              name={(SOURCE_ICONS[ct.source ?? 'paste'] ?? 'clipboard') as any}
+                              name={SOURCE_ICONS[ct.source ?? 'paste'] ?? 'clipboard'}
                               size={12}
                               color={colors.muted}
                             />
@@ -597,6 +617,14 @@ export default function LibraryScreen() {
                 <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
                   {search ? 'Try a different search' : 'Tap the heart on the complete screen to save texts here'}
                 </Text>
+                {!search && (
+                  <Pressable
+                    onPress={() => router.push('/')}
+                    style={[styles.emptyButton, { borderColor: colors.muted }]}
+                  >
+                    <Text style={[styles.emptyButtonText, { color: colors.primary }]}>Start Reading</Text>
+                  </Pressable>
+                )}
               </View>
             ) : (
               <View style={styles.textList}>
@@ -639,7 +667,7 @@ export default function LibraryScreen() {
                               )}
                               <View style={styles.textCardMeta}>
                                 <Feather
-                                  name={fav.category.icon as any}
+                                  name={fav.category.icon}
                                   size={12}
                                   color={colors.muted}
                                 />
@@ -698,6 +726,12 @@ export default function LibraryScreen() {
                 <Text style={[styles.emptySubtitle, { color: colors.muted }]}>
                   Tap the ? icon while reading to look up words,{'\n'}then tap the heart to save them here.
                 </Text>
+                <Pressable
+                  onPress={() => router.push('/')}
+                  style={[styles.emptyButton, { borderColor: colors.muted }]}
+                >
+                  <Text style={[styles.emptyButtonText, { color: colors.primary }]}>Start Reading</Text>
+                </Pressable>
               </View>
             ) : (
               <>
@@ -821,6 +855,15 @@ export default function LibraryScreen() {
         visible={showPaywall}
         onDismiss={() => setPaywallContext(null)}
         context={paywallContext}
+      />
+
+      <ConfirmationDialog
+        visible={!!confirmDialog}
+        title={confirmDialog?.title ?? ''}
+        message={confirmDialog?.message}
+        confirmLabel={confirmDialog?.confirmLabel ?? 'Remove'}
+        onConfirm={confirmDialog?.onConfirm ?? (() => {})}
+        onCancel={() => setConfirmDialog(null)}
       />
     </View>
   );

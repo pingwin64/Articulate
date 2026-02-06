@@ -158,12 +158,7 @@ export default function ReadingScreen() {
 
   const advanceWord = useCallback(() => {
     // Guard against multiple navigation calls
-    if (isNavigatingRef.current) {
-      if (__DEV__) {
-        console.log('[Reading] Navigation already in progress, skipping');
-      }
-      return;
-    }
+    if (isNavigatingRef.current) return;
 
     if (currentIndex + chunkSize >= totalWords) {
       // Set guard immediately
@@ -171,17 +166,6 @@ export default function ReadingScreen() {
 
       setResumeData(null);
       const elapsed = Math.round((Date.now() - startTimeRef.current) / 1000);
-
-      // Log navigation for debugging
-      if (__DEV__) {
-        console.log('[Reading] Navigating to /complete with params:', {
-          categoryKey: params.categoryKey ?? '',
-          textId: params.textId ?? '',
-          customTextId: params.customTextId ?? '',
-          wordsRead: String(totalWords),
-          timeSpent: String(elapsed),
-        });
-      }
 
       router.replace({
         pathname: '/complete',
@@ -317,8 +301,8 @@ export default function ReadingScreen() {
       const data = await fetchDefinition(singleWord, context);
       definitionCache.current[cacheKey] = data;
       setDefinitionData(data);
-    } catch (err: any) {
-      setDefinitionError(err.message ?? 'Failed to fetch definition');
+    } catch (err: unknown) {
+      setDefinitionError(err instanceof Error ? err.message : 'Failed to fetch definition');
     } finally {
       setDefinitionLoading(false);
     }
@@ -335,8 +319,8 @@ export default function ReadingScreen() {
       const data = await fetchDefinition(singleWord, context);
       definitionCache.current[cacheKey] = data;
       setDefinitionData(data);
-    } catch (err: any) {
-      setDefinitionError(err.message ?? 'Failed to fetch definition');
+    } catch (err: unknown) {
+      setDefinitionError(err instanceof Error ? err.message : 'Failed to fetch definition');
     } finally {
       setDefinitionLoading(false);
     }
@@ -366,9 +350,6 @@ export default function ReadingScreen() {
   };
 
   const handleClose = () => {
-    if (__DEV__) {
-      console.log('[Reading] handleClose called, canGoBack:', router.canGoBack());
-    }
     if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current);
     stopSpeaking();
     if (router.canGoBack()) {
@@ -428,13 +409,6 @@ export default function ReadingScreen() {
               <Text style={[styles.counter, { color: colors.muted }]}>
                 {Math.min(currentIndex + chunkSize, totalWords)} / {totalWords}
               </Text>
-              {text?.textDifficulty && (
-                <View style={[styles.difficultyBadge, { backgroundColor: DIFFICULTY_COLORS[text.textDifficulty].bg }]}>
-                  <Text style={[styles.difficultyBadgeText, { color: DIFFICULTY_COLORS[text.textDifficulty].text }]}>
-                    {text.textDifficulty.charAt(0).toUpperCase() + text.textDifficulty.slice(1)}
-                  </Text>
-                </View>
-              )}
             </View>
             {(() => {
               const remaining = totalWords - currentIndex;

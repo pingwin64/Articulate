@@ -10,13 +10,15 @@ export type BadgeCategory =
   | 'quiz'
   | 'special';
 
+import type { FeatherIconName } from '../../types/icons';
+
 export interface Badge {
   id: string;
   name: string;
   description: string;
   category: BadgeCategory;
   tier?: BadgeTier;
-  icon: string; // Feather icon name
+  icon: FeatherIconName;
   // For category badges, which category key
   categoryKey?: string;
   // Milestone threshold
@@ -43,7 +45,7 @@ const CATEGORY_NAMES: Record<string, string> = {
 };
 
 // Category-specific icons
-const CATEGORY_ICONS: Record<string, string> = {
+const CATEGORY_ICONS: Record<string, FeatherIconName> = {
   story: 'book',
   article: 'file-text',
   speech: 'mic',
@@ -61,7 +63,7 @@ function generateCategoryBadges(): Badge[] {
   const categories = Object.entries(CATEGORY_NAMES);
 
   for (const [key, name] of categories) {
-    const icon = CATEGORY_ICONS[key] || 'award';
+    const icon: FeatherIconName = CATEGORY_ICONS[key] ?? 'award';
 
     // Bronze - 5 texts
     badges.push({

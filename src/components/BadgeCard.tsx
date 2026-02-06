@@ -46,7 +46,7 @@ export function BadgeCard({ badge, unlocked, onPress }: BadgeCardProps) {
         ]}
       >
         <Feather
-          name={badge.icon as any}
+          name={badge.icon}
           size={20}
           color={unlocked ? tierColor : colors.muted}
         />
@@ -119,7 +119,7 @@ export function BadgeCardCompact({
         ]}
       >
         <Feather
-          name={badge.icon as any}
+          name={badge.icon}
           size={18}
           color={unlocked ? tierColor : colors.muted}
         />

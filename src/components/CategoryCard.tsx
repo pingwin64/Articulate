@@ -17,7 +17,7 @@ interface CategoryCardProps {
 export const CategoryCard = forwardRef<View, CategoryCardProps>(function CategoryCard({ category, onPress, locked, index = 0, showPreview = true }, ref) {
   const { colors, glass, isDark } = useTheme();
 
-  const iconName = locked ? 'lock' : (category.icon as any);
+  const iconName = locked ? 'lock' as const : category.icon;
   const totalWords = category.texts.reduce((sum, t) => sum + t.words.length, 0);
   const textCount = category.texts.length;
 

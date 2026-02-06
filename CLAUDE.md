@@ -229,7 +229,8 @@ npx expo run:ios
 - Use `Springs` from `theme.ts` (default, gentle, bouncy, snappy) — don't hardcode spring configs
 - Press feedback: scale 1 -> 0.96 with 80ms press, 150ms release
 - Entry animations: `FadeIn.delay(N).duration(300-400)` with staggered delays
-- Use `withSpring` for interactive animations, `withTiming` for non-interactive transitions
+- **Prefer `withTiming` + `Easing` over `withSpring`** for selection/check animations. Bouncy springs (low damping, overshoot) feel gamified — not "liquid glass minimalism." Use `withTiming` with `Easing.out(Easing.ease)` or `Easing.out(Easing.cubic)` for smooth, controlled motion.
+- Only use `withSpring` for direct-manipulation gestures (dragging, flicking) where physics feel natural
 - Breathing: subtle `1 -> 1.008 -> 1` over 3s, infinite repeat
 - Check `reduceMotion` setting before adding infinite/repeating animations
 
@@ -564,3 +565,100 @@ Components updated for HIG compliance:
 - Plan cards: 100px min-height, tight padding
 - Remove duplicate social proof (don't show both pill AND footer text)
 - `bounces={false}` on ScrollView for cleaner feel
+
+### 31. JS-Only Changes: Use `expo start`, NOT `expo run:ios`
+
+**CRITICAL:** If you only changed TypeScript/JS files (no native modules added/removed), use:
+```bash
+npx expo start --ios
+```
+This starts Metro and hot-reloads in ~5 seconds.
+
+**NEVER run `npx expo prebuild --clean` + `npx expo run:ios` for JS-only changes.** That wipes the `ios/` folder and does a full Xcode rebuild (10-15 minutes). Only do a native rebuild when:
+- You added a package with native code (expo-camera, expo-sharing, etc.)
+- You see "Cannot find native module" errors
+- package.json dependencies changed
+
+### 32. npm install Needs `--legacy-peer-deps`
+
+This project has peer dependency conflicts (e.g., `@react-native-community/datetimepicker` vs expo@55 preview). Always use:
+```bash
+npm install --legacy-peer-deps
+npm install <package> --legacy-peer-deps
+```
+Plain `npm install` will fail with ERESOLVE errors.
+
+### 33. Claude Code CLI Is Non-Interactive
+
+Commands run from Claude Code cannot respond to interactive prompts (y/n questions, selections). This means:
+- `npx expo start --ios` will hang on Expo Go update prompts
+- Any command requiring user input will fail silently or error
+
+**Workaround:** Tell the user to run interactive commands in their own terminal. Don't waste time trying env vars or flags to bypass prompts.
+
+### 34. Don't Replace GlassCard with Plain Views
+
+**Problem:** GlassCard uses BlurView which blurs whatever is behind it. Adjacent GlassCards may appear slightly different shades depending on background content.
+
+**Wrong approach:** Replacing GlassCard with a plain `<Pressable>` or `<View>` to get uniform colors. This breaks the glass morphism aesthetic, loses the blur effect, gradient highlight, and press animation.
+
+**Correct approach:** Accept the subtle shade variation as inherent to glass morphism. It's cosmetic and not worth breaking the design system over. The variation is barely noticeable in normal use.
+
+### 35. Background Theme Swatches: Show Representative Color
+
+When rendering color swatches for `BackgroundThemes`, show the **distinguishable** color — not the current dark/light mode color:
+
+**Wrong:**
+```tsx
+const swatchColor = isDark ? theme.dark : theme.light;
+// All light themes (paper, cream, sepia) look nearly black in dark mode
+```
+
+**Correct:**
+```tsx
+const swatchColor = theme.darkOnly ? theme.dark : theme.light;
+// Dark-only themes show their dark color; dual-mode themes show their light color
+```
+
+This ensures users can tell themes apart regardless of current mode.
+
+### 36. Reading Screen: Keep It Minimal
+
+The reading screen should show ONLY what's essential for the reading experience:
+- Word display (center)
+- Word counter (e.g., "8 / 41")
+- Navigation controls
+
+**Removed:** Difficulty badges ("Beginner", "Intermediate", etc.) — they add visual noise without helping the reading experience. Difficulty info belongs on the text selection screen, not during reading.
+
+### 37. Toast and ConfirmationDialog Components
+
+**Toast** (`src/components/Toast.tsx` + `src/lib/store/toast.ts`):
+- Glass morphism toast, auto-dismisses after 2s
+- Use for success feedback: `showToast('Saved!', 'check')`
+- Replaces `Alert.alert` for non-blocking success messages
+- Rendered globally in `_layout.tsx`
+
+**ConfirmationDialog** (`src/components/ConfirmationDialog.tsx`):
+- Glass morphism overlay with confirm/cancel buttons
+- Use for destructive actions (delete, remove) instead of system `Alert.alert`
+- Props: `visible`, `title`, `message`, `confirmLabel`, `onConfirm`, `onCancel`, `destructive`
+
+**When to use which:**
+- Success feedback → Toast
+- Destructive confirmation → ConfirmationDialog
+- Error messages → Keep `Alert.alert` (blocking is appropriate)
+- Multi-option menus (edit/delete/cancel) → Keep `Alert.alert` (ConfirmationDialog is binary)
+
+### 38. FeatherIconName Type System
+
+All Feather icon references use the `FeatherIconName` type from `src/types/icons.ts`:
+```tsx
+import type { FeatherIconName } from '../types/icons';
+// No more `as any` on icon names
+```
+
+When adding new icon references:
+- Use `FeatherIconName` for type annotations
+- Use `'iconname' as const` for literal values that TypeScript can't infer
+- For fallback values with `??`, annotate the variable: `const icon: FeatherIconName = lookup ?? 'award'`

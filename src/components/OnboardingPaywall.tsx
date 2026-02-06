@@ -77,7 +77,7 @@ export function OnboardingPaywall({
   const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>('A');
 
   useEffect(() => {
-    getOfferings().then(setPackages).catch(() => {});
+    getOfferings().then(setPackages).catch((e) => { if (__DEV__) console.warn('[OnboardingPaywall] Failed to load offerings:', e); });
   }, []);
 
   // Get personalization info
@@ -127,9 +127,11 @@ export function OnboardingPaywall({
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
       onSubscribe();
-    } catch (error: any) {
-      if (!error.userCancelled) {
-        Alert.alert('Purchase Failed', error.message || 'Please try again');
+    } catch (error: unknown) {
+      const isUserCancelled = error != null && typeof error === 'object' && 'userCancelled' in error && (error as { userCancelled: boolean }).userCancelled;
+      if (!isUserCancelled) {
+        const message = error instanceof Error ? error.message : 'Please try again';
+        Alert.alert('Purchase Failed', message);
       }
     } finally {
       setIsLoading(false);
@@ -149,8 +151,9 @@ export function OnboardingPaywall({
       } else {
         Alert.alert('No Purchases Found', 'No previous purchases to restore.');
       }
-    } catch (error: any) {
-      Alert.alert('Restore Failed', error.message || 'Please try again');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Please try again';
+      Alert.alert('Restore Failed', message);
     } finally {
       setIsLoading(false);
     }

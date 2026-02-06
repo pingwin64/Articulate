@@ -34,11 +34,6 @@ const DIFFICULTY_MULTIPLIERS: Record<TextDifficulty, number> = {
 };
 
 export default function CompleteScreen() {
-  // Debug: Log on mount
-  if (__DEV__) {
-    console.log('[Complete] Component mounting');
-  }
-
   const { colors, glass } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -48,11 +43,6 @@ export default function CompleteScreen() {
     wordsRead: string;
     timeSpent: string;
   }>();
-
-  // Debug: Log params received
-  if (__DEV__) {
-    console.log('[Complete] Params received:', params);
-  }
 
   const levelProgress = useSettingsStore((s) => s.levelProgress);
   const addLevelProgress = useSettingsStore((s) => s.addLevelProgress);
@@ -158,7 +148,7 @@ export default function CompleteScreen() {
     ? category?.texts.find((t) => t.id === params.textId)
     : undefined;
   const displayName = customText?.title ?? textEntry?.title ?? category?.name ?? 'Reading';
-  const displayIcon = customText ? 'clipboard' : category?.icon;
+  const displayIcon = customText ? 'clipboard' as const : category?.icon;
 
   const minutes = Math.floor(timeSpent / 60);
   const seconds = timeSpent % 60;
@@ -514,21 +504,6 @@ export default function CompleteScreen() {
   // Defensive: if hasOnboarded is false, treat as first reading
   const showFirstReadingFlow = isFirstReading || !hasOnboarded;
 
-  // Debug logging
-  if (__DEV__) {
-    console.log('[Complete] State:', {
-      isFirstReading,
-      hasOnboarded,
-      showFirstReadingFlow,
-      calibrationStep,
-      params: {
-        categoryKey: params.categoryKey,
-        textId: params.textId,
-        wordsRead: params.wordsRead,
-      },
-    });
-  }
-
   if (showFirstReadingFlow) {
     return (
       <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -710,7 +685,7 @@ export default function CompleteScreen() {
               style={styles.categoryRow}
             >
               {displayIcon && (
-                <Feather name={displayIcon as any} size={16} color={colors.secondary} />
+                <Feather name={displayIcon} size={16} color={colors.secondary} />
               )}
               <Text style={[styles.categoryLabel, { color: colors.secondary }]}>
                 {displayName}

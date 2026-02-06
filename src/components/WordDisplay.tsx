@@ -40,7 +40,7 @@ export function WordDisplay({ word, wordKey }: WordDisplayProps) {
   // Check system reduce motion preference
   const [systemReduceMotion, setSystemReduceMotion] = useState(false);
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then(setSystemReduceMotion);
+    AccessibilityInfo.isReduceMotionEnabled().then(setSystemReduceMotion).catch(() => {});
   }, []);
 
   const opacity = useSharedValue(0);

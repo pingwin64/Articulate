@@ -15,10 +15,12 @@ export interface TextEntry {
   textDifficulty?: TextDifficulty;
 }
 
+import type { FeatherIconName } from '../../types/icons';
+
 export interface Category {
   key: string;
   name: string;
-  icon: string;
+  icon: FeatherIconName;
   /** @deprecated Use per-text difficulty instead. Kept for backward compatibility. */
   level?: 'beginner' | 'intermediate' | 'advanced';
   texts: TextEntry[];

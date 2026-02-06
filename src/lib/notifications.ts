@@ -88,7 +88,7 @@ export async function scheduleStreakReminder(
   // Cancel previous daily reminder by persisted ID
   const prevId = getDailyReminderId();
   if (prevId) {
-    await Notifications.cancelScheduledNotificationAsync(prevId).catch(() => {});
+    await Notifications.cancelScheduledNotificationAsync(prevId).catch((e) => { if (__DEV__) console.warn('[Notifications] Failed to cancel daily reminder:', e); });
     setDailyReminderId(null);
   }
 
@@ -146,7 +146,7 @@ export async function scheduleStreakAtRiskReminder(
   // Cancel any previous streak-at-risk notification by persisted ID
   const prevId = getStreakAtRiskId();
   if (prevId) {
-    await Notifications.cancelScheduledNotificationAsync(prevId).catch(() => {});
+    await Notifications.cancelScheduledNotificationAsync(prevId).catch((e) => { if (__DEV__) console.warn('[Notifications] Failed to cancel streak-at-risk:', e); });
     setStreakAtRiskId(null);
   }
 
@@ -206,7 +206,7 @@ export async function scheduleStreakAtRiskReminder(
 export async function cancelStreakAtRiskReminder(): Promise<void> {
   const id = getStreakAtRiskId();
   if (id) {
-    await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+    await Notifications.cancelScheduledNotificationAsync(id).catch((e) => { if (__DEV__) console.warn('[Notifications] Failed to cancel streak-at-risk:', e); });
     setStreakAtRiskId(null);
   }
 }

@@ -47,7 +47,7 @@ function QueueCard({ item, index }: { item: QueueItem; index: number }) {
             },
           ]}
         >
-          <Feather name={item.category.icon as any} size={18} color={colors.primary} />
+          <Feather name={item.category.icon} size={18} color={colors.primary} />
         </View>
         <Text style={[styles.cardTitle, { color: colors.primary }]} numberOfLines={2}>
           {item.text.title}

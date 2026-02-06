@@ -29,7 +29,7 @@ export const ResumeCard = forwardRef<View, ResumeCardProps>(function ResumeCard(
     ? customTexts.find((t) => t.id === data.customTextId)
     : undefined;
   const displayName = customText?.title ?? category?.name ?? 'Reading';
-  const displayIcon = customText ? 'clipboard' : category?.icon;
+  const displayIcon = customText ? 'clipboard' as const : category?.icon;
   const wordsRemaining = data.totalWords - data.wordIndex;
   const isAlmostDone = wordsRemaining <= 50;
 
@@ -49,7 +49,7 @@ export const ResumeCard = forwardRef<View, ResumeCardProps>(function ResumeCard(
         <View style={styles.content}>
           <View style={styles.categoryRow}>
             {displayIcon && (
-              <Feather name={displayIcon as any} size={16} color={colors.primary} />
+              <Feather name={displayIcon} size={16} color={colors.primary} />
             )}
             <Text style={[styles.category, { color: colors.primary }]}>
               {displayName}

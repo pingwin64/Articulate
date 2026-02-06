@@ -1,11 +1,12 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View, Text, AccessibilityInfo } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withSequence,
   withTiming,
+  cancelAnimation,
   Easing,
 } from 'react-native-reanimated';
 import { useTheme } from '../hooks/useTheme';
@@ -18,13 +19,21 @@ interface StreakDisplayProps {
 export function StreakDisplay({ compact }: StreakDisplayProps) {
   const { colors } = useTheme();
   const { currentStreak, lastReadDate } = useSettingsStore();
+  const reduceMotion = useSettingsStore((s) => s.reduceMotion);
   const scale = useSharedValue(1);
+
+  const [systemReduceMotion, setSystemReduceMotion] = useState(false);
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setSystemReduceMotion).catch(() => {});
+  }, []);
+
+  const shouldAnimate = !reduceMotion && !systemReduceMotion;
 
   const today = new Date().toDateString();
   const isAtRisk = lastReadDate !== null && lastReadDate !== today;
 
   useEffect(() => {
-    if (currentStreak > 0) {
+    if (currentStreak > 0 && shouldAnimate) {
       scale.value = withRepeat(
         withSequence(
           withTiming(1.05, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
@@ -34,7 +43,11 @@ export function StreakDisplay({ compact }: StreakDisplayProps) {
         true
       );
     }
-  }, [currentStreak, scale]);
+    return () => {
+      cancelAnimation(scale);
+      scale.value = 1;
+    };
+  }, [currentStreak, scale, shouldAnimate]);
 
   const flameStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
