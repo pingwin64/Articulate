@@ -1,76 +1,23 @@
-import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
 
-// ─── Recording ────────────────────────────────────────────────
-
-let currentRecording: Audio.Recording | null = null;
+// ─── Recording (expo-av removed — stubbed until replacement) ───
 
 export async function requestMicrophonePermission(): Promise<boolean> {
-  const { status } = await Audio.requestPermissionsAsync();
-  return status === 'granted';
+  console.warn('Pronunciation recording unavailable (expo-av removed)');
+  return false;
 }
 
 export async function startRecording(): Promise<void> {
-  await Audio.setAudioModeAsync({
-    allowsRecordingIOS: true,
-    playsInSilentModeIOS: true,
-  });
-
-  const { recording } = await Audio.Recording.createAsync(
-    Audio.RecordingOptionsPresets.HIGH_QUALITY
-  );
-  currentRecording = recording;
+  throw new Error('Recording unavailable (expo-av removed)');
 }
 
 export async function stopRecording(): Promise<string> {
-  if (!currentRecording) throw new Error('No active recording');
-
-  const recording = currentRecording;
-  currentRecording = null;
-
-  await recording.stopAndUnloadAsync();
-
-  // Reset audio mode so TTS still works
-  await Audio.setAudioModeAsync({
-    allowsRecordingIOS: false,
-    playsInSilentModeIOS: true,
-  });
-
-  const uri = recording.getURI();
-  if (!uri) throw new Error('No recording URI');
-
-  const base64 = await FileSystem.readAsStringAsync(uri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-
-  // Clean up temp file
-  await FileSystem.deleteAsync(uri, { idempotent: true });
-
-  return base64;
+  throw new Error('Recording unavailable (expo-av removed)');
 }
 
 export async function cancelRecording(): Promise<void> {
-  if (!currentRecording) return;
-
-  const recording = currentRecording;
-  currentRecording = null;
-
-  try {
-    await recording.stopAndUnloadAsync();
-  } catch {
-    // Already stopped
-  }
-
-  await Audio.setAudioModeAsync({
-    allowsRecordingIOS: false,
-    playsInSilentModeIOS: true,
-  });
-
-  const uri = recording.getURI();
-  if (uri) {
-    await FileSystem.deleteAsync(uri, { idempotent: true });
-  }
+  // no-op
 }
 
 // ─── Transcription ────────────────────────────────────────────

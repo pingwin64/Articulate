@@ -1,6 +1,6 @@
 export interface WeeklyChallenge {
   id: string;
-  type: 'texts_read' | 'categories_diverse' | 'quiz_perfect' | 'words_total';
+  type: 'texts_read' | 'categories_diverse' | 'quiz_perfect' | 'words_total' | 'pronunciation_perfect' | 'listen_repeat' | 'daily_goal';
   description: string;
   target: number;
   icon: string; // Feather icon name
@@ -62,6 +62,34 @@ export const WEEKLY_CHALLENGES: WeeklyChallenge[] = [
     description: 'Read 750 words',
     target: 750,
     icon: 'type',
+  },
+  {
+    id: 'pronunciation-10',
+    type: 'pronunciation_perfect',
+    description: 'Get 10 perfect pronunciations',
+    target: 10,
+    icon: 'mic',
+  },
+  {
+    id: 'listen-repeat-3',
+    type: 'listen_repeat',
+    description: 'Complete 3 Listen & Repeat sessions',
+    target: 3,
+    icon: 'repeat',
+  },
+  {
+    id: 'daily-goal-5',
+    type: 'daily_goal',
+    description: 'Hit daily goal 5 days this week',
+    target: 5,
+    icon: 'target',
+  },
+  {
+    id: 'texts-10',
+    type: 'texts_read',
+    description: 'Read 10 texts',
+    target: 10,
+    icon: 'book-open',
   },
 ];
 

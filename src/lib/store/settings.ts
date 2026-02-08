@@ -74,6 +74,7 @@ export type PaywallContext =
   | 'locked_level_up' | 'locked_definition' | 'locked_word_bank'
   | 'locked_library' | 'locked_library_words' | 'locked_library_faves' | 'locked_library_texts'
   | 'locked_pronunciation'
+  | 'locked_ai_practice'
   | 'generic';
 
 export interface SavedWord {
@@ -374,6 +375,40 @@ export interface SettingsState {
   // Pronunciation Tracking
   perfectPronunciations: number;
   incrementPerfectPronunciations: () => void;
+  totalPronunciationAttempts: number;
+  pronunciationHistory: Record<string, { attempts: number; perfects: number }>;
+
+  // Free Pronunciation (3/day)
+  freePronunciationsUsedToday: number;
+  lastFreePronunciationDate: string | null;
+  canUseFreePronunciation: () => boolean;
+  useFreePronunciation: () => void;
+
+  // Listen & Repeat
+  listenRepeatSessionsCompleted: number;
+  freeListenRepeatUsedToday: number;
+  lastFreeListenRepeatDate: string | null;
+  canUseFreeListenRepeat: () => boolean;
+  useFreeListenRepeat: () => void;
+  incrementListenRepeatSessions: () => void;
+
+  // AI Daily Practice
+  dailyAIText: CustomText | null;
+  dailyAITextDate: string | null;
+  setDailyAIText: (text: CustomText | null) => void;
+  aiTextsRead: number;
+
+  // Vocabulary Tracking
+  uniqueWordsEncountered: number;
+  uniqueWordSet: string[];
+  addEncounteredWords: (words: string[]) => void;
+  wordsReviewed: number;
+  incrementWordsReviewed: () => void;
+
+  // Daily Goal Streak
+  dailyGoalStreak: number;
+  lastDailyGoalMetDate: string | null;
+  checkDailyGoalMet: () => void;
 
   // Streak Celebrations
   shownStreakCelebrations: number[];
@@ -1113,7 +1148,17 @@ export const useSettingsStore = create<SettingsState>()(
         set((s) => {
           // Prevent duplicates by word text
           if (s.savedWords.some((w) => w.word === word.word)) return s;
-          return { savedWords: [...s.savedWords, word] };
+          // Free users limited to 10 words
+          if (!s.isPremium && s.savedWords.length >= 10) return s;
+          const newWords = [...s.savedWords, word];
+          // Word bank badges
+          if (newWords.length >= 25) {
+            setTimeout(() => get().unlockBadge('word-bank-25'), 0);
+          }
+          if (newWords.length >= 100) {
+            setTimeout(() => get().unlockBadge('word-bank-100'), 0);
+          }
+          return { savedWords: newWords };
         }),
       removeSavedWord: (id) =>
         set((s) => ({
@@ -1180,6 +1225,131 @@ export const useSettingsStore = create<SettingsState>()(
         if (newCount >= 50) unlockBadge('pronunciation-50');
         if (newCount >= 200) unlockBadge('pronunciation-200');
         if (newCount >= 500) unlockBadge('pronunciation-500');
+      },
+      totalPronunciationAttempts: 0,
+      pronunciationHistory: {},
+
+      // Free Pronunciation (3/day)
+      freePronunciationsUsedToday: 0,
+      lastFreePronunciationDate: null,
+      canUseFreePronunciation: () => {
+        const state = get();
+        if (state.isPremium) return true;
+        const today = new Date().toDateString();
+        if (state.lastFreePronunciationDate !== today) {
+          set({ freePronunciationsUsedToday: 0, lastFreePronunciationDate: today });
+          return true;
+        }
+        return state.freePronunciationsUsedToday < 3;
+      },
+      useFreePronunciation: () => {
+        const today = new Date().toDateString();
+        const state = get();
+        if (state.lastFreePronunciationDate !== today) {
+          set({ freePronunciationsUsedToday: 1, lastFreePronunciationDate: today });
+        } else {
+          set({ freePronunciationsUsedToday: state.freePronunciationsUsedToday + 1 });
+        }
+        set({ totalPronunciationAttempts: state.totalPronunciationAttempts + 1 });
+      },
+
+      // Listen & Repeat
+      listenRepeatSessionsCompleted: 0,
+      freeListenRepeatUsedToday: 0,
+      lastFreeListenRepeatDate: null,
+      canUseFreeListenRepeat: () => {
+        const state = get();
+        if (state.isPremium) return true;
+        const today = new Date().toDateString();
+        if (state.lastFreeListenRepeatDate !== today) {
+          set({ freeListenRepeatUsedToday: 0, lastFreeListenRepeatDate: today });
+          return true;
+        }
+        return state.freeListenRepeatUsedToday < 1;
+      },
+      useFreeListenRepeat: () => {
+        const today = new Date().toDateString();
+        const state = get();
+        if (state.lastFreeListenRepeatDate !== today) {
+          set({ freeListenRepeatUsedToday: 1, lastFreeListenRepeatDate: today });
+        } else {
+          set({ freeListenRepeatUsedToday: state.freeListenRepeatUsedToday + 1 });
+        }
+      },
+      incrementListenRepeatSessions: () => {
+        const state = get();
+        const newCount = state.listenRepeatSessionsCompleted + 1;
+        set({ listenRepeatSessionsCompleted: newCount });
+
+        // Listen & Repeat badges
+        const unlockBadge = get().unlockBadge;
+        if (newCount >= 5) unlockBadge('listen-repeat-5');
+        if (newCount >= 25) unlockBadge('listen-repeat-25');
+      },
+
+      // AI Daily Practice
+      dailyAIText: null,
+      dailyAITextDate: null,
+      aiTextsRead: 0,
+      setDailyAIText: (text) => set({
+        dailyAIText: text,
+        dailyAITextDate: new Date().toDateString(),
+      }),
+
+      // Vocabulary Tracking
+      uniqueWordsEncountered: 0,
+      uniqueWordSet: [],
+      addEncounteredWords: (words) => {
+        const state = get();
+        const existingSet = new Set(state.uniqueWordSet);
+        const newWords = words
+          .filter((w) => w.length >= 3)
+          .map((w) => w.toLowerCase().replace(/[^a-z]/g, ''))
+          .filter((w) => w.length >= 3 && !existingSet.has(w));
+
+        if (newWords.length > 0) {
+          const updatedSet = [...state.uniqueWordSet, ...newWords];
+          set({
+            uniqueWordSet: updatedSet,
+            uniqueWordsEncountered: updatedSet.length,
+          });
+
+          // Vocabulary badges
+          const unlockBadge = get().unlockBadge;
+          if (updatedSet.length >= 1000) unlockBadge('vocab-1000');
+          if (updatedSet.length >= 2500) unlockBadge('vocab-2500');
+          if (updatedSet.length >= 5000) unlockBadge('vocab-5000');
+        }
+      },
+      wordsReviewed: 0,
+      incrementWordsReviewed: () => {
+        const state = get();
+        const newCount = state.wordsReviewed + 1;
+        set({ wordsReviewed: newCount });
+
+        const unlockBadge = get().unlockBadge;
+        if (newCount >= 10) unlockBadge('reviewer-10');
+      },
+
+      // Daily Goal Streak
+      dailyGoalStreak: 0,
+      lastDailyGoalMetDate: null,
+      checkDailyGoalMet: () => {
+        const state = get();
+        const today = new Date().toDateString();
+        if (state.dailyWordsToday >= state.dailyWordGoal && state.lastDailyGoalMetDate !== today) {
+          const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
+          const isConsecutive = state.lastDailyGoalMetDate === yesterday;
+          const newStreak = isConsecutive ? state.dailyGoalStreak + 1 : 1;
+          set({ dailyGoalStreak: newStreak, lastDailyGoalMetDate: today });
+
+          // Daily goal badges
+          const unlockBadge = get().unlockBadge;
+          if (newStreak >= 7) unlockBadge('daily-goal-7');
+          if (newStreak >= 30) unlockBadge('daily-goal-30');
+          // Weekly challenge progress
+          get().incrementWeeklyChallengeProgress('daily_goal', 1);
+        }
       },
 
       // Streak Celebrations
@@ -1285,12 +1455,27 @@ export const useSettingsStore = create<SettingsState>()(
         intermediateTextsCompleted: 0,
         advancedTextsCompleted: 0,
         perfectPronunciations: 0,
+        totalPronunciationAttempts: 0,
+        pronunciationHistory: {},
+        freePronunciationsUsedToday: 0,
+        lastFreePronunciationDate: null,
+        listenRepeatSessionsCompleted: 0,
+        freeListenRepeatUsedToday: 0,
+        lastFreeListenRepeatDate: null,
+        dailyAIText: null,
+        dailyAITextDate: null,
+        aiTextsRead: 0,
+        uniqueWordsEncountered: 0,
+        uniqueWordSet: [],
+        wordsReviewed: 0,
+        dailyGoalStreak: 0,
+        lastDailyGoalMetDate: null,
         shownStreakCelebrations: [],
       }),
     }),
     {
       name: 'articulate-settings',
-      version: 19,
+      version: 25,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -1543,6 +1728,36 @@ export const useSettingsStore = create<SettingsState>()(
         if (version < 19) {
           // v19: Display name for profile
           persisted.displayName = persisted.displayName ?? null;
+        }
+        if (version < 20) {
+          // v20: FREE_CATEGORY_KEYS change (no user data migration needed, just UI)
+          // No data migration required — category swap is UI-only
+        }
+        if (version < 21) {
+          // v21: Free pronunciation (3/day), pronunciation tracking, listen & repeat
+          persisted.freePronunciationsUsedToday = persisted.freePronunciationsUsedToday ?? 0;
+          persisted.lastFreePronunciationDate = persisted.lastFreePronunciationDate ?? null;
+          persisted.totalPronunciationAttempts = persisted.totalPronunciationAttempts ?? 0;
+          persisted.pronunciationHistory = persisted.pronunciationHistory ?? {};
+          persisted.listenRepeatSessionsCompleted = persisted.listenRepeatSessionsCompleted ?? 0;
+          persisted.freeListenRepeatUsedToday = persisted.freeListenRepeatUsedToday ?? 0;
+          persisted.lastFreeListenRepeatDate = persisted.lastFreeListenRepeatDate ?? null;
+        }
+        if (version < 23) {
+          // v23: AI Daily Practice
+          persisted.dailyAIText = persisted.dailyAIText ?? null;
+          persisted.dailyAITextDate = persisted.dailyAITextDate ?? null;
+        }
+        if (version < 24) {
+          // v24: Vocabulary tracking, word bank limits
+          persisted.uniqueWordsEncountered = persisted.uniqueWordsEncountered ?? 0;
+          persisted.uniqueWordSet = persisted.uniqueWordSet ?? [];
+          persisted.wordsReviewed = persisted.wordsReviewed ?? 0;
+        }
+        if (version < 25) {
+          // v25: Daily goal streak, level-gated rewards
+          persisted.dailyGoalStreak = persisted.dailyGoalStreak ?? 0;
+          persisted.lastDailyGoalMetDate = persisted.lastDailyGoalMetDate ?? null;
         }
         return persisted;
       },

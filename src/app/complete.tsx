@@ -15,6 +15,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore, getCurrentLevel, getLevelName, TextDifficultyLevel, STREAK_MILESTONES } from '../lib/store/settings';
 import { categories, TextDifficulty } from '../lib/data/categories';
+import { computeDifficulty, getDifficultyMultiplier } from '../lib/data/difficulty';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { NumberRoll } from '../components/NumberRoll';
@@ -237,12 +238,36 @@ export default function CompleteScreen() {
     recordWeeklyReading(wordsRead, wpm);
 
     // Get text difficulty and apply multiplier for level progress
+    // Use continuous difficulty score if available, fallback to tier-based
     const textDifficulty = textEntry?.textDifficulty;
-    const difficultyMultiplier = textDifficulty ? DIFFICULTY_MULTIPLIERS[textDifficulty] : 1.0;
-    const adjustedWords = Math.round(wordsRead * difficultyMultiplier);
+    let difficultyMultiplier = 1.0;
+    if (textEntry) {
+      const score = computeDifficulty(textEntry.words);
+      difficultyMultiplier = getDifficultyMultiplier(score);
+    } else if (textDifficulty) {
+      difficultyMultiplier = DIFFICULTY_MULTIPLIERS[textDifficulty];
+    }
+    // Apply streak bonus multiplier (Phase 6F)
+    let streakMultiplier = 1.0;
+    if (currentStreak >= 30) {
+      streakMultiplier = 1.2;
+    } else if (currentStreak >= 7) {
+      streakMultiplier = 1.1;
+    }
+    const adjustedWords = Math.round(wordsRead * difficultyMultiplier * streakMultiplier);
 
-    // Add level progress (new 5-level system) with difficulty multiplier
+    // Add level progress (new 5-level system) with difficulty + streak multiplier
     addLevelProgress(adjustedWords);
+
+    // Check daily goal streak
+    const { checkDailyGoalMet } = useSettingsStore.getState();
+    checkDailyGoalMet();
+
+    // Track unique vocabulary words
+    if (textEntry) {
+      const { addEncounteredWords } = useSettingsStore.getState();
+      addEncounteredWords(textEntry.words);
+    }
 
     // Increment difficulty count if text has difficulty
     if (textDifficulty) {
@@ -284,7 +309,7 @@ export default function CompleteScreen() {
             if (badge.id === 'listener' && state.hasUsedTTS) shouldUnlock = true;
             if (badge.id === 'speed-demon' && wpm >= 500) shouldUnlock = true;
             if (badge.id === 'night-owl' && hour >= 0 && hour < 4) shouldUnlock = true;
-            if (badge.id === 'early-bird' && hour >= 4 && hour < 8) shouldUnlock = true;
+            if (badge.id === 'early-bird' && hour >= 4 && hour < 6) shouldUnlock = true;
             if (badge.id === 'challenge-first' && state.weeklyChallengesCompleted >= 1) shouldUnlock = true;
             if (badge.id === 'challenge-10' && state.weeklyChallengesCompleted >= 10) shouldUnlock = true;
             // Level badges (checked automatically via addLevelProgress, but also check here for migration)
@@ -299,6 +324,21 @@ export default function CompleteScreen() {
               state.beginnerTextsCompleted >= 5 &&
               state.intermediateTextsCompleted >= 5 &&
               state.advancedTextsCompleted >= 5) shouldUnlock = true;
+            // Listen & Repeat badges
+            if (badge.id === 'listen-repeat-5' && state.listenRepeatSessionsCompleted >= 5) shouldUnlock = true;
+            if (badge.id === 'listen-repeat-25' && state.listenRepeatSessionsCompleted >= 25) shouldUnlock = true;
+            // AI Reader badges
+            if (badge.id === 'ai-reader-5' && state.aiTextsRead >= 5) shouldUnlock = true;
+            if (badge.id === 'ai-reader-25' && state.aiTextsRead >= 25) shouldUnlock = true;
+            // Vocabulary badges
+            if (badge.id === 'vocab-1000' && state.uniqueWordsEncountered >= 1000) shouldUnlock = true;
+            if (badge.id === 'vocab-2500' && state.uniqueWordsEncountered >= 2500) shouldUnlock = true;
+            if (badge.id === 'vocab-5000' && state.uniqueWordsEncountered >= 5000) shouldUnlock = true;
+            // Review badges
+            if (badge.id === 'reviewer-10' && state.wordsReviewed >= 10) shouldUnlock = true;
+            // Daily goal streak badges
+            if (badge.id === 'daily-goal-7' && state.dailyGoalStreak >= 7) shouldUnlock = true;
+            if (badge.id === 'daily-goal-30' && state.dailyGoalStreak >= 30) shouldUnlock = true;
             break;
 
           case 'streak':
@@ -733,6 +773,7 @@ export default function CompleteScreen() {
               >
                 <Text style={[styles.streakText, { color: colors.secondary }]}>
                   {currentStreak} day streak
+                  {currentStreak >= 30 ? '  ·  +20% XP bonus' : currentStreak >= 7 ? '  ·  +10% XP bonus' : ''}
                 </Text>
               </Animated.View>
             )}

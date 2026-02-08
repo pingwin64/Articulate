@@ -31,11 +31,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import type { FeatherIconName } from '../types/icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
-import { categories } from '../lib/data/categories';
+import { useShallow } from 'zustand/react/shallow';
+import { categories, FREE_CATEGORY_KEYS } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { PageDots } from '../components/PageDots';
@@ -76,13 +78,13 @@ function isColorDark(hexColor: string): boolean {
 const ONBOARDING_FONTS: FontFamilyKey[] = ['sourceSerif', 'system', 'literata'];
 
 const ONBOARDING_CATEGORIES = categories.filter((c) =>
-  ['story', 'poetry', 'speech'].includes(c.key)
+  (FREE_CATEGORY_KEYS as readonly string[]).includes(c.key)
 );
 
 const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   story: 'Short Fiction',
   poetry: 'Poems & Verse',
-  speech: 'Famous Speeches',
+  wisdom: 'Daily Wisdom',
 };
 
 // ─── AnimatedCharacters Helper ───────────────────────────────
@@ -307,7 +309,14 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
 
 function OnboardingPersonalize({ onNext }: { onNext: () => void }) {
   const { colors, isDark, glass } = useTheme();
-  const { fontFamily, setFontFamily, wordColor, setWordColor, backgroundTheme, setBackgroundTheme } = useSettingsStore();
+  const { fontFamily, setFontFamily, wordColor, setWordColor, backgroundTheme, setBackgroundTheme } = useSettingsStore(useShallow((s) => ({
+    fontFamily: s.fontFamily,
+    setFontFamily: s.setFontFamily,
+    wordColor: s.wordColor,
+    setWordColor: s.setWordColor,
+    backgroundTheme: s.backgroundTheme,
+    setBackgroundTheme: s.setBackgroundTheme,
+  })));
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
 
   const previewScale = useSharedValue(1);
@@ -907,7 +916,7 @@ function OnboardingLaunch({ onNext }: { onNext: (categoryKey: string) => void })
 function Onboarding() {
   const [page, setPage] = useState(0);
   const router = useRouter();
-  const { setIsFirstReading } = useSettingsStore();
+  const setIsFirstReading = useSettingsStore((s) => s.setIsFirstReading);
 
   // Page 0: Silent Start
   const handleSilentStartDone = useCallback(() => {
@@ -942,9 +951,8 @@ function Onboarding() {
 
 // ─── Home ────────────────────────────────────────────────────
 
-const FREE_CATEGORIES = ['story', 'poetry', 'speech'];
-const CORE_CATEGORIES = categories.filter((c) => FREE_CATEGORIES.includes(c.key));
-const OTHER_CATEGORIES = categories.filter((c) => !FREE_CATEGORIES.includes(c.key));
+const CORE_CATEGORIES = categories.filter((c) => (FREE_CATEGORY_KEYS as readonly string[]).includes(c.key));
+const OTHER_CATEGORIES = categories.filter((c) => !(FREE_CATEGORY_KEYS as readonly string[]).includes(c.key));
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 // ─── CategoryTile Component ──────────────────────────────────
@@ -1101,128 +1109,344 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// ─── BookSpine Component (Redesigned - Full Width Living Bookshelf) ──────────
+// ─── Bookshelf Design Variants ──────────────────────────────────────────────
 
-interface BookSpineProps {
+type ShelfVariant = 'A' | 'B' | 'C' | 'D';
+
+interface BookData {
   label: string;
-  color: string;
-  count?: number;
-  icon?: FeatherIconName;
-  isLocked?: boolean;
+  icon: FeatherIconName;
+  count: number;
+  isLocked: boolean;
   onPress: (e: any) => void;
-  index: number; // For staggered entry
 }
 
-function BookSpine({ label, color, count, icon, isLocked, onPress, index }: BookSpineProps) {
+// Shared press/entry animation hook
+function useBookAnimation(index: number) {
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
-  const reduceMotion = useSettingsStore((s) => s.reduceMotion);
-
-  // Entry animation
   const entryTranslateY = useSharedValue(30);
   const entryOpacity = useSharedValue(0);
-
-  // Press animation
   const translateY = useSharedValue(0);
-  const rotateX = useSharedValue(0);
   const scale = useSharedValue(1);
-  const shadowRadius = useSharedValue(4);
 
-  // Idle wobble
-  const wobble = useSharedValue(0);
-
-  // Entry animation on mount
   useEffect(() => {
-    const delay = index * 80;
-    entryTranslateY.value = withDelay(delay, withSpring(0, { damping: 12, stiffness: 100 }));
-    entryOpacity.value = withDelay(delay, withTiming(1, { duration: 300 }));
+    const d = index * 100;
+    entryTranslateY.value = withDelay(d, withSpring(0, { damping: 12, stiffness: 100 }));
+    entryOpacity.value = withDelay(d, withTiming(1, { duration: 300 }));
   }, []);
-
-  // Idle wobble (very subtle)
-  useEffect(() => {
-    if (reduceMotion) return;
-    const startWobble = () => {
-      wobble.value = withSequence(
-        withTiming(0.5, { duration: 2000 }),
-        withTiming(-0.5, { duration: 2000 }),
-        withTiming(0, { duration: 2000 })
-      );
-    };
-    // Initial delay before first wobble
-    const initialDelay = setTimeout(() => {
-      startWobble();
-    }, 3000 + index * 1000);
-    const interval = setInterval(startWobble, 8000 + index * 2000);
-    return () => {
-      clearTimeout(initialDelay);
-      clearInterval(interval);
-      cancelAnimation(wobble);
-      wobble.value = 0;
-    };
-  }, [reduceMotion, index]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: entryTranslateY.value + translateY.value },
-      { perspective: 800 },
-      { rotateX: `${rotateX.value}deg` },
-      { rotate: `${wobble.value}deg` },
       { scale: scale.value },
     ],
     opacity: entryOpacity.value,
-    shadowRadius: shadowRadius.value,
   }));
 
   const handlePressIn = () => {
-    translateY.value = withSpring(-12, { damping: 15, stiffness: 200 });
-    rotateX.value = withSpring(-8, { damping: 15, stiffness: 200 });
-    scale.value = withSpring(1.05, { damping: 15, stiffness: 200 });
-    shadowRadius.value = withTiming(12, { duration: 150 });
+    translateY.value = withSpring(-8, { damping: 15, stiffness: 200 });
+    scale.value = withSpring(1.04, { damping: 15, stiffness: 200 });
   };
-
   const handlePressOut = () => {
     translateY.value = withSpring(0, { damping: 12, stiffness: 180 });
-    rotateX.value = withSpring(0, { damping: 12, stiffness: 180 });
     scale.value = withSpring(1, { damping: 12, stiffness: 180 });
-    shadowRadius.value = withTiming(4, { duration: 200 });
   };
-
-  const handlePress = (e: any) => {
-    if (hapticEnabled) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
+  const handlePress = (onPress: (e: any) => void) => (e: any) => {
+    if (hapticEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onPress(e);
   };
 
+  return { animatedStyle, handlePressIn, handlePressOut, handlePress };
+}
+
+// ─── VARIANT A: Dark Library Glass ──────────────────────────────────────────
+
+const GOLD_A = { light: '#B8963E', dark: '#8A7530' };
+
+function BookVariantA({ book, index, isDark, glass, themeColors }: { book: BookData; index: number; isDark: boolean; glass: any; themeColors: any }) {
+  const { animatedStyle, handlePressIn, handlePressOut, handlePress } = useBookAnimation(index);
+  const gold = isDark ? GOLD_A.dark : GOLD_A.light;
+  const heights = [148, 160, 142];
+
   return (
-    <Pressable
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      onPress={handlePress}
-      style={styles.bookSpinePressable}
-    >
-      <Animated.View
-        style={[
-          styles.bookSpine,
-          { backgroundColor: color },
-          animatedStyle,
-        ]}
-      >
-        {/* Icon at top */}
-        {isLocked ? (
-          <Feather name="lock" size={20} color="rgba(255,255,255,0.6)" />
-        ) : icon ? (
-          <Feather name={icon} size={20} color="rgba(255,255,255,0.9)" />
-        ) : null}
+    <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={handlePress(book.onPress)} style={{ flex: 1, alignItems: 'center' }}>
+      <Animated.View style={[{
+        width: '100%', height: heights[index], borderRadius: 8,
+        borderWidth: 1, borderColor: isDark ? `${gold}30` : `${gold}25`,
+        backgroundColor: glass.fill,
+        shadowColor: gold, shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDark ? 0.2 : 0.1, shadowRadius: 8, elevation: 4,
+        overflow: 'hidden',
+      }, animatedStyle]}>
+        <LinearGradient
+          colors={[`${gold}12`, 'transparent'] as [string, string]}
+          start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 50 }}
+        />
+        <View style={{ position: 'absolute', top: 10, left: 8, right: 8, bottom: 10, borderWidth: 0.5, borderColor: `${gold}35`, borderRadius: 4 }} />
+        <View style={{ position: 'absolute', top: 14, left: 12, right: 12, bottom: 14, borderWidth: 0.5, borderColor: `${gold}18`, borderRadius: 2 }} />
+        <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: `${gold}15` }} />
 
-        {/* Label */}
-        <Text style={styles.bookSpineLabel}>{label}</Text>
-
-        {/* Count badge */}
-        {!isLocked && count !== undefined && count > 0 && (
-          <Text style={styles.bookSpineCount}>({count})</Text>
-        )}
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <View style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 0.5, borderColor: `${gold}30`, alignItems: 'center', justifyContent: 'center', backgroundColor: `${gold}08` }}>
+            {book.isLocked ? (
+              <Feather name="lock" size={15} color={themeColors.muted} />
+            ) : (
+              <Feather name={book.icon} size={15} color={gold} />
+            )}
+          </View>
+          <Text style={{ color: themeColors.primary, fontSize: 12, fontWeight: '600', letterSpacing: 1.5, textTransform: 'uppercase', textAlign: 'center' }}>{book.label}</Text>
+          <View style={{ width: 16, height: 0.5, backgroundColor: gold, opacity: 0.3 }} />
+          {!book.isLocked && book.count > 0 && (
+            <Text style={{ color: gold, fontSize: 11, fontWeight: '500', opacity: 0.7 }}>{book.count}</Text>
+          )}
+        </View>
       </Animated.View>
     </Pressable>
+  );
+}
+
+function ShelfVariantA({ books, isDark, glass, themeColors }: { books: BookData[]; isDark: boolean; glass: any; themeColors: any }) {
+  const gold = isDark ? GOLD_A.dark : GOLD_A.light;
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, alignItems: 'flex-end', zIndex: 2 }}>
+        {books.map((b, i) => <BookVariantA key={b.label} book={b} index={i} isDark={isDark} glass={glass} themeColors={themeColors} />)}
+      </View>
+      <View style={{ marginTop: -2, zIndex: 1, paddingHorizontal: 12 }}>
+        <View style={{ height: 2, backgroundColor: gold, opacity: 0.2, borderRadius: 1 }} />
+        <View style={{ height: 6, backgroundColor: glass.fill, borderBottomLeftRadius: 4, borderBottomRightRadius: 4, borderWidth: 0.5, borderTopWidth: 0, borderColor: glass.border }} />
+        <View style={{ height: 4, marginHorizontal: 8, borderRadius: 2, marginTop: 1, backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.04)' }} />
+      </View>
+    </View>
+  );
+}
+
+// ─── VARIANT B: Minimal Luxe ────────────────────────────────────────────────
+
+const ACCENT_B = {
+  light: ['#8B6F47', '#7A5A3A', '#6B4D30'],
+  dark: ['#A08060', '#907050', '#806040'],
+};
+
+function BookVariantB({ book, index, isDark, themeColors }: { book: BookData; index: number; isDark: boolean; themeColors: any }) {
+  const { animatedStyle, handlePressIn, handlePressOut, handlePress } = useBookAnimation(index);
+  const accent = isDark ? ACCENT_B.dark[index] : ACCENT_B.light[index];
+  const heights = [140, 152, 136];
+
+  return (
+    <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={handlePress(book.onPress)} style={{ flex: 1, alignItems: 'center' }}>
+      <Animated.View style={[{
+        width: '100%', height: heights[index], borderRadius: 6,
+        backgroundColor: isDark ? '#141414' : '#FAFAF8',
+        borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+        shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: isDark ? 0.3 : 0.08, shadowRadius: 6, elevation: 3,
+        overflow: 'hidden',
+      }, animatedStyle]}>
+        <View style={{ position: 'absolute', left: 0, top: 16, bottom: 16, width: 3, backgroundColor: accent, borderTopRightRadius: 2, borderBottomRightRadius: 2 }} />
+        <LinearGradient
+          colors={[`${accent}08`, 'transparent'] as [string, string]}
+          start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 40 }}
+        />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingLeft: 6 }}>
+          {book.isLocked ? (
+            <Feather name="lock" size={20} color={themeColors.muted} />
+          ) : (
+            <Feather name={book.icon} size={20} color={accent} />
+          )}
+          <Text style={{ color: themeColors.primary, fontSize: 13, fontWeight: '600', letterSpacing: 0.5, textAlign: 'center' }}>{book.label}</Text>
+          {!book.isLocked && book.count > 0 && (
+            <Text style={{ color: accent, fontSize: 11, fontWeight: '500' }}>{book.count}</Text>
+          )}
+        </View>
+        <View style={{ position: 'absolute', bottom: 0, left: 12, right: 12, height: 1, backgroundColor: accent, opacity: 0.15 }} />
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+function ShelfVariantB({ books, isDark, themeColors }: { books: BookData[]; isDark: boolean; themeColors: any }) {
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, alignItems: 'flex-end', zIndex: 2 }}>
+        {books.map((b, i) => <BookVariantB key={b.label} book={b} index={i} isDark={isDark} themeColors={themeColors} />)}
+      </View>
+      <View style={{ marginTop: 6, paddingHorizontal: 16, zIndex: 1 }}>
+        <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: 0.5 }} />
+      </View>
+    </View>
+  );
+}
+
+// ─── VARIANT C: Living Ink ──────────────────────────────────────────────────
+
+const INK_COLORS = {
+  light: [
+    { bg: ['#1A1A2E', '#16213E'] as [string, string], glow: '#E2B055' },
+    { bg: ['#1A2E1A', '#162E21'] as [string, string], glow: '#55B07A' },
+    { bg: ['#2E1A1A', '#3E1621'] as [string, string], glow: '#B07055' },
+  ],
+  dark: [
+    { bg: ['#0E0E1A', '#0A0E1E'] as [string, string], glow: '#C9963A' },
+    { bg: ['#0E1A0E', '#0A1E14'] as [string, string], glow: '#3A9A5A' },
+    { bg: ['#1A0E0E', '#1E0A10'] as [string, string], glow: '#9A5A3A' },
+  ],
+};
+
+function BookVariantC({ book, index, isDark }: { book: BookData; index: number; isDark: boolean }) {
+  const { animatedStyle, handlePressIn, handlePressOut, handlePress } = useBookAnimation(index);
+  const reduceMotion = useSettingsStore((s) => s.reduceMotion);
+  const colorSet = isDark ? INK_COLORS.dark[index] : INK_COLORS.light[index];
+  const heights = [152, 164, 146];
+
+  const glowOpacity = useSharedValue(0.4);
+  useEffect(() => {
+    if (reduceMotion) return;
+    glowOpacity.value = withRepeat(
+      withSequence(
+        withTiming(0.7, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.4, { duration: 2500, easing: Easing.inOut(Easing.ease) })
+      ), -1, true
+    );
+    return () => { cancelAnimation(glowOpacity); glowOpacity.value = 0.4; };
+  }, [reduceMotion]);
+
+  const glowStyle = useAnimatedStyle(() => ({ opacity: glowOpacity.value }));
+
+  return (
+    <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={handlePress(book.onPress)} style={{ flex: 1, alignItems: 'center' }}>
+      <Animated.View style={[{
+        width: '100%', height: heights[index], borderRadius: 5,
+        shadowColor: colorSet.glow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 6,
+        overflow: 'hidden',
+      }, animatedStyle]}>
+        <LinearGradient
+          colors={colorSet.bg}
+          start={{ x: 0, y: 0 }} end={{ x: 0.3, y: 1 }}
+          style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Animated.View style={[{ position: 'absolute', top: -20, left: '20%', right: '20%', height: 60, borderRadius: 30, backgroundColor: colorSet.glow }, glowStyle]} />
+          <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 }}>
+            <LinearGradient colors={['rgba(255,255,255,0.1)', 'rgba(0,0,0,0.15)'] as [string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1 }} />
+          </View>
+          <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(0,0,0,0.3)' }} />
+          <View style={{ position: 'absolute', top: 14, left: 10, right: 10, height: 0.5, backgroundColor: colorSet.glow, opacity: 0.2 }} />
+          <View style={{ alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            {book.isLocked ? (
+              <Feather name="lock" size={18} color="rgba(255,255,255,0.4)" />
+            ) : (
+              <Feather name={book.icon} size={18} color={colorSet.glow} />
+            )}
+            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700', letterSpacing: 2, textTransform: 'uppercase', textAlign: 'center' }}>{book.label}</Text>
+            {!book.isLocked && book.count > 0 && (
+              <Text style={{ color: colorSet.glow, fontSize: 11, fontWeight: '600', opacity: 0.8 }}>{book.count}</Text>
+            )}
+          </View>
+          <View style={{ position: 'absolute', bottom: 14, left: 10, right: 10, height: 0.5, backgroundColor: colorSet.glow, opacity: 0.2 }} />
+        </LinearGradient>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+function ShelfVariantC({ books, isDark }: { books: BookData[]; isDark: boolean }) {
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 16, alignItems: 'flex-end', zIndex: 2 }}>
+        {books.map((b, i) => <BookVariantC key={b.label} book={b} index={i} isDark={isDark} />)}
+      </View>
+      <View style={{ marginTop: -2, zIndex: 1, paddingHorizontal: 10 }}>
+        <LinearGradient
+          colors={isDark ? ['#1A1A1A', '#0E0E0E'] as [string, string] : ['#2A2A2A', '#1A1A1A'] as [string, string]}
+          start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+          style={{ height: 12, borderBottomLeftRadius: 3, borderBottomRightRadius: 3 }}
+        />
+        <View style={{ height: 6, marginHorizontal: 10, borderRadius: 4, marginTop: 1, backgroundColor: 'rgba(0,0,0,0.3)' }} />
+      </View>
+    </View>
+  );
+}
+
+// ─── VARIANT D: Vintage Collection ──────────────────────────────────────────
+
+const BOOK_COLORS_D = {
+  light: [
+    { bg: '#4A1A1A', border: '#C9A84C', text: '#C9A84C' },
+    { bg: '#1A3A1A', border: '#C9A84C', text: '#C9A84C' },
+    { bg: '#1A1A3A', border: '#C9A84C', text: '#C9A84C' },
+  ],
+  dark: [
+    { bg: '#2A0E0E', border: '#8A7530', text: '#8A7530' },
+    { bg: '#0E2A0E', border: '#8A7530', text: '#8A7530' },
+    { bg: '#0E0E2A', border: '#8A7530', text: '#8A7530' },
+  ],
+};
+
+function BookVariantD({ book, index, isDark }: { book: BookData; index: number; isDark: boolean }) {
+  const { animatedStyle, handlePressIn, handlePressOut, handlePress } = useBookAnimation(index);
+  const colorSet = isDark ? BOOK_COLORS_D.dark[index] : BOOK_COLORS_D.light[index];
+  const heights = [152, 158, 146];
+
+  return (
+    <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={handlePress(book.onPress)} style={{ flex: 1, alignItems: 'center' }}>
+      <Animated.View style={[{
+        width: '100%', height: heights[index], backgroundColor: colorSet.bg, borderRadius: 4,
+        borderWidth: 1.5, borderColor: `${colorSet.border}40`,
+        shadowColor: '#000', shadowOffset: { width: 1, height: 4 }, shadowOpacity: 0.4, shadowRadius: 6, elevation: 6,
+        overflow: 'hidden',
+      }, animatedStyle]}>
+        <View style={{ position: 'absolute', top: 10, left: 8, right: 8, bottom: 10, borderWidth: 0.5, borderColor: colorSet.border, borderRadius: 2, opacity: 0.5 }} />
+        <View style={{ position: 'absolute', top: 14, left: 12, right: 12, bottom: 14, borderWidth: 0.5, borderColor: colorSet.border, borderRadius: 1, opacity: 0.25 }} />
+        <View style={{ position: 'absolute', top: 20, alignSelf: 'center', left: '50%', marginLeft: -4 }}>
+          <View style={{ width: 8, height: 8, backgroundColor: colorSet.border, transform: [{ rotate: '45deg' }], opacity: 0.5 }} />
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 10 }}>
+          {book.isLocked ? (
+            <Feather name="lock" size={18} color="rgba(255,255,255,0.4)" />
+          ) : (
+            <Feather name={book.icon} size={18} color={colorSet.text} />
+          )}
+          <Text style={{ color: colorSet.text, fontSize: 12, fontWeight: '700', textAlign: 'center', letterSpacing: 2, textTransform: 'uppercase' }}>{book.label}</Text>
+          <View style={{ width: 20, height: 0.5, backgroundColor: colorSet.border, opacity: 0.5 }} />
+          {!book.isLocked && book.count > 0 && (
+            <Text style={{ color: colorSet.text, fontSize: 11, fontWeight: '500', opacity: 0.7 }}>{book.count}</Text>
+          )}
+        </View>
+        <View style={{ position: 'absolute', bottom: 20, alignSelf: 'center', left: '50%', marginLeft: -4 }}>
+          <View style={{ width: 8, height: 8, backgroundColor: colorSet.border, transform: [{ rotate: '45deg' }], opacity: 0.5 }} />
+        </View>
+        <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 }}>
+          <LinearGradient colors={['rgba(255,255,255,0.1)', 'rgba(0,0,0,0.2)'] as [string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1 }} />
+        </View>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+function ShelfVariantD({ books, isDark }: { books: BookData[]; isDark: boolean }) {
+  const gold = isDark ? '#8A7530' : '#C9A84C';
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, alignItems: 'flex-end', zIndex: 2 }}>
+        {books.map((b, i) => <BookVariantD key={b.label} book={b} index={i} isDark={isDark} />)}
+      </View>
+      <View style={{ marginTop: -2, zIndex: 1, paddingHorizontal: 8 }}>
+        <View style={{ height: 2, backgroundColor: gold, opacity: 0.3, marginHorizontal: 4, borderRadius: 1 }} />
+        <LinearGradient
+          colors={isDark ? ['#2A2015', '#1A140D'] as [string, string] : ['#654321', '#4A3018'] as [string, string]}
+          start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+          style={{ height: 16, borderBottomLeftRadius: 4, borderBottomRightRadius: 4 }}
+        >
+          <View style={{ position: 'absolute', top: 3, left: 0, right: 0, height: 0.5, backgroundColor: 'rgba(255,255,255,0.08)' }} />
+          <View style={{ position: 'absolute', top: 6, left: 0, right: 0, height: 0.5, backgroundColor: 'rgba(0,0,0,0.2)' }} />
+          <View style={{ position: 'absolute', bottom: 3, alignSelf: 'center', left: '50%', marginLeft: -3 }}>
+            <View style={{ width: 6, height: 6, backgroundColor: gold, transform: [{ rotate: '45deg' }], opacity: 0.3 }} />
+          </View>
+        </LinearGradient>
+        <View style={{ height: 2, backgroundColor: gold, opacity: 0.2, marginHorizontal: 6, borderBottomLeftRadius: 2, borderBottomRightRadius: 2 }} />
+        <View style={{ height: 6, marginHorizontal: 16, borderRadius: 4, marginTop: 2, backgroundColor: isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.12)' }} />
+      </View>
+    </View>
   );
 }
 
@@ -1230,6 +1454,8 @@ function Home() {
   const { colors, isDark, glass } = useTheme();
   const router = useRouter();
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
+  const [shelfVariant, setShelfVariant] = useState<ShelfVariant>('D');
+  const [aiTextLoading, setAiTextLoading] = useState(false);
   const {
     resumeData,
     currentStreak,
@@ -1241,22 +1467,46 @@ function Home() {
     customTexts,
     favoriteTexts,
     savedWords,
-    checkTrialExpired,
     trialActive,
     trialStartDate,
     showPaywall,
-    setPaywallContext,
     paywallContext,
-    trialDaysRemaining,
     savedPremiumSettings,
     savedPremiumSettingsExpiry,
     totalWordsRead,
     textsCompleted,
     reduceMotion,
-    resetDailyIfNewDay,
-    refillStreakAllowancesIfNewMonth,
-    checkWeeklyChallenge,
-  } = useSettingsStore();
+  } = useSettingsStore(useShallow((s) => ({
+    resumeData: s.resumeData,
+    currentStreak: s.currentStreak,
+    isPremium: s.isPremium,
+    setIsPremium: s.setIsPremium,
+    resetAll: s.resetAll,
+    categoryReadCounts: s.categoryReadCounts,
+    lastReadDate: s.lastReadDate,
+    customTexts: s.customTexts,
+    favoriteTexts: s.favoriteTexts,
+    savedWords: s.savedWords,
+    trialActive: s.trialActive,
+    trialStartDate: s.trialStartDate,
+    showPaywall: s.showPaywall,
+    paywallContext: s.paywallContext,
+    savedPremiumSettings: s.savedPremiumSettings,
+    savedPremiumSettingsExpiry: s.savedPremiumSettingsExpiry,
+    totalWordsRead: s.totalWordsRead,
+    textsCompleted: s.textsCompleted,
+    reduceMotion: s.reduceMotion,
+  })));
+  const dailyAIText = useSettingsStore((s) => s.dailyAIText);
+  const dailyAITextDate = useSettingsStore((s) => s.dailyAITextDate);
+
+  // Stable action references — these don't trigger re-renders
+  const checkTrialExpired = useSettingsStore((s) => s.checkTrialExpired);
+  const setPaywallContext = useSettingsStore((s) => s.setPaywallContext);
+  const trialDaysRemaining = useSettingsStore((s) => s.trialDaysRemaining);
+  const resetDailyIfNewDay = useSettingsStore((s) => s.resetDailyIfNewDay);
+  const refillStreakAllowancesIfNewMonth = useSettingsStore((s) => s.refillStreakAllowancesIfNewMonth);
+  const checkWeeklyChallenge = useSettingsStore((s) => s.checkWeeklyChallenge);
 
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
 
@@ -1279,7 +1529,7 @@ function Home() {
   }));
 
   // Clean up orphaned notifications and schedule streak at risk on mount
-  const { notificationsEnabled } = useSettingsStore();
+  const notificationsEnabled = useSettingsStore((s) => s.notificationsEnabled);
   useEffect(() => {
     cleanupOrphanedNotifications();
     if (notificationsEnabled && currentStreak > 0) {
@@ -1367,7 +1617,7 @@ function Home() {
   const shuffleableTexts = useMemo(() => {
     const results: { categoryKey: string; textId: string }[] = [];
     for (const cat of categories) {
-      const isAccessible = isPremium || FREE_CATEGORIES.includes(cat.key);
+      const isAccessible = isPremium || (FREE_CATEGORY_KEYS as readonly string[]).includes(cat.key);
       if (!isAccessible) continue;
       for (const text of cat.texts) {
         const required = text.requiredReads ?? 0;
@@ -1414,7 +1664,7 @@ function Home() {
   // ─── Category Press Handler ─────────────────────────────────
   const handleCategoryPress = useCallback(
     (category: typeof categories[0]) => {
-      const isLocked = !isPremium && !FREE_CATEGORIES.includes(category.key);
+      const isLocked = !isPremium && !(FREE_CATEGORY_KEYS as readonly string[]).includes(category.key);
 
       if (isLocked) {
         setPaywallContext('locked_category');
@@ -1439,6 +1689,56 @@ function Home() {
     },
     [isPremium, setPaywallContext, setSelectedCategoryKey, router]
   );
+
+  // ─── AI Daily Practice ──────────────────────────────────────
+  const hasTodayAIText = dailyAITextDate === new Date().toDateString() && dailyAIText !== null;
+
+  const handleAIPractice = useCallback(async () => {
+    if (!isPremium) {
+      setPaywallContext('locked_ai_practice');
+      return;
+    }
+    if (hasTodayAIText && dailyAIText) {
+      // Navigate to read the cached AI text
+      const store = useSettingsStore.getState();
+      // Store as custom text if not already there
+      const exists = store.customTexts.some((t) => t.id === dailyAIText.id);
+      if (!exists) {
+        useSettingsStore.setState({
+          customTexts: [...store.customTexts, dailyAIText],
+        });
+      }
+      router.push({
+        pathname: '/reading',
+        params: { customTextId: dailyAIText.id },
+      });
+      return;
+    }
+    // Generate new text
+    setAiTextLoading(true);
+    try {
+      const { getOrGenerateDailyText } = await import('../lib/ai-text-service');
+      const text = await getOrGenerateDailyText();
+      // Store as custom text for reading
+      const store = useSettingsStore.getState();
+      const exists = store.customTexts.some((t) => t.id === text.id);
+      if (!exists) {
+        useSettingsStore.setState({
+          customTexts: [...store.customTexts, text],
+        });
+      }
+      // Increment AI texts read counter
+      useSettingsStore.setState({ aiTextsRead: (store.aiTextsRead || 0) + 1 });
+      router.push({
+        pathname: '/reading',
+        params: { customTextId: text.id },
+      });
+    } catch (err) {
+      Alert.alert('Error', 'Could not generate today\'s practice. Please try again later.');
+    } finally {
+      setAiTextLoading(false);
+    }
+  }, [isPremium, hasTodayAIText, dailyAIText, setPaywallContext, router]);
 
   const formatNumber = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
   const insightsCount = textsCompleted;
@@ -1619,6 +1919,46 @@ function Home() {
           </View>
         )}
 
+        {/* AI Daily Practice Card */}
+        <Animated.View entering={FadeIn.delay(120).duration(400)} style={styles.aiPracticeSection}>
+          <Pressable
+            onPress={handleAIPractice}
+            style={({ pressed }) => [
+              styles.aiPracticeCard,
+              {
+                backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                borderColor: glass.border,
+                transform: [{ scale: pressed ? 0.98 : 1 }],
+              },
+            ]}
+          >
+            <View style={styles.aiPracticeRow}>
+              <Feather name="zap" size={18} color={colors.primary} />
+              <View style={styles.aiPracticeText}>
+                <Text style={[styles.aiPracticeTitle, { color: colors.primary }]}>
+                  {hasTodayAIText ? 'Today\'s Practice' : 'Generate Today\'s Practice'}
+                </Text>
+                <Text style={[styles.aiPracticeSub, { color: colors.muted }]}>
+                  {hasTodayAIText && dailyAIText
+                    ? dailyAIText.title
+                    : isPremium
+                      ? 'AI-personalized reading for your level'
+                      : 'Unlock with Pro'}
+                </Text>
+              </View>
+              {aiTextLoading ? (
+                <View style={styles.aiPracticeArrow}>
+                  <Text style={[styles.aiPracticeArrowText, { color: colors.muted }]}>...</Text>
+                </View>
+              ) : !isPremium ? (
+                <Feather name="lock" size={14} color={colors.muted} />
+              ) : (
+                <Feather name="chevron-right" size={16} color={colors.muted} />
+              )}
+            </View>
+          </Pressable>
+        </Animated.View>
+
         {/* Categories Grid */}
         <Animated.View entering={FadeIn.delay(140).duration(400)} style={styles.categoriesGrid}>
           {/* Always show: Story, Poetry, Speech */}
@@ -1680,67 +2020,56 @@ function Home() {
           </Pressable>
         </Animated.View>
 
-        {/* Bookshelf Library - Full Width Living Design */}
+        {/* Bookshelf Library - Variant Design System */}
         <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.bookshelfContainer}>
-          {/* Books row - spans full width */}
-          <View style={styles.booksRow}>
-            {/* Word Bank - Pro only */}
-            <BookSpine
-              label="Words"
-              icon="bookmark"
-              color={isDark ? '#2A5A5A' : '#4A9A9A'}
-              count={savedWords.length}
-              isLocked={!isPremium}
-              index={0}
-              onPress={(e) => {
-                e.stopPropagation();
-                if (!isPremium) {
-                  setPaywallContext('locked_library_words');
-                } else {
-                  router.push({ pathname: '/library', params: { tab: 'words' } });
-                }
-              }}
-            />
-
-            {/* Favorites - Pro only */}
-            <BookSpine
-              label="Favs"
-              icon="heart"
-              color={isDark ? '#5A4A4A' : '#9A7A7A'}
-              count={favoriteTexts.length}
-              isLocked={!isPremium}
-              index={1}
-              onPress={(e) => {
-                e.stopPropagation();
-                if (!isPremium) {
-                  setPaywallContext('locked_library_faves');
-                } else {
-                  router.push({ pathname: '/library', params: { tab: 'favorites' } });
-                }
-              }}
-            />
-
-            {/* My Texts - Accessible to all users (free users get 1 text, 24h) */}
-            <BookSpine
-              label="Texts"
-              icon="file-text"
-              color={isDark ? '#4A4A5A' : '#7A7A8A'}
-              count={customTexts.length}
-              isLocked={false}
-              index={2}
-              onPress={(e) => {
-                e.stopPropagation();
-                router.push({ pathname: '/library', params: { tab: 'myTexts' } });
-              }}
-            />
+          {/* Variant Switcher */}
+          <View style={styles.variantSwitcher}>
+            {(['A', 'B', 'C', 'D'] as const).map((v) => (
+              <Pressable
+                key={v}
+                onPress={() => {
+                  if (hapticEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShelfVariant(v);
+                }}
+                style={[
+                  styles.variantBtn,
+                  {
+                    backgroundColor: shelfVariant === v ? (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)') : 'transparent',
+                    borderColor: shelfVariant === v ? (isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.1)') : 'transparent',
+                  },
+                ]}
+              >
+                <Text style={{
+                  fontSize: 13, letterSpacing: 0.5,
+                  color: shelfVariant === v ? colors.primary : colors.muted,
+                  fontWeight: shelfVariant === v ? '700' : '500',
+                }}>{v}</Text>
+              </Pressable>
+            ))}
           </View>
 
-          {/* 3D Shelf */}
-          <View style={styles.shelfContainer}>
-            <View style={[styles.shelfTop, { backgroundColor: isDark ? '#3A3A3A' : '#D4C4B4' }]} />
-            <View style={[styles.shelfFront, { backgroundColor: isDark ? '#2A2A2A' : '#B4A494' }]} />
-            <View style={[styles.shelfShadow, { backgroundColor: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.1)' }]} />
-          </View>
+          {(() => {
+            const bookData: BookData[] = [
+              {
+                label: 'Words', icon: 'bookmark' as FeatherIconName, count: savedWords.length, isLocked: !isPremium,
+                onPress: (e: any) => { e.stopPropagation(); if (!isPremium) { setPaywallContext('locked_library_words'); } else { router.push({ pathname: '/library', params: { tab: 'words' } }); } },
+              },
+              {
+                label: 'Favs', icon: 'heart' as FeatherIconName, count: favoriteTexts.length, isLocked: !isPremium,
+                onPress: (e: any) => { e.stopPropagation(); if (!isPremium) { setPaywallContext('locked_library_faves'); } else { router.push({ pathname: '/library', params: { tab: 'favorites' } }); } },
+              },
+              {
+                label: 'Texts', icon: 'file-text' as FeatherIconName, count: customTexts.length, isLocked: false,
+                onPress: (e: any) => { e.stopPropagation(); router.push({ pathname: '/library', params: { tab: 'myTexts' } }); },
+              },
+            ];
+            switch (shelfVariant) {
+              case 'A': return <ShelfVariantA books={bookData} isDark={isDark} glass={glass} themeColors={colors} />;
+              case 'B': return <ShelfVariantB books={bookData} isDark={isDark} themeColors={colors} />;
+              case 'C': return <ShelfVariantC books={bookData} isDark={isDark} />;
+              case 'D': return <ShelfVariantD books={bookData} isDark={isDark} />;
+            }
+          })()}
         </Animated.View>
 
         {/* Library Preview - Pro only */}
@@ -1903,7 +2232,7 @@ function Home() {
 // ─── Main ────────────────────────────────────────────────────
 
 export default function IndexScreen() {
-  const { hasOnboarded } = useSettingsStore();
+  const hasOnboarded = useSettingsStore((s) => s.hasOnboarded);
   const { colors } = useTheme();
 
   return (
@@ -2241,6 +2570,41 @@ const styles = StyleSheet.create({
   resumeSection: {
     marginBottom: Spacing.lg,
   },
+  // AI Daily Practice
+  aiPracticeSection: {
+    marginTop: Spacing.sm,
+  },
+  aiPracticeCard: {
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    borderWidth: 0.5,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  aiPracticeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  aiPracticeText: {
+    flex: 1,
+    gap: 2,
+  },
+  aiPracticeTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  aiPracticeSub: {
+    fontSize: 13,
+    fontWeight: '400',
+  },
+  aiPracticeArrow: {
+    width: 20,
+    alignItems: 'center',
+  },
+  aiPracticeArrowText: {
+    fontSize: 14,
+  },
   // Categories Grid
   categoriesGrid: {
     flexDirection: 'row',
@@ -2292,68 +2656,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  // Bookshelf Library - Full Width Living Design
+  // Bookshelf Variants
   bookshelfContainer: {
     marginTop: Spacing.lg,
-    marginBottom: Spacing.xl, // Increased for better visual separation
+    marginBottom: Spacing.xl,
   },
-  booksRow: {
+  variantSwitcher: {
     flexDirection: 'row',
+    justifyContent: 'center',
     gap: 8,
-    paddingHorizontal: 12,
-    zIndex: 2,
+    marginBottom: 16,
   },
-  bookSpinePressable: {
-    flex: 1,
-  },
-  bookSpine: {
-    flex: 1,
-    height: 100,
-    borderRadius: 6,
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 8, // Rounded spine edge
+  variantBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    // Book shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  bookSpineLabel: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  bookSpineCount: {
-    color: 'rgba(255,255,255,0.75)',
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  // 3D Shelf
-  shelfContainer: {
-    marginTop: -4, // Overlap with books
-    zIndex: 1,
-  },
-  shelfTop: {
-    height: 8,
-    borderRadius: 2,
-    marginHorizontal: 8,
-  },
-  shelfFront: {
-    height: 6,
-    marginHorizontal: 8,
-    borderBottomLeftRadius: 3,
-    borderBottomRightRadius: 3,
-  },
-  shelfShadow: {
-    height: 8,
-    marginHorizontal: 16,
-    borderRadius: 4,
-    marginTop: 2,
+    borderWidth: 1,
   },
   // Library Section
   librarySection: {

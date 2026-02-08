@@ -156,7 +156,7 @@ const STREAK_BADGES: Badge[] = [
   },
 ];
 
-// Word milestone badges (4)
+// Word milestone badges (5)
 const WORD_BADGES: Badge[] = [
   {
     id: 'words-1k',
@@ -167,33 +167,41 @@ const WORD_BADGES: Badge[] = [
     threshold: 1000,
   },
   {
-    id: 'words-10k',
-    name: '10K Reader',
-    description: 'Read 10,000 words total',
+    id: 'words-5k',
+    name: '5K Reader',
+    description: 'Read 5,000 words total',
     category: 'words',
     icon: 'layers',
+    threshold: 5000,
+  },
+  {
+    id: 'words-10k',
+    name: '10K Milestone',
+    description: 'Read 10,000 words total',
+    category: 'words',
+    icon: 'archive',
     threshold: 10000,
   },
   {
-    id: 'words-50k',
-    name: '50K Milestone',
-    description: 'Read 50,000 words total',
+    id: 'words-25k',
+    name: '25K Veteran',
+    description: 'Read 25,000 words total',
     category: 'words',
-    icon: 'archive',
-    threshold: 50000,
+    icon: 'hexagon',
+    threshold: 25000,
     reward: {
       type: 'theme',
-      id: 'words-50k-theme',
+      id: 'words-25k-theme',
       name: 'Ember Theme',
     },
   },
   {
-    id: 'words-100k',
-    name: '6-Figure Club',
-    description: 'Read 100,000 words total',
+    id: 'words-50k',
+    name: '50K Legend',
+    description: 'Read 50,000 words total',
     category: 'words',
-    icon: 'hexagon',
-    threshold: 100000,
+    icon: 'award',
+    threshold: 50000,
   },
 ];
 
@@ -457,6 +465,137 @@ const PRONUNCIATION_BADGES: Badge[] = [
   },
 ];
 
+// Listen & Repeat badges (2)
+const LISTEN_REPEAT_BADGES: Badge[] = [
+  {
+    id: 'listen-repeat-5',
+    name: 'Repeat After Me',
+    description: 'Complete 5 Listen & Repeat sessions',
+    category: 'special',
+    tier: 'bronze',
+    icon: 'repeat',
+    threshold: 5,
+  },
+  {
+    id: 'listen-repeat-25',
+    name: 'Echo Master',
+    description: 'Complete 25 Listen & Repeat sessions',
+    category: 'special',
+    tier: 'silver',
+    icon: 'repeat',
+    threshold: 25,
+  },
+];
+
+// AI Reader badges (2)
+const AI_READER_BADGES: Badge[] = [
+  {
+    id: 'ai-reader-5',
+    name: 'AI Explorer',
+    description: 'Read 5 AI-generated texts',
+    category: 'special',
+    tier: 'bronze',
+    icon: 'cpu',
+    threshold: 5,
+  },
+  {
+    id: 'ai-reader-25',
+    name: 'AI Devotee',
+    description: 'Read 25 AI-generated texts',
+    category: 'special',
+    tier: 'silver',
+    icon: 'cpu',
+    threshold: 25,
+  },
+];
+
+// Word Bank badges (2)
+const WORD_BANK_BADGES: Badge[] = [
+  {
+    id: 'word-bank-25',
+    name: 'Word Collector',
+    description: 'Save 25 words to word bank',
+    category: 'special',
+    tier: 'bronze',
+    icon: 'bookmark',
+    threshold: 25,
+  },
+  {
+    id: 'word-bank-100',
+    name: 'Lexicon Builder',
+    description: 'Save 100 words to word bank',
+    category: 'special',
+    tier: 'silver',
+    icon: 'bookmark',
+    threshold: 100,
+  },
+];
+
+// Vocabulary badges (3)
+const VOCABULARY_BADGES: Badge[] = [
+  {
+    id: 'vocab-1000',
+    name: 'Word Explorer',
+    description: 'Encounter 1,000 unique words',
+    category: 'words',
+    tier: 'bronze',
+    icon: 'type',
+    threshold: 1000,
+  },
+  {
+    id: 'vocab-2500',
+    name: 'Vocabulary Builder',
+    description: 'Encounter 2,500 unique words',
+    category: 'words',
+    tier: 'silver',
+    icon: 'type',
+    threshold: 2500,
+  },
+  {
+    id: 'vocab-5000',
+    name: 'Word Master',
+    description: 'Encounter 5,000 unique words',
+    category: 'words',
+    tier: 'gold',
+    icon: 'type',
+    threshold: 5000,
+  },
+];
+
+// Flashcard review badge (1)
+const REVIEW_BADGES: Badge[] = [
+  {
+    id: 'reviewer-10',
+    name: 'Flashcard Student',
+    description: 'Review 10 flashcards',
+    category: 'special',
+    icon: 'refresh-cw',
+    threshold: 10,
+  },
+];
+
+// Daily goal badges (2)
+const DAILY_GOAL_BADGES: Badge[] = [
+  {
+    id: 'daily-goal-7',
+    name: 'Week Warrior',
+    description: 'Hit your daily word goal 7 days in a row',
+    category: 'special',
+    tier: 'bronze',
+    icon: 'calendar',
+    threshold: 7,
+  },
+  {
+    id: 'daily-goal-30',
+    name: 'Monthly Master',
+    description: 'Hit your daily word goal 30 days in a row',
+    category: 'special',
+    tier: 'silver',
+    icon: 'calendar',
+    threshold: 30,
+  },
+];
+
 // All badges combined
 export const ALL_BADGES: Badge[] = [
   ...generateCategoryBadges(),
@@ -468,6 +607,12 @@ export const ALL_BADGES: Badge[] = [
   ...LEVEL_BADGES,
   ...DIFFICULTY_BADGES,
   ...PRONUNCIATION_BADGES,
+  ...LISTEN_REPEAT_BADGES,
+  ...AI_READER_BADGES,
+  ...WORD_BANK_BADGES,
+  ...VOCABULARY_BADGES,
+  ...REVIEW_BADGES,
+  ...DAILY_GOAL_BADGES,
 ];
 
 // Helper to get badge by ID

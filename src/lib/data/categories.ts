@@ -173,6 +173,29 @@ const storyTexts: TextEntry[] = [
     textDifficulty: 'advanced',
     words: w(`In the bosom of one of those spacious coves which indent the eastern shore of the Hudson, at that broad expansion of the river denominated by the ancient Dutch navigators the Tappan Zee, there lies a small market town which is generally known by the name of Tarry Town. Not far from this village, perhaps about two miles, there is a little valley among high hills, which is one of the quietest places in the whole world.`),
   },
+  // ─── Unlock after 16 reads ───
+  {
+    id: 'story-anansi',
+    title: 'Anansi and the Box of Stories',
+    requiredReads: 16,
+    textDifficulty: 'beginner',
+    words: w(`Long ago, all stories belonged to Nyame, the Sky God, who kept them locked in a golden box beside his throne. No one on earth had stories to tell, and the nights were long and silent. Anansi the Spider looked up at the sky and said, "I will buy the stories from Nyame." Everyone laughed, for Anansi was small, but he was clever beyond measure. Nyame set a price that seemed impossible: bring me Onini the Python, Mmoboro the Hornets, and Osebo the Leopard. Anansi went to work. He cut a long bamboo pole and walked to the riverbank, muttering loudly, "He is longer than this pole. No, he is shorter. He is longer. He is shorter." Onini the Python, curious and proud, stretched himself along the pole to prove his length, and Anansi tied him fast. Next, Anansi filled a gourd with water and poured it over the hornets, offering them a dry gourd for shelter. When they flew inside, he sealed the opening. Finally, he dug a pit and covered it with branches. Osebo the Leopard fell in, and Anansi offered a bent tree branch as rescue, springing the leopard into a helpless tangle. Anansi carried all three to the Sky God. Nyame laughed with delight and gave Anansi the golden box. When Anansi opened it on earth, stories flew out in every direction, and from that day forward, people everywhere had tales to tell. That is why, to this day, the best stories in the world are called spider stories.`),
+  },
+  {
+    id: 'story-crane-wife',
+    title: 'The Crane Wife',
+    requiredReads: 16,
+    textDifficulty: 'intermediate',
+    words: w(`In a small village at the edge of a snow-covered mountain, there lived a poor weaver named Karoku. One bitter winter evening, he found a crane caught in a hunter's trap, its white wing streaked with blood. Karoku freed the bird carefully, and it rose into the grey sky with a cry that echoed across the valley. That night, a young woman appeared at his door, shivering in the cold. She said her name was Tsuru, and she had nowhere to go. Karoku welcomed her, and in time they married. Though they were poor, they were content. One evening, Tsuru asked Karoku to build her a loom and promised to weave cloth that would change their fortune. She asked only one thing: that he never watch her while she worked. For three days and nights, the sound of the loom filled the house. When Tsuru emerged, pale and thin, she carried a bolt of cloth so beautiful it shimmered like moonlight on fresh snow. Karoku sold it for a great sum. Twice more Tsuru wove, and each time she grew weaker, and each time the cloth was more exquisite. Karoku's curiosity overwhelmed him. He slid open the door and saw not his wife but a slender crane, plucking feathers from her own body and weaving them into the cloth. Tsuru turned and looked at him with sad, knowing eyes. "I am the crane you saved," she whispered. "Now that you have seen me, I cannot stay." She transformed and flew into the winter sky, becoming a white speck against the clouds, and Karoku never saw her again.`),
+  },
+  {
+    id: 'story-selfish-giant',
+    title: 'The Selfish Giant',
+    author: 'Oscar Wilde',
+    requiredReads: 16,
+    textDifficulty: 'intermediate',
+    words: w(`Every afternoon, as they were coming from school, the children used to go and play in the Giant's garden. It was a large lovely garden, with soft green grass and beautiful flowers like stars. One day the Giant came back from visiting his friend and saw the children playing. "What are you doing here?" he cried in a very gruff voice, and the children ran away. "My own garden is my own garden," said the Giant. He built a high wall all round it and put up a notice board that read: Trespassers Will Be Prosecuted. Then the Spring came, and all over the country there were little blossoms and little birds. Only in the garden of the Selfish Giant it was still Winter. The birds did not care to sing in it as there were no children, and the trees forgot to blossom. Snow covered the grass and Frost painted the trees silver. "I cannot understand why the Spring is so late in coming," said the Giant, as he sat at the window and looked out at his cold white garden. But the Spring never came, nor the Summer. The Autumn gave golden fruit to every garden, but to the Giant's garden she gave none. "He is too selfish," she said. So it was always Winter there, and the North Wind, and the Hail, and the Frost, and the Snow danced about through the trees. One morning the Giant was lying awake in bed when he heard some lovely music. Through a little hole in the wall the children had crept in, and in every tree there was a little child, and the trees were so glad to have the children back that they had covered themselves with blossoms.`),
+  },
 ];
 
 // ─── Article ──────────────────────────────────────────────────
@@ -317,6 +340,31 @@ const articleTexts: TextEntry[] = [
     requiredReads: 14,
     textDifficulty: 'intermediate',
     words: w(`We are apt to love praise, but not to deserve it. But if we would deserve it, we must love virtue more than that. The truest end of life is to know the life that never ends. Sense shines with a double lustre when it is set in humility. An able yet humble man is a jewel worth a kingdom. They have a right to censure that have a heart to help. The rest is cruelty, not justice.`),
+  },
+  // ─── Unlock after 16 reads ───
+  {
+    id: 'article-wollstonecraft',
+    title: 'A Vindication of the Rights of Woman',
+    author: 'Mary Wollstonecraft',
+    requiredReads: 16,
+    textDifficulty: 'intermediate',
+    words: w(`I do not wish women to have power over men, but over themselves. It is vain to expect virtue from women till they are in some degree independent of men. Taught from infancy that beauty is woman's sceptre, the mind shapes itself to the body, and roaming round its gilt cage, only seeks to adorn its prison. The being who patiently endures injustice, and silently bears insults, will soon become unjust, or unable to discern right from wrong. Strengthen the female mind by enlarging it, and there will be an end to blind obedience; but as blind obedience is ever sought for by power, tyrants and sensualists are in the right when they endeavour to keep women in the dark, because the former only want slaves, and the latter a plaything. I do earnestly wish to point out in what true dignity and human happiness consists. I wish to persuade women to endeavour to acquire strength, both of mind and body, and to convince them that the soft phrases, susceptibility of heart, delicacy of sentiment, and refinement of taste, are almost synonymous with epithets of weakness.`),
+  },
+  {
+    id: 'article-dubois',
+    title: 'The Souls of Black Folk',
+    author: 'W. E. B. Du Bois',
+    requiredReads: 16,
+    textDifficulty: 'advanced',
+    words: w(`Between me and the other world there is ever an unasked question: How does it feel to be a problem? One ever feels his twoness — two souls, two thoughts, two unreconciled strivings; two warring ideals in one body, whose dogged strength alone keeps it from being torn asunder. The history of this striving, this longing to attain self-conscious manhood, to merge a double self into a better and truer self, is the tale of a people who have known neither rest nor peace. In those sombre forests of striving, the soul was finding itself, and dimly felt its power. And yet the dawn was gray, and in the east the shadows deepened. He would not bleach his soul in a flood of white Americanism, for he knows that the richest and best heritage of humanity is not the possession of any one race. He simply wishes to make it possible to be both — without being cursed and spit upon by his fellows, without having the doors of Opportunity closed roughly in his face.`),
+  },
+  {
+    id: 'article-mill',
+    title: 'On Liberty',
+    author: 'John Stuart Mill',
+    requiredReads: 16,
+    textDifficulty: 'intermediate',
+    words: w(`The object of this essay is to assert one very simple principle: that the sole end for which mankind are warranted in interfering with the liberty of action of any of their number, is self-protection. Over himself, over his own body and mind, the individual is sovereign. The only freedom which deserves the name, is that of pursuing our own good in our own way, so long as we do not attempt to deprive others of theirs. If all mankind minus one were of one opinion, and only one person were of the contrary opinion, mankind would be no more justified in silencing that one person, than he, if he had the power, would be justified in silencing mankind. The peculiar evil of silencing the expression of an opinion is that it is robbing the human race; those who dissent from the opinion, still more than those who hold it. We can never be sure that the opinion we are endeavouring to stifle is a false opinion; and if we were sure, stifling it would be an evil still.`),
   },
 ];
 
@@ -464,6 +512,31 @@ const speechTexts: TextEntry[] = [
     textDifficulty: 'advanced',
     words: w(`If you, Athenians, will now at length be persuaded to think as I advise, and resolve, each of you, laying aside every other consideration, to render such service as the state requires and as his abilities permit, without reserve; the wealthy to contribute, the able-bodied to enlist; in a word, if you will consent to become your own masters, and cease each expecting to do nothing himself while his neighbour does everything for him.`),
   },
+  // ─── Unlock after 16 reads ───
+  {
+    id: 'speech-sojourner',
+    title: 'Address to the Women\'s Convention',
+    author: 'Sojourner Truth',
+    requiredReads: 16,
+    textDifficulty: 'beginner',
+    words: w(`Well, children, where there is so much racket there must be something out of kilter. I think that between the people of the North and the South, something is not right. That man over there says that women need to be helped into carriages and lifted over ditches, and to have the best place everywhere. Nobody ever helps me into carriages, or over mud puddles, or gives me any best place! And look at me! Look at my arm! I have ploughed and planted, and gathered into barns, and no man could head me! I could work as much and eat as much as a man — when I could get it — and bear the lash as well! I have borne children, and seen most of them sold off, and when I cried out with my mother's grief, none but the Almighty heard me! And now they say women cannot have as much rights as men, because they are not as intelligent. What has intellect to do with rights? If my cup won't hold but a pint, and yours holds a quart, wouldn't you be mean not to let me have my little half measure full?`),
+  },
+  {
+    id: 'speech-seneca-falls',
+    title: 'Declaration of Sentiments',
+    author: 'Elizabeth Cady Stanton',
+    requiredReads: 16,
+    textDifficulty: 'intermediate',
+    words: w(`We hold these truths to be self-evident: that all men and women are created equal; that they are endowed by their Creator with certain inalienable rights; that among these are life, liberty, and the pursuit of happiness; that to secure these rights governments are instituted, deriving their just powers from the consent of the governed. The history of mankind is a history of repeated injuries and usurpations on the part of man toward woman, having in direct object the establishment of an absolute tyranny over her. To prove this, let facts be submitted to a candid world. He has never permitted her to exercise her inalienable right to the elective franchise. He has compelled her to submit to laws, in the formation of which she had no voice. He has made her, if married, in the eye of the law, civilly dead. He has monopolized nearly all the profitable employments, and from those she is permitted to follow, she receives but a scanty remuneration.`),
+  },
+  {
+    id: 'speech-chief-joseph',
+    title: 'Surrender Speech',
+    author: 'Chief Joseph',
+    requiredReads: 16,
+    textDifficulty: 'beginner',
+    words: w(`Tell General Howard I know his heart. What he told me before, I have it in my heart. I am tired of fighting. Our chiefs are gone. The old men are all gone. It is the young men who say yes or no. The one who led the young men is gone. It is cold, and we have no blankets. The little children are freezing. My people, some of them, have run away to the hills and have no blankets, no food. No one knows where they are — perhaps freezing. I want to have time to look for my children, and see how many of them I can find. Maybe I shall find them among the fallen. Hear me, my chiefs! I am tired. My heart is sick and sad. From where the sun now stands, I will fight no more forever.`),
+  },
 ];
 
 // ─── Philosophy ───────────────────────────────────────────────
@@ -608,6 +681,31 @@ const philosophyTexts: TextEntry[] = [
     requiredReads: 14,
     textDifficulty: 'advanced',
     words: w(`The world is all that is the case. The world is the totality of facts, not of things. What we cannot speak about we must pass over in silence. The limits of my language mean the limits of my world. Whereof one cannot speak, thereof one must be silent. If people never did silly things nothing intelligent would ever get done.`),
+  },
+  // ─── Unlock after 16 reads ───
+  {
+    id: 'philosophy-beauvoir',
+    title: 'The Ethics of Ambiguity',
+    author: 'Simone de Beauvoir',
+    requiredReads: 16,
+    textDifficulty: 'advanced',
+    words: w(`To exist is to make oneself a lack of being; it is to cast oneself into the world. Man makes himself a lack, but he can deny the lack as lack and affirm himself as a positive existence. To declare that existence is absurd is to deny that it can ever be given a meaning; to say that it is ambiguous is to assert that its meaning is never fixed, that it must be constantly won. Freedom is the source from which all significations and all values spring. It is the original condition of all justification of existence. One's life has value so long as one attributes value to the life of others, by means of love, friendship, indignation, and compassion. The individual is not a given but a perpetual becoming. To exist authentically is to face the openness of the future without seeking refuge in the false security of absolute answers. We must assume our acts and take responsibility for the world we are creating, not as isolated beings but as participants in a shared human endeavor.`),
+  },
+  {
+    id: 'philosophy-laotzu',
+    title: 'Tao Te Ching',
+    author: 'Lao Tzu',
+    requiredReads: 16,
+    textDifficulty: 'beginner',
+    words: w(`The Tao that can be told is not the eternal Tao. The name that can be named is not the eternal name. The nameless is the beginning of heaven and earth. The named is the mother of ten thousand things. The soft overcomes the hard. The slow overcomes the fast. A tree that is unbending is easily broken. The wise are not learned; the learned are not wise. When I let go of what I am, I become what I might be. Nature does not hurry, yet everything is accomplished. The journey of a thousand miles begins with a single step. He who knows others is wise; he who knows himself is enlightened. To the mind that is still, the whole universe surrenders. In the pursuit of learning, every day something is acquired. In the pursuit of Tao, every day something is dropped. Silence is a source of great strength. Being deeply loved by someone gives you strength, while loving someone deeply gives you courage.`),
+  },
+  {
+    id: 'philosophy-epictetus',
+    title: 'The Enchiridion',
+    author: 'Epictetus',
+    requiredReads: 16,
+    textDifficulty: 'intermediate',
+    words: w(`Some things are in our control and others not. Things in our control are opinion, pursuit, desire, aversion, and, in a word, whatever are our own actions. Things not in our control are body, property, reputation, command, and, in one word, whatever are not our own actions. The things in our control are by nature free, unrestrained, unhindered; but those not in our control are weak, slavish, restrained, belonging to others. Remember, then, that if you suppose that things which are slavish by nature are also free, and that what belongs to others is your own, then you will be hindered. You will lament, you will be disturbed, and you will find fault both with gods and men. But if you suppose that only to be your own which is your own, and what belongs to others such as it really is, then no one will ever compel you or restrain you. Make it your study then to confront every harsh impression with the words: you are but an impression, and not at all the thing you seem to be.`),
   },
 ];
 
@@ -754,6 +852,31 @@ const scienceTexts: TextEntry[] = [
     textDifficulty: 'advanced',
     words: w(`The opposite of a correct statement is a false statement. But the opposite of a profound truth may well be another profound truth. Every great and deep difficulty bears in itself its own solution. It forces us to change our thinking in order to find it. Prediction is very difficult, especially about the future.`),
   },
+  // ─── Unlock after 16 reads ───
+  {
+    id: 'science-humboldt',
+    title: 'Cosmos',
+    author: 'Alexander von Humboldt',
+    requiredReads: 16,
+    textDifficulty: 'intermediate',
+    words: w(`Nature, considered rationally, that is to say submitted to the process of thought, is a unity in diversity of phenomena, a harmony blending together all created things, however dissimilar in form and attributes; one great whole animated by the breath of life. The most important result of a rational inquiry into nature is the establishment of the unity and harmony of this stupendous mass of force and matter. In every part of the earth, on land, on the surface of the sea, and in the atmosphere, the organic forces are ceaselessly at work, preparing and arranging the inorganic matter in new forms, and these forms are the most varied reflection of the natural laws that govern the whole. The universe reveals itself as it does because we observe it as we do. The stars, the flowers, the currents of the sea, the forces hidden in the rocks beneath our feet — all are connected, all are chapters in a single great book of nature that we have only begun to read.`),
+  },
+  {
+    id: 'science-harvey',
+    title: 'On the Motion of the Heart',
+    author: 'William Harvey',
+    requiredReads: 16,
+    textDifficulty: 'advanced',
+    words: w(`When I first gave my mind to vivisections, as a means of discovering the motions and uses of the heart, I found the task so truly arduous that I was almost tempted to think that the motion of the heart was only to be comprehended by God. I could neither rightly perceive at first when the systole and when the diastole took place, nor when and where dilatation and contraction occurred, by reason of the rapidity of the motion. At length, by using greater and daily diligence, having frequent recourse to living animals, employing my senses more, and comparing many observations, I believed that I had attained to the truth. I found that the blood moved in a circle, driven through the arteries by the pumping of the heart, and returning through the veins to be sent forth again — a perpetual motion, like the cycling of water from clouds to rain to rivers to sea, and back again to clouds.`),
+  },
+  {
+    id: 'science-carson',
+    title: 'The Sea Around Us',
+    author: 'Rachel Carson',
+    requiredReads: 16,
+    textDifficulty: 'beginner',
+    words: w(`The edge of the sea is a strange and beautiful place. All through the long history of Earth it has been an area of unrest where waves have broken heavily against the land, where the tides have pressed forward over the continents, receded, and then returned. It is a place of compromise, conflict, and eternal change. The shore is an ancient world, for as long as there has been an earth and sea there has been this place of the meeting of land and water. Yet it is a world that keeps alive the sense of continuing creation and of the relentless drive of life. Each time that I enter it, I gain some new awareness of its beauty and its deeper meanings, sensing that intricate fabric of life by which one creature is linked with another, and each with its surroundings. In every curving beach, in every grain of sand, there is the story of the earth.`),
+  },
 ];
 
 // ─── Literature ───────────────────────────────────────────────
@@ -892,6 +1015,31 @@ const literatureTexts: TextEntry[] = [
     requiredReads: 14,
     textDifficulty: 'advanced',
     words: w(`Sing, O goddess, the anger of Achilles son of Peleus, that brought countless ills upon the Achaeans. Many a brave soul did it send hurrying down to Hades, and many a hero did it yield a prey to dogs and vultures, for so were the counsels of Jove fulfilled from the day on which the son of Atreus, king of men, and great Achilles, first fell out with one another.`),
+  },
+  // ─── Unlock after 16 reads ───
+  {
+    id: 'literature-kafka',
+    title: 'The Metamorphosis',
+    author: 'Franz Kafka',
+    requiredReads: 16,
+    textDifficulty: 'intermediate',
+    words: w(`One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a horrible vermin. He lay on his armour-like back, and if he lifted his head a little he could see his brown belly, slightly domed and divided by arches into stiff sections. The bedding was hardly able to cover it and seemed ready to slide off any moment. His many legs, pitifully thin compared with the size of the rest of him, waved about helplessly as he looked. What has happened to me? he thought. It was no dream. His room, a proper human room although a little too small, lay peacefully between its four familiar walls. A collection of textile samples lay spread out on the table. Above it there hung a picture that he had recently cut out of an illustrated magazine and housed in a nice, gilded frame. It showed a lady fitted out in a fur hat and fur boa who sat upright, raising a heavy fur muff that covered the whole of her lower arm towards the viewer. Gregor then turned to look out the window at the dull weather.`),
+  },
+  {
+    id: 'literature-chopin',
+    title: 'The Awakening',
+    author: 'Kate Chopin',
+    requiredReads: 16,
+    textDifficulty: 'beginner',
+    words: w(`A certain light was beginning to dawn dimly within her — the light which, showing the way, forbids it. The voice of the sea is seductive; never ceasing, whispering, clamoring, murmuring, inviting the soul to wander for a spell in abysses of solitude; to lose itself in mazes of inward contemplation. The voice of the sea speaks to the soul. The touch of the sea is sensuous, enfolding the body in its soft, close embrace. She could only realize that she herself — her present self — was in some way different from the other self. She was becoming herself and daily casting aside that fictitious self which we assume like a garment with which to appear before the world. But the beginning of things, of a world especially, is necessarily vague, tangled, chaotic, and exceedingly disturbing. How few of us ever emerge from such beginning! How many souls perish in its tumult! The years that are gone seem like dreams — if one might go on sleeping and dreaming.`),
+  },
+  {
+    id: 'literature-austen',
+    title: 'Persuasion',
+    author: 'Jane Austen',
+    requiredReads: 16,
+    textDifficulty: 'intermediate',
+    words: w(`You pierce my soul. I am half agony, half hope. Tell me not that I am too late, that such precious feelings are gone for ever. I offer myself to you again with a heart even more your own than when you almost broke it, eight years and a half ago. Dare not say that man forgets sooner than woman, that his love has an earlier death. I have loved none but you. Unjust I may have been, weak and resentful I have been, but never inconstant. You alone have brought me to Bath. For you alone, I think and plan. Have you not seen this? I can hardly write. I am every instant hearing something which overpowers me. You sink your voice, but I can distinguish the tones of that voice when they would be lost on others. Too good, too excellent creature! You do us justice, indeed. You do believe that there is true attachment and constancy among men. Believe it to be most fervent, most undeviating. I must go, uncertain of my fate; but I shall return hither, or follow your party, as soon as possible.`),
   },
 ];
 
@@ -1039,6 +1187,31 @@ const poetryTexts: TextEntry[] = [
     textDifficulty: 'advanced',
     words: w(`Of Man's first disobedience, and the fruit of that forbidden tree whose mortal taste brought death into the World, and all our woe, with loss of Eden, till one greater Man restore us, and regain the blissful seat, sing, Heavenly Muse. The mind is its own place, and in itself can make a Heaven of Hell, a Hell of Heaven.`),
   },
+  // ─── Unlock after 16 reads ───
+  {
+    id: 'poetry-lazarus',
+    title: 'The New Colossus',
+    author: 'Emma Lazarus',
+    requiredReads: 16,
+    textDifficulty: 'beginner',
+    words: w(`Not like the brazen giant of Greek fame, with conquering limbs astride from land to land; here at our sea-washed, sunset gates shall stand a mighty woman with a torch, whose flame is the imprisoned lightning, and her name Mother of Exiles. From her beacon-hand glows world-wide welcome; her mild eyes command the air-bridged harbor that twin cities frame. "Keep, ancient lands, your storied pomp!" cries she with silent lips. "Give me your tired, your poor, your huddled masses yearning to breathe free, the wretched refuse of your teeming shore. Send these, the homeless, tempest-tost to me, I lift my lamp beside the golden door!" These words, inscribed upon the pedestal of the Statue of Liberty, have greeted millions of arrivals to a new world and a new life. Written in 1883 by Emma Lazarus, they transformed a monument of engineering into a symbol of hope.`),
+  },
+  {
+    id: 'poetry-dunbar',
+    title: 'We Wear the Mask',
+    author: 'Paul Laurence Dunbar',
+    requiredReads: 16,
+    textDifficulty: 'intermediate',
+    words: w(`We wear the mask that grins and lies, it hides our cheeks and shades our eyes — this debt we pay to human guile; with torn and bleeding hearts we smile, and mouth with myriad subtleties. Why should the world be over-wise, in counting all our tears and sighs? Nay, let them only see us, while we wear the mask. We smile, but, O great Christ, our cries to thee from tortured souls arise. We sing, but oh the clay is vile beneath our feet, and long the mile; but let the world dream otherwise, we wear the mask! Paul Laurence Dunbar, born in 1872 to formerly enslaved parents, became one of the first widely acclaimed African American poets. His verse captures the duality of presenting a composed face to a world that would rather not acknowledge inner anguish. The mask becomes both armor and prison, a survival strategy carried forward through generations.`),
+  },
+  {
+    id: 'poetry-frost',
+    title: 'The Road Not Taken',
+    author: 'Robert Frost',
+    requiredReads: 16,
+    textDifficulty: 'beginner',
+    words: w(`Two roads diverged in a yellow wood, and sorry I could not travel both and be one traveler, long I stood and looked down one as far as I could to where it bent in the undergrowth; then took the other, as just as fair, and having perhaps the better claim, because it was grassy and wanted wear; though as for that the passing there had worn them really about the same, and both that morning equally lay in leaves no step had trodden black. Oh, I kept the first for another day! Yet knowing how way leads on to way, I doubted if I should ever come back. I shall be telling this with a sigh somewhere ages and ages hence: Two roads diverged in a wood, and I — I took the one less traveled by, and that has made all the difference.`),
+  },
 ];
 
 // ─── History ──────────────────────────────────────────────────
@@ -1181,6 +1354,30 @@ const historyTexts: TextEntry[] = [
     requiredReads: 14,
     textDifficulty: 'advanced',
     words: w(`Great art Thou, O Lord, and greatly to be praised; great is Thy power, and Thy wisdom infinite. And Thee would man praise; man, but a particle of Thy creation; man, that bears about him his mortality, the witness of his sin, the witness that Thou resistest the proud: yet would man praise Thee; he, but a particle of Thy creation.`),
+  },
+  // ─── Unlock after 16 reads ───
+  {
+    id: 'history-herodotus',
+    title: 'The Histories: Thermopylae',
+    author: 'Herodotus',
+    requiredReads: 16,
+    textDifficulty: 'intermediate',
+    words: w(`The Greeks at Thermopylae were first warned of the approach of the Persians by the scouts who came running down from the heights. A council was held, and opinions were divided. Some were for retreating at once, but Leonidas of Sparta gave his vote for remaining. So the Greeks stayed and awaited the onset of the great king's army. When the Persians drew near, the Greeks under Leonidas advanced and gave battle. The barbarians fell in heaps, for the narrow pass prevented them from making use of their numbers. Behind them the captains of the squadrons, armed with whips, urged the men forward with continual blows. Many fell into the sea and were drowned; and far more were trampled underfoot by their own soldiers. Though the Greeks knew full well that their own doom was sealed, since those who held the mountain path had already departed, they went forth and fought with reckless desperation, exerting their utmost strength against the barbarians, caring nothing for their own lives.`),
+  },
+  {
+    id: 'history-pliny',
+    title: 'Letters: The Eruption of Vesuvius',
+    author: 'Pliny the Younger',
+    requiredReads: 16,
+    textDifficulty: 'advanced',
+    words: w(`On the twenty-fourth of August, about one in the afternoon, my mother desired my uncle to observe a cloud which appeared of a very unusual size and shape. A cloud was ascending, the appearance of which I cannot give you a more exact description of than by likening it to that of a pine tree, for it shot up to a great height in the form of a very tall trunk, which spread itself out at the top into several branches. It appeared sometimes bright and sometimes dark and spotted, depending upon whether it was more or less impregnated with earth and cinders. Ashes were already falling, hotter and thicker as we drew near. We also saw the sea sucked away and apparently forced back by the earthquake. Broadly-spreading sheets of fire lit up many parts of Vesuvius; their bright glare was emphasized by the darkness of night. My uncle tried to allay their fears, saying these were merely bonfires left by the peasants in their terror. Then he rested, and slept in all certainty, for his breathing was heard by those who attended at his door.`),
+  },
+  {
+    id: 'history-viking-saga',
+    title: 'The Saga of Erik the Red',
+    requiredReads: 16,
+    textDifficulty: 'intermediate',
+    words: w(`There was a man named Erik who was called the Red. He had sailed west from Iceland seeking new land, for he had heard tales of a green country beyond the ice. After many days of sailing through fog and treacherous waters, Erik and his crew sighted a great coast of mountains and glaciers. They sailed south along this coast until they found fjords where the grass grew green and the rivers ran clear with fish. Erik called this land Greenland, for he said that people would be more easily persuaded to go there if the land had an attractive name. He spent three winters exploring the fjords and valleys, marking the best places for farms. When he returned to Iceland, he spoke so well of the new country that twenty-five ships set sail with him on his return, though only fourteen completed the voyage. Those who arrived built homesteads in the sheltered fjords, raised cattle and sheep, and hunted seals along the coast. From this settlement, the Norse would one day sail even further west, to the shores of a vast continent they called Vinland.`),
   },
 ];
 
@@ -1327,7 +1524,35 @@ const mindfulnessTexts: TextEntry[] = [
     textDifficulty: 'advanced',
     words: w(`The only way to make sense out of change is to plunge into it, move with it, and join the dance. We seldom realize, for example, that our most private thoughts and emotions are not actually our own. For we think in terms of languages and images which we did not invent. Muddy water is best cleared by leaving it alone.`),
   },
+  // ─── Unlock after 16 reads ───
+  {
+    id: 'mindfulness-gita',
+    title: 'The Bhagavad Gita',
+    requiredReads: 16,
+    textDifficulty: 'intermediate',
+    words: w(`You have the right to work, but never to the fruit of work. You should never engage in action for the sake of reward, nor should you long for inaction. Perform work in this world, Arjuna, as a man established within himself — without selfish attachments, and alike in success and defeat. The awakened sages call a person wise when all undertakings are free from anxiety about results. In the dark night of all beings, the self-controlled one is awake. What is night for all beings is the time of awakening for the disciplined soul. As the ocean remains unmoved by the waters that flow into it, so the wise person remains unmoved by desires. The soul is never born nor does it ever perish. It is unborn, eternal, ever-existing, and primeval. It is not slain when the body is slain. As a person puts on new garments, giving up old ones, the soul similarly accepts new material bodies, giving up the old and useless ones. Reshape yourself through the power of your will. Those who have conquered themselves live in peace, alike in cold and heat, pleasure and pain, praise and blame.`),
+  },
+  {
+    id: 'mindfulness-rilke',
+    title: 'Letters to a Young Poet',
+    author: 'Rainer Maria Rilke',
+    requiredReads: 16,
+    textDifficulty: 'beginner',
+    words: w(`I want to beg you, as much as I can, to be patient toward all that is unsolved in your heart and to try to love the questions themselves like locked rooms and like books that are written in a very foreign tongue. Do not now seek the answers, which cannot be given you because you would not be able to live them. And the point is, to live everything. Live the questions now. Perhaps you will then gradually, without noticing it, live along some distant day into the answer. Perhaps you do carry within yourself the possibility of shaping and forming, as a particularly happy and pure way of living. Train yourself for it, but take whatever comes with great trust, and if only it comes out of your own will, out of some need of your innermost being, take it upon yourself and hate nothing. We need, in love, to practice only this: letting each other go. For holding on comes easily; we do not need to learn it.`),
+  },
+  {
+    id: 'mindfulness-rumi',
+    title: 'The Guest House',
+    author: 'Rumi',
+    requiredReads: 16,
+    textDifficulty: 'beginner',
+    words: w(`This being human is a guest house. Every morning a new arrival. A joy, a depression, a meanness, some momentary awareness comes as an unexpected visitor. Welcome and entertain them all! Even if they are a crowd of sorrows, who violently sweep your house empty of its furniture, still, treat each guest honourably. He may be clearing you out for some new delight. The dark thought, the shame, the malice — meet them at the door laughing and invite them in. Be grateful for whatever comes, because each has been sent as a guide from beyond. Let yourself be silently drawn by the strange pull of what you really love. It will not lead you astray. The wound is the place where the Light enters you. What you seek is seeking you. Out beyond ideas of wrongdoing and rightdoing, there is a field. I will meet you there. When the soul lies down in that grass, the world is too full to talk about. Do not be satisfied with the stories that come before you. Unfold your own myth.`),
+  },
 ];
+
+// ─── Free Category Keys (shared constant) ───────────────────
+
+export const FREE_CATEGORY_KEYS = ['story', 'poetry', 'wisdom'] as const;
 
 // ─── Export ───────────────────────────────────────────────────
 

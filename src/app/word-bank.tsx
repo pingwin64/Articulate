@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, Pressable, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -11,6 +11,8 @@ import { GlassButton } from '../components/GlassButton';
 import { Paywall } from '../components/Paywall';
 import { Spacing } from '../design/theme';
 
+const FREE_WORD_LIMIT = 10;
+
 export default function WordBankScreen() {
   const { colors } = useTheme();
   const router = useRouter();
@@ -21,6 +23,12 @@ export default function WordBankScreen() {
   const showPaywall = useSettingsStore((s) => s.showPaywall);
   const setPaywallContext = useSettingsStore((s) => s.setPaywallContext);
   const paywallContext = useSettingsStore((s) => s.paywallContext);
+  const incrementWordsReviewed = useSettingsStore((s) => s.incrementWordsReviewed);
+
+  // Flashcard review mode
+  const [reviewMode, setReviewMode] = useState(false);
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const [showDefinition, setShowDefinition] = useState(false);
 
   const handleRemoveWord = useCallback((id: string, word: string) => {
     Alert.alert('Remove Word', `Remove "${word}" from your word bank?`, [
@@ -50,31 +58,94 @@ export default function WordBankScreen() {
     });
   }, [savedWords, hapticFeedback, router]);
 
-  if (!isPremium) {
+  const handleStartReview = useCallback(() => {
+    if (savedWords.length === 0) return;
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    setReviewIndex(0);
+    setShowDefinition(false);
+    setReviewMode(true);
+  }, [savedWords, hapticFeedback]);
+
+  const handleFlipCard = useCallback(() => {
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setShowDefinition(true);
+    incrementWordsReviewed();
+  }, [hapticFeedback, incrementWordsReviewed]);
+
+  const handleNextCard = useCallback(() => {
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    if (reviewIndex < savedWords.length - 1) {
+      setReviewIndex((i) => i + 1);
+      setShowDefinition(false);
+    } else {
+      setReviewMode(false);
+    }
+  }, [hapticFeedback, reviewIndex, savedWords.length]);
+
+  // Free user limit check
+  const isAtFreeLimit = !isPremium && savedWords.length >= FREE_WORD_LIMIT;
+
+  // Flashcard review mode
+  if (reviewMode && savedWords.length > 0) {
+    const currentWord = savedWords[reviewIndex];
     return (
       <View style={[styles.container, { backgroundColor: colors.bg }]}>
-        <View style={styles.lockedState}>
-          <GlassCard>
-            <View style={styles.lockedCard}>
-              <Feather name="lock" size={28} color={colors.muted} />
-              <Text style={[styles.lockedTitle, { color: colors.primary }]}>
-                Word Bank is a Pro feature
-              </Text>
-              <Text style={[styles.lockedSubtitle, { color: colors.muted }]}>
-                Save and review your favorite words with definitions.
-              </Text>
+        <View style={styles.reviewContainer}>
+          <Text style={[styles.reviewProgress, { color: colors.muted }]}>
+            {reviewIndex + 1} / {savedWords.length}
+          </Text>
+
+          <Pressable onPress={showDefinition ? handleNextCard : handleFlipCard} style={styles.flashcard}>
+            <GlassCard>
+              <View style={styles.flashcardContent}>
+                <Text style={[styles.flashcardWord, { color: colors.primary }]}>
+                  {currentWord.word}
+                </Text>
+                {showDefinition ? (
+                  <Animated.View entering={FadeIn.duration(200)} style={styles.flashcardAnswer}>
+                    {currentWord.syllables && (
+                      <Text style={[styles.flashcardMeta, { color: colors.muted }]}>
+                        {currentWord.syllables}
+                        {currentWord.partOfSpeech ? ` · ${currentWord.partOfSpeech}` : ''}
+                      </Text>
+                    )}
+                    {currentWord.definition && (
+                      <Text style={[styles.flashcardDefinition, { color: colors.secondary }]}>
+                        {currentWord.definition}
+                      </Text>
+                    )}
+                  </Animated.View>
+                ) : (
+                  <Text style={[styles.flashcardHint, { color: colors.muted }]}>
+                    Tap to reveal
+                  </Text>
+                )}
+              </View>
+            </GlassCard>
+          </Pressable>
+
+          <View style={styles.reviewActions}>
+            {showDefinition ? (
               <GlassButton
-                title="Unlock Word Bank"
-                onPress={() => setPaywallContext('locked_word_bank')}
+                title={reviewIndex < savedWords.length - 1 ? 'Next Word' : 'Done'}
+                onPress={handleNextCard}
               />
-            </View>
-          </GlassCard>
+            ) : (
+              <GlassButton title="Show Definition" onPress={handleFlipCard} />
+            )}
+            <Pressable onPress={() => setReviewMode(false)} style={styles.reviewDismiss}>
+              <Text style={[styles.reviewDismissText, { color: colors.muted }]}>
+                Exit Review
+              </Text>
+            </Pressable>
+          </View>
         </View>
-        <Paywall
-          visible={showPaywall}
-          onDismiss={() => setPaywallContext(null)}
-          context={paywallContext}
-        />
       </View>
     );
   }
@@ -102,13 +173,34 @@ export default function WordBankScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Read My Words button */}
+        {/* Action buttons */}
         <Animated.View entering={FadeIn.duration(300)} style={styles.readButtonSection}>
-          <GlassButton title="Read My Words" onPress={handleReadMyWords} />
+          <View style={styles.buttonRow}>
+            <View style={styles.buttonHalf}>
+              <GlassButton title="Read My Words" onPress={handleReadMyWords} />
+            </View>
+            <View style={styles.buttonHalf}>
+              <GlassButton title="Review" onPress={handleStartReview} variant="outline" />
+            </View>
+          </View>
           <Text style={[styles.wordCount, { color: colors.muted }]}>
-            {savedWords.length} {savedWords.length === 1 ? 'word' : 'words'} saved
+            {savedWords.length}{!isPremium ? ` / ${FREE_WORD_LIMIT}` : ''} {savedWords.length === 1 ? 'word' : 'words'} saved
           </Text>
         </Animated.View>
+
+        {/* Free user limit banner */}
+        {isAtFreeLimit && (
+          <Animated.View entering={FadeIn.duration(300)} style={styles.limitBanner}>
+            <Text style={[styles.limitText, { color: colors.secondary }]}>
+              Your word bank is full. Unlock unlimited with Pro.
+            </Text>
+            <Pressable onPress={() => setPaywallContext('locked_word_bank')}>
+              <Text style={[styles.limitCta, { color: colors.primary }]}>
+                Upgrade
+              </Text>
+            </Pressable>
+          </Animated.View>
+        )}
 
         {/* Word list */}
         <View style={styles.wordList}>
@@ -179,9 +271,34 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     alignItems: 'center',
   },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  buttonHalf: {
+    flex: 1,
+  },
   wordCount: {
     fontSize: 13,
     fontWeight: '400',
+  },
+  limitBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: Spacing.md,
+  },
+  limitText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  limitCta: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   wordList: {
     gap: 10,
@@ -228,29 +345,6 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 32,
   },
-  lockedState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  lockedCard: {
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  lockedTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  lockedSubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 4,
-  },
   emptyTitle: {
     fontSize: 22,
     fontWeight: '600',
@@ -260,5 +354,62 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlign: 'center',
     lineHeight: 22,
+  },
+  // Review mode styles
+  reviewContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    gap: 24,
+  },
+  reviewProgress: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  flashcard: {
+    width: '100%',
+  },
+  flashcardContent: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    gap: 16,
+    minHeight: 180,
+    justifyContent: 'center',
+  },
+  flashcardWord: {
+    fontSize: 32,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  flashcardMeta: {
+    fontSize: 14,
+    fontWeight: '400',
+  },
+  flashcardDefinition: {
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
+    paddingHorizontal: 16,
+  },
+  flashcardHint: {
+    fontSize: 14,
+    fontWeight: '400',
+  },
+  flashcardAnswer: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  reviewActions: {
+    width: '100%',
+    gap: 12,
+  },
+  reviewDismiss: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  reviewDismissText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

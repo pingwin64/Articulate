@@ -1,4 +1,4 @@
-import { categories, type TextEntry, type Category } from './data/categories';
+import { categories, FREE_CATEGORY_KEYS, type TextEntry, type Category } from './data/categories';
 import { useSettingsStore } from './store/settings';
 
 export interface QueueItem {
@@ -6,8 +6,6 @@ export interface QueueItem {
   text: TextEntry;
   reason: 'continue' | 'explore' | 'new_unlock';
 }
-
-const FREE_CATEGORIES = ['story', 'poetry', 'speech'];
 
 export function getReadingQueue(limit = 5): QueueItem[] {
   const state = useSettingsStore.getState();
@@ -23,7 +21,7 @@ export function getReadingQueue(limit = 5): QueueItem[] {
   // Available categories based on subscription
   const availableCategories = isPremium
     ? categories
-    : categories.filter((c) => FREE_CATEGORIES.includes(c.key));
+    : categories.filter((c) => (FREE_CATEGORY_KEYS as readonly string[]).includes(c.key));
 
   // Get list of completed text IDs
   const completedTextIds = new Set(

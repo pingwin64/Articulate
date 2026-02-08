@@ -77,13 +77,29 @@ export default function QuizScreen() {
       try {
         loadedQuestions = await generateQuizFromText(ct.text);
       } catch {
-        setError('Failed to generate quiz. Check your API key and try again.');
+        setError('Failed to generate quiz. Check your connection and try again.');
         setLoading(false);
         return;
       }
     } else if (params.categoryKey && params.textId) {
-      // Built-in text — use curated questions
+      // Built-in text — try curated questions first, fall back to AI generation
       loadedQuestions = getQuizForText(params.categoryKey, params.textId);
+
+      if (loadedQuestions.length === 0) {
+        // No curated quiz — generate via AI
+        const { categories: allCategories } = require('../lib/data/categories');
+        const cat = allCategories.find((c: any) => c.key === params.categoryKey);
+        const textEntry = cat?.texts.find((t: any) => t.id === params.textId);
+        if (textEntry) {
+          try {
+            loadedQuestions = await generateQuizFromText(textEntry.words.join(' '));
+          } catch {
+            setError('Failed to generate quiz. Check your connection and try again.');
+            setLoading(false);
+            return;
+          }
+        }
+      }
     }
 
     if (loadedQuestions.length > 0) {

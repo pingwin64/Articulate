@@ -1,12 +1,10 @@
-import { categories, type TextEntry, type Category } from './categories';
+import { categories, FREE_CATEGORY_KEYS, type TextEntry, type Category } from './categories';
 
 export interface FeaturedText {
   text: TextEntry;
   category: Category;
   isPremium: boolean;
 }
-
-const FREE_CATEGORY_KEYS = ['story', 'poetry', 'speech'];
 
 // Build flat list of all texts with their category
 const ALL_TEXTS: { text: TextEntry; category: Category }[] = [];
@@ -28,7 +26,7 @@ export function getDailyFeaturedText(): FeaturedText {
   const index = (dayOfYear + now.getFullYear() * 367) % ALL_TEXTS.length;
   const { text, category } = ALL_TEXTS[index];
 
-  const isPremium = !FREE_CATEGORY_KEYS.includes(category.key);
+  const isPremium = !(FREE_CATEGORY_KEYS as readonly string[]).includes(category.key);
 
   return { text, category, isPremium };
 }

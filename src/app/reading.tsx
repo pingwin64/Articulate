@@ -427,19 +427,33 @@ export default function ReadingScreen() {
       setPronunciationState('result');
       showFeedbackAnim();
 
+      // Track attempt + per-word history
+      const store = useSettingsStore.getState();
+      store.totalPronunciationAttempts = (store.totalPronunciationAttempts || 0) + 1;
+      const history = { ...store.pronunciationHistory };
+      const wordKey = singleWord.toLowerCase();
+      if (!history[wordKey]) {
+        history[wordKey] = { attempts: 0, perfects: 0 };
+      }
+      history[wordKey].attempts += 1;
+
       // Haptics + track perfect pronunciations
       if (feedback.result === 'perfect') {
         if (hapticFeedback) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
+        history[wordKey].perfects += 1;
         // +5 level progress per perfect, tracked for badges
-        const { incrementPerfectPronunciations } = useSettingsStore.getState();
-        incrementPerfectPronunciations();
+        store.incrementPerfectPronunciations();
+        // Weekly challenge progress
+        store.incrementWeeklyChallengeProgress('pronunciation_perfect', 1);
       } else if (feedback.result === 'close') {
         if (hapticFeedback) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
       }
+      // Persist pronunciation history
+      useSettingsStore.setState({ pronunciationHistory: history, totalPronunciationAttempts: store.totalPronunciationAttempts });
 
       pronunciationTimerRef.current = setTimeout(dismissPronunciationFeedback, 2500);
     } catch (err: any) {
@@ -451,10 +465,14 @@ export default function ReadingScreen() {
   }, [singleWord, hapticFeedback, showFeedbackAnim, dismissPronunciationFeedback]);
 
   const handlePronunciationTap = useCallback(async () => {
-    // Premium check
+    // Free user: allow 3/day, then show paywall
     if (!isPremium) {
-      setPaywallContext('locked_pronunciation');
-      return;
+      const { canUseFreePronunciation, useFreePronunciation } = useSettingsStore.getState();
+      if (!canUseFreePronunciation()) {
+        setPaywallContext('locked_pronunciation');
+        return;
+      }
+      // Will count the use after successful recording start
     }
 
     // If already recording, stop
@@ -503,6 +521,10 @@ export default function ReadingScreen() {
     try {
       await startRecording();
       setHasUsedPronunciation(true);
+      // Count free pronunciation use
+      if (!isPremium) {
+        useSettingsStore.getState().useFreePronunciation();
+      }
       setPronunciationState('recording');
       setPronunciationError(null);
       setPronunciationFeedback(null);
