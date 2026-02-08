@@ -7,7 +7,7 @@ export interface QueueItem {
   reason: 'continue' | 'explore' | 'new_unlock';
 }
 
-const FREE_CATEGORIES = ['story', 'article', 'speech'];
+const FREE_CATEGORIES = ['story', 'poetry', 'speech'];
 
 export function getReadingQueue(limit = 5): QueueItem[] {
   const state = useSettingsStore.getState();

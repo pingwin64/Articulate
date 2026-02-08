@@ -29,10 +29,10 @@ export const WEEKLY_CHALLENGES: WeeklyChallenge[] = [
     icon: 'book-open',
   },
   {
-    id: 'words-1000',
+    id: 'words-500',
     type: 'words_total',
-    description: 'Read 1,000 words',
-    target: 1000,
+    description: 'Read 500 words',
+    target: 500,
     icon: 'type',
   },
   {
@@ -57,10 +57,10 @@ export const WEEKLY_CHALLENGES: WeeklyChallenge[] = [
     icon: 'book-open',
   },
   {
-    id: 'words-2000',
+    id: 'words-750',
     type: 'words_total',
-    description: 'Read 2,000 words',
-    target: 2000,
+    description: 'Read 750 words',
+    target: 750,
     icon: 'type',
   },
 ];

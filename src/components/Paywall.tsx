@@ -55,7 +55,7 @@ function getContextualCopy(context: PaywallContext | null, currentStreak?: numbe
     case 'locked_category':
       return {
         headline: "There's more to explore",
-        subheadline: 'Unlock poetry, history, mindfulness, and every future category.',
+        subheadline: 'Unlock essays, fiction, wisdom, and every future category.',
         featureOrder: [1, 0, 2, 3],
       };
     case 'custom_text_limit':

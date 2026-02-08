@@ -76,12 +76,12 @@ function isColorDark(hexColor: string): boolean {
 const ONBOARDING_FONTS: FontFamilyKey[] = ['sourceSerif', 'system', 'literata'];
 
 const ONBOARDING_CATEGORIES = categories.filter((c) =>
-  ['story', 'article', 'speech'].includes(c.key)
+  ['story', 'poetry', 'speech'].includes(c.key)
 );
 
 const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   story: 'Short Fiction',
-  article: 'News & Essays',
+  poetry: 'Poems & Verse',
   speech: 'Famous Speeches',
 };
 
@@ -942,7 +942,7 @@ function Onboarding() {
 
 // ─── Home ────────────────────────────────────────────────────
 
-const FREE_CATEGORIES = ['story', 'article', 'speech'];
+const FREE_CATEGORIES = ['story', 'poetry', 'speech'];
 const CORE_CATEGORIES = categories.filter((c) => FREE_CATEGORIES.includes(c.key));
 const OTHER_CATEGORIES = categories.filter((c) => !FREE_CATEGORIES.includes(c.key));
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -1621,7 +1621,7 @@ function Home() {
 
         {/* Categories Grid */}
         <Animated.View entering={FadeIn.delay(140).duration(400)} style={styles.categoriesGrid}>
-          {/* Always show: Story, Article, Speech */}
+          {/* Always show: Story, Poetry, Speech */}
           {CORE_CATEGORIES.map((cat, index) => (
             <CategoryTile
               key={cat.key}

@@ -24,9 +24,9 @@ export const quizQuestions: QuizQuestion[] = [
   { id: 'q-story-jungle-3', categoryKey: 'story', textId: 'story-jungle', question: 'What shone into the mouth of the cave?', options: ['The sun', 'The moon', 'A fire', 'Starlight'], correctIndex: 1 },
 
   // ─── Article: Self-Reliance ────────────────────────────────
-  { id: 'q-article-sr-1', categoryKey: 'article', textId: 'article-self-reliance', question: 'According to Emerson, what is envy?', options: ['Power', 'Ignorance', 'Motivation', 'Wisdom'], correctIndex: 1 },
-  { id: 'q-article-sr-2', categoryKey: 'article', textId: 'article-self-reliance', question: 'What does Emerson call imitation?', options: ['Flattery', 'Suicide', 'Growth', 'Education'], correctIndex: 1 },
-  { id: 'q-article-sr-3', categoryKey: 'article', textId: 'article-self-reliance', question: 'What can nourishing corn only come through?', options: ['Luck', 'Community', 'His own toil', 'Nature'], correctIndex: 2 },
+  { id: 'q-article-sr-1', categoryKey: 'essay', textId: 'article-self-reliance', question: 'According to Emerson, what is envy?', options: ['Power', 'Ignorance', 'Motivation', 'Wisdom'], correctIndex: 1 },
+  { id: 'q-article-sr-2', categoryKey: 'essay', textId: 'article-self-reliance', question: 'What does Emerson call imitation?', options: ['Flattery', 'Suicide', 'Growth', 'Education'], correctIndex: 1 },
+  { id: 'q-article-sr-3', categoryKey: 'essay', textId: 'article-self-reliance', question: 'What can nourishing corn only come through?', options: ['Luck', 'Community', 'His own toil', 'Nature'], correctIndex: 2 },
 
   // ─── Speech: Gettysburg Address ────────────────────────────
   { id: 'q-speech-getty-1', categoryKey: 'speech', textId: 'speech-gettysburg', question: 'How many years ago does Lincoln reference?', options: ['Fifty-seven', 'Sixty-seven', 'Seventy-seven', 'Eighty-seven'], correctIndex: 3 },
@@ -54,13 +54,13 @@ export const quizQuestions: QuizQuestion[] = [
   { id: 'q-sci-origin-3', categoryKey: 'science', textId: 'science-origin', question: 'What does Darwin call the origin of species?', options: ['A simple question', 'A mystery of mysteries', 'An obvious fact', 'A divine plan'], correctIndex: 1 },
 
   // ─── Literature: Moby Dick ─────────────────────────────────
-  { id: 'q-lit-moby-1', categoryKey: 'literature', textId: 'literature-moby-dick', question: 'What is the famous opening line?', options: ['Call me Ahab', 'Call me Ishmael', 'Call me Captain', 'Call me a sailor'], correctIndex: 1 },
-  { id: 'q-lit-moby-2', categoryKey: 'literature', textId: 'literature-moby-dick', question: 'What did the narrator have little of?', options: ['Time', 'Friends', 'Money', 'Patience'], correctIndex: 2 },
-  { id: 'q-lit-moby-3', categoryKey: 'literature', textId: 'literature-moby-dick', question: 'What does he do to drive off the spleen?', options: ['Read books', 'Sail about', 'Visit friends', 'Take walks'], correctIndex: 1 },
+  { id: 'q-lit-moby-1', categoryKey: 'fiction', textId: 'literature-moby-dick', question: 'What is the famous opening line?', options: ['Call me Ahab', 'Call me Ishmael', 'Call me Captain', 'Call me a sailor'], correctIndex: 1 },
+  { id: 'q-lit-moby-2', categoryKey: 'fiction', textId: 'literature-moby-dick', question: 'What did the narrator have little of?', options: ['Time', 'Friends', 'Money', 'Patience'], correctIndex: 2 },
+  { id: 'q-lit-moby-3', categoryKey: 'fiction', textId: 'literature-moby-dick', question: 'What does he do to drive off the spleen?', options: ['Read books', 'Sail about', 'Visit friends', 'Take walks'], correctIndex: 1 },
 
   // ─── Literature: Great Gatsby ──────────────────────────────
-  { id: 'q-lit-gatsby-1', categoryKey: 'literature', textId: 'literature-gatsby', question: 'Who gave the narrator advice?', options: ['His mother', 'His father', 'His teacher', 'A stranger'], correctIndex: 1 },
-  { id: 'q-lit-gatsby-2', categoryKey: 'literature', textId: 'literature-gatsby', question: 'What should you remember when criticizing anyone?', options: ['Be kind', 'Not everyone has had your advantages', 'Walk in their shoes', 'Silence is golden'], correctIndex: 1 },
+  { id: 'q-lit-gatsby-1', categoryKey: 'fiction', textId: 'literature-gatsby', question: 'Who gave the narrator advice?', options: ['His mother', 'His father', 'His teacher', 'A stranger'], correctIndex: 1 },
+  { id: 'q-lit-gatsby-2', categoryKey: 'fiction', textId: 'literature-gatsby', question: 'What should you remember when criticizing anyone?', options: ['Be kind', 'Not everyone has had your advantages', 'Walk in their shoes', 'Silence is golden'], correctIndex: 1 },
 
   // ─── Poetry: Sonnet 18 ─────────────────────────────────────
   { id: 'q-poetry-s18-1', categoryKey: 'poetry', textId: 'poetry-sonnet18', question: "What does Shakespeare compare the subject to?", options: ["A winter's night", "A summer's day", "A spring morning", "An autumn leaf"], correctIndex: 1 },
@@ -77,19 +77,19 @@ export const quizQuestions: QuizQuestion[] = [
   { id: 'q-hist-hero-3', categoryKey: 'history', textId: 'history-herodotus', question: 'Who began the quarrel, according to the Persians?', options: ['The Greeks', 'The Egyptians', 'The Phoenicians', 'The Romans'], correctIndex: 2 },
 
   // ─── Mindfulness: Tao Te Ching ─────────────────────────────
-  { id: 'q-mind-tao-1', categoryKey: 'mindfulness', textId: 'mindfulness-tao', question: 'What is the nameless called?', options: ['The end of all things', 'The beginning of heaven and earth', 'The source of confusion', 'The path of wisdom'], correctIndex: 1 },
-  { id: 'q-mind-tao-2', categoryKey: 'mindfulness', textId: 'mindfulness-tao', question: 'What can the desireless see?', options: ['The future', 'The mystery', 'The manifestations', 'Nothing'], correctIndex: 1 },
-  { id: 'q-mind-tao-3', categoryKey: 'mindfulness', textId: 'mindfulness-tao', question: 'What is the gate to all mystery?', options: ['Light', 'Silence', 'Darkness within darkness', 'Time'], correctIndex: 2 },
+  { id: 'q-mind-tao-1', categoryKey: 'wisdom', textId: 'mindfulness-tao', question: 'What is the nameless called?', options: ['The end of all things', 'The beginning of heaven and earth', 'The source of confusion', 'The path of wisdom'], correctIndex: 1 },
+  { id: 'q-mind-tao-2', categoryKey: 'wisdom', textId: 'mindfulness-tao', question: 'What can the desireless see?', options: ['The future', 'The mystery', 'The manifestations', 'Nothing'], correctIndex: 1 },
+  { id: 'q-mind-tao-3', categoryKey: 'wisdom', textId: 'mindfulness-tao', question: 'What is the gate to all mystery?', options: ['Light', 'Silence', 'Darkness within darkness', 'Time'], correctIndex: 2 },
 
   // ─── Article: The Science of Reading Aloud ──────────────────
-  { id: 'q-article-reading-1', categoryKey: 'article', textId: 'article-reading', question: 'What does reading aloud strengthen?', options: ['Vocal cords', 'The connection between eye and brain', 'Memory alone', 'Physical endurance'], correctIndex: 1 },
-  { id: 'q-article-reading-2', categoryKey: 'article', textId: 'article-reading', question: 'What does speaking words activate?', options: ['Shallow memory', 'Deeper memory pathways', 'Only short-term recall', 'Visual processing'], correctIndex: 1 },
-  { id: 'q-article-reading-3', categoryKey: 'article', textId: 'article-reading', question: 'What can this practice improve over time?', options: ['Only speed', 'Focus, vocabulary, and comprehension', 'Just pronunciation', 'Writing skills only'], correctIndex: 1 },
+  { id: 'q-article-reading-1', categoryKey: 'essay', textId: 'article-reading', question: 'What does reading aloud strengthen?', options: ['Vocal cords', 'The connection between eye and brain', 'Memory alone', 'Physical endurance'], correctIndex: 1 },
+  { id: 'q-article-reading-2', categoryKey: 'essay', textId: 'article-reading', question: 'What does speaking words activate?', options: ['Shallow memory', 'Deeper memory pathways', 'Only short-term recall', 'Visual processing'], correctIndex: 1 },
+  { id: 'q-article-reading-3', categoryKey: 'essay', textId: 'article-reading', question: 'What can this practice improve over time?', options: ['Only speed', 'Focus, vocabulary, and comprehension', 'Just pronunciation', 'Writing skills only'], correctIndex: 1 },
 
   // ─── Article: Civil Disobedience ────────────────────────────
-  { id: 'q-article-civil-1', categoryKey: 'article', textId: 'article-civil-disobedience', question: 'What motto does Thoreau accept?', options: ['Power to the people', 'That government is best which governs least', 'Liberty or death', 'United we stand'], correctIndex: 1 },
-  { id: 'q-article-civil-2', categoryKey: 'article', textId: 'article-civil-disobedience', question: 'What does Thoreau call government at best?', options: ['A necessity', 'An expedient', 'A blessing', 'A burden'], correctIndex: 1 },
-  { id: 'q-article-civil-3', categoryKey: 'article', textId: 'article-civil-disobedience', question: 'What does Thoreau believe about most governments?', options: ['They are perfect', 'They are usually inexpedient', 'They are always just', 'They are divine'], correctIndex: 1 },
+  { id: 'q-article-civil-1', categoryKey: 'essay', textId: 'article-civil-disobedience', question: 'What motto does Thoreau accept?', options: ['Power to the people', 'That government is best which governs least', 'Liberty or death', 'United we stand'], correctIndex: 1 },
+  { id: 'q-article-civil-2', categoryKey: 'essay', textId: 'article-civil-disobedience', question: 'What does Thoreau call government at best?', options: ['A necessity', 'An expedient', 'A blessing', 'A burden'], correctIndex: 1 },
+  { id: 'q-article-civil-3', categoryKey: 'essay', textId: 'article-civil-disobedience', question: 'What does Thoreau believe about most governments?', options: ['They are perfect', 'They are usually inexpedient', 'They are always just', 'They are divine'], correctIndex: 1 },
 
   // ─── Speech: Declaration of Independence ────────────────────
   { id: 'q-speech-decl-1', categoryKey: 'speech', textId: 'speech-declaration', question: 'What do we hold to be self-evident?', options: ['That kings rule by divine right', 'That all men are created equal', 'That government is supreme', 'That freedom is earned'], correctIndex: 1 },
@@ -116,15 +116,10 @@ export const quizQuestions: QuizQuestion[] = [
   { id: 'q-sci-eureka-2', categoryKey: 'science', textId: 'science-eureka', question: 'Where does the Secondary Cause of All Things lie?', options: ['In the future', 'In the Original Unity', 'In chaos', 'In humanity'], correctIndex: 1 },
   { id: 'q-sci-eureka-3', categoryKey: 'science', textId: 'science-eureka', question: 'What does Poe call the Universe?', options: ['A mistake', 'A plot of God', 'An accident', 'A mystery'], correctIndex: 1 },
 
-  // ─── Literature: Classic Opening Lines ──────────────────────
-  { id: 'q-lit-classics-1', categoryKey: 'literature', textId: 'literature-classics', question: 'What is universally acknowledged about a single man with fortune?', options: ['He must be unhappy', 'He must be in want of a wife', 'He must be powerful', 'He must be wise'], correctIndex: 1 },
-  { id: 'q-lit-classics-2', categoryKey: 'literature', textId: 'literature-classics', question: 'How are all happy families alike?', options: ['They are all rich', 'They are all alike', 'They are all different', 'They are all large'], correctIndex: 1 },
-  { id: 'q-lit-classics-3', categoryKey: 'literature', textId: 'literature-classics', question: 'What was it according to Dickens?', options: ['The end of times', 'The best of times, the worst of times', 'A normal time', 'A forgotten time'], correctIndex: 1 },
-
   // ─── Literature: Romeo and Juliet ───────────────────────────
-  { id: 'q-lit-romeo-1', categoryKey: 'literature', textId: 'literature-romeo-juliet', question: 'Where is the play set?', options: ['Rome', 'Venice', 'Fair Verona', 'Florence'], correctIndex: 2 },
-  { id: 'q-lit-romeo-2', categoryKey: 'literature', textId: 'literature-romeo-juliet', question: 'How many households are mentioned?', options: ['One', 'Two', 'Three', 'Four'], correctIndex: 1 },
-  { id: 'q-lit-romeo-3', categoryKey: 'literature', textId: 'literature-romeo-juliet', question: 'What kind of lovers are Romeo and Juliet called?', options: ['Lucky', 'Star-crossed', 'Happy', 'Wealthy'], correctIndex: 1 },
+  { id: 'q-lit-romeo-1', categoryKey: 'fiction', textId: 'literature-romeo-juliet', question: 'Where is the play set?', options: ['Rome', 'Venice', 'Fair Verona', 'Florence'], correctIndex: 2 },
+  { id: 'q-lit-romeo-2', categoryKey: 'fiction', textId: 'literature-romeo-juliet', question: 'How many households are mentioned?', options: ['One', 'Two', 'Three', 'Four'], correctIndex: 1 },
+  { id: 'q-lit-romeo-3', categoryKey: 'fiction', textId: 'literature-romeo-juliet', question: 'What kind of lovers are Romeo and Juliet called?', options: ['Lucky', 'Star-crossed', 'Happy', 'Wealthy'], correctIndex: 1 },
 
   // ─── Poetry: The Road Not Taken ─────────────────────────────
   { id: 'q-poetry-road-1', categoryKey: 'poetry', textId: 'poetry-road', question: 'Where did the two roads diverge?', options: ['In a dark forest', 'In a yellow wood', 'By the sea', 'In the mountains'], correctIndex: 1 },
@@ -147,14 +142,14 @@ export const quizQuestions: QuizQuestion[] = [
   { id: 'q-hist-decl-3', categoryKey: 'history', textId: 'history-declaration-full', question: 'What entitles people to a separate and equal station?', options: ['Military power', 'The Laws of Nature', 'Wealth', 'Popular vote'], correctIndex: 1 },
 
   // ─── Mindfulness: On Presence ───────────────────────────────
-  { id: 'q-mind-presence-1', categoryKey: 'mindfulness', textId: 'mindfulness-presence', question: 'What is the first instruction?', options: ['Think', 'Breathe', 'Run', 'Speak'], correctIndex: 1 },
-  { id: 'q-mind-presence-2', categoryKey: 'mindfulness', textId: 'mindfulness-presence', question: 'Where does peace come from?', options: ['Outside', 'Within', 'Others', 'Possessions'], correctIndex: 1 },
-  { id: 'q-mind-presence-3', categoryKey: 'mindfulness', textId: 'mindfulness-presence', question: 'What do you become according to this text?', options: ['What you eat', 'What you think', 'What you own', 'What you see'], correctIndex: 1 },
+  { id: 'q-mind-presence-1', categoryKey: 'wisdom', textId: 'mindfulness-presence', question: 'What is the first instruction?', options: ['Think', 'Breathe', 'Run', 'Speak'], correctIndex: 1 },
+  { id: 'q-mind-presence-2', categoryKey: 'wisdom', textId: 'mindfulness-presence', question: 'Where does peace come from?', options: ['Outside', 'Within', 'Others', 'Possessions'], correctIndex: 1 },
+  { id: 'q-mind-presence-3', categoryKey: 'wisdom', textId: 'mindfulness-presence', question: 'What do you become according to this text?', options: ['What you eat', 'What you think', 'What you own', 'What you see'], correctIndex: 1 },
 
   // ─── Mindfulness: On Calm and Presence ──────────────────────
-  { id: 'q-mind-calm-1', categoryKey: 'mindfulness', textId: 'mindfulness-meditations-calm', question: 'What do you have power over?', options: ['Outside events', 'Your mind', 'Other people', 'The weather'], correctIndex: 1 },
-  { id: 'q-mind-calm-2', categoryKey: 'mindfulness', textId: 'mindfulness-meditations-calm', question: 'What does the soul become dyed with?', options: ['Experience', 'The color of its thoughts', 'Time', 'Actions'], correctIndex: 1 },
-  { id: 'q-mind-calm-3', categoryKey: 'mindfulness', textId: 'mindfulness-meditations-calm', question: 'What should you waste no more time on?', options: ['Sleep', 'Arguing what a good person should be', 'Work', 'Reading'], correctIndex: 1 },
+  { id: 'q-mind-calm-1', categoryKey: 'wisdom', textId: 'mindfulness-meditations-calm', question: 'What do you have power over?', options: ['Outside events', 'Your mind', 'Other people', 'The weather'], correctIndex: 1 },
+  { id: 'q-mind-calm-2', categoryKey: 'wisdom', textId: 'mindfulness-meditations-calm', question: 'What does the soul become dyed with?', options: ['Experience', 'The color of its thoughts', 'Time', 'Actions'], correctIndex: 1 },
+  { id: 'q-mind-calm-3', categoryKey: 'wisdom', textId: 'mindfulness-meditations-calm', question: 'What should you waste no more time on?', options: ['Sleep', 'Arguing what a good person should be', 'Work', 'Reading'], correctIndex: 1 },
 
   // ═══════════════════════════════════════════════════════════════
   // NEW CONTENT QUIZZES
@@ -216,74 +211,74 @@ export const quizQuestions: QuizQuestion[] = [
   { id: 'q-story-sleepy-3', categoryKey: 'story', textId: 'story-legend-sleepy', question: 'How far is the valley from Tarry Town?', options: ['One mile', 'About two miles', 'Five miles', 'Ten miles'], correctIndex: 1 },
 
   // ─── Article: Walden ──────────────────────────────────────────
-  { id: 'q-article-walden-1', categoryKey: 'article', textId: 'article-walden', question: 'Why did Thoreau go to the woods?', options: ['To hide', 'To live deliberately', 'To hunt', 'To write'], correctIndex: 1 },
-  { id: 'q-article-walden-2', categoryKey: 'article', textId: 'article-walden', question: 'What did Thoreau want to avoid discovering when he died?', options: ['Poverty', 'That he had not lived', 'Loneliness', 'Failure'], correctIndex: 1 },
-  { id: 'q-article-walden-3', categoryKey: 'article', textId: 'article-walden', question: 'What did Thoreau want from life?', options: ['Wealth', 'The marrow of life', 'Fame', 'Comfort'], correctIndex: 1 },
+  { id: 'q-article-walden-1', categoryKey: 'essay', textId: 'article-walden', question: 'Why did Thoreau go to the woods?', options: ['To hide', 'To live deliberately', 'To hunt', 'To write'], correctIndex: 1 },
+  { id: 'q-article-walden-2', categoryKey: 'essay', textId: 'article-walden', question: 'What did Thoreau want to avoid discovering when he died?', options: ['Poverty', 'That he had not lived', 'Loneliness', 'Failure'], correctIndex: 1 },
+  { id: 'q-article-walden-3', categoryKey: 'essay', textId: 'article-walden', question: 'What did Thoreau want from life?', options: ['Wealth', 'The marrow of life', 'Fame', 'Comfort'], correctIndex: 1 },
 
   // ─── Article: Nature ──────────────────────────────────────────
-  { id: 'q-article-nature-1', categoryKey: 'article', textId: 'article-nature', question: 'What should a man look at to be truly alone?', options: ['The ground', 'The stars', 'The ocean', 'A mountain'], correctIndex: 1 },
-  { id: 'q-article-nature-2', categoryKey: 'article', textId: 'article-nature', question: 'What gives man the perpetual presence of the sublime?', options: ['Art', 'The heavenly bodies', 'Music', 'Books'], correctIndex: 1 },
-  { id: 'q-article-nature-3', categoryKey: 'article', textId: 'article-nature', question: 'What does solitude require retiring from?', options: ['Work only', 'Both chamber and society', 'People only', 'Nature'], correctIndex: 1 },
+  { id: 'q-article-nature-1', categoryKey: 'essay', textId: 'article-nature', question: 'What should a man look at to be truly alone?', options: ['The ground', 'The stars', 'The ocean', 'A mountain'], correctIndex: 1 },
+  { id: 'q-article-nature-2', categoryKey: 'essay', textId: 'article-nature', question: 'What gives man the perpetual presence of the sublime?', options: ['Art', 'The heavenly bodies', 'Music', 'Books'], correctIndex: 1 },
+  { id: 'q-article-nature-3', categoryKey: 'essay', textId: 'article-nature', question: 'What does solitude require retiring from?', options: ['Work only', 'Both chamber and society', 'People only', 'Nature'], correctIndex: 1 },
 
   // ─── Article: Franklin Virtue ─────────────────────────────────
-  { id: 'q-article-franklin-1', categoryKey: 'article', textId: 'article-franklin-virtue', question: 'What taxes us twice as much as government taxes?', options: ['Food', 'Our idleness', 'Our friends', 'Weather'], correctIndex: 1 },
-  { id: 'q-article-franklin-2', categoryKey: 'article', textId: 'article-franklin-virtue', question: 'What taxes us four times as much?', options: ['Pride', 'Envy', 'Our folly', 'Greed'], correctIndex: 2 },
-  { id: 'q-article-franklin-3', categoryKey: 'article', textId: 'article-franklin-virtue', question: 'Who cannot ease us from these self-imposed taxes?', options: ['Friends', 'Family', 'The commissioners', 'Banks'], correctIndex: 2 },
+  { id: 'q-article-franklin-1', categoryKey: 'essay', textId: 'article-franklin-virtue', question: 'What taxes us twice as much as government taxes?', options: ['Food', 'Our idleness', 'Our friends', 'Weather'], correctIndex: 1 },
+  { id: 'q-article-franklin-2', categoryKey: 'essay', textId: 'article-franklin-virtue', question: 'What taxes us four times as much?', options: ['Pride', 'Envy', 'Our folly', 'Greed'], correctIndex: 2 },
+  { id: 'q-article-franklin-3', categoryKey: 'essay', textId: 'article-franklin-virtue', question: 'Who cannot ease us from these self-imposed taxes?', options: ['Friends', 'Family', 'The commissioners', 'Banks'], correctIndex: 2 },
 
   // ─── Article: Twain Advice ────────────────────────────────────
-  { id: 'q-article-twain-1', categoryKey: 'article', textId: 'article-twain-advice', question: 'What kind of talk was Twain asked to give?', options: ['Funny', 'Something suitable to youth', 'Political', 'Historical'], correctIndex: 1 },
-  { id: 'q-article-twain-2', categoryKey: 'article', textId: 'article-twain-advice', question: 'What had Twain longed to do?', options: ['Travel', 'Say things for instruction of the young', 'Write more', 'Retire'], correctIndex: 1 },
-  { id: 'q-article-twain-3', categoryKey: 'article', textId: 'article-twain-advice', question: 'When do such things take root best?', options: ['In old age', 'In tender early years', 'In middle age', 'Never'], correctIndex: 1 },
+  { id: 'q-article-twain-1', categoryKey: 'essay', textId: 'article-twain-advice', question: 'What kind of talk was Twain asked to give?', options: ['Funny', 'Something suitable to youth', 'Political', 'Historical'], correctIndex: 1 },
+  { id: 'q-article-twain-2', categoryKey: 'essay', textId: 'article-twain-advice', question: 'What had Twain longed to do?', options: ['Travel', 'Say things for instruction of the young', 'Write more', 'Retire'], correctIndex: 1 },
+  { id: 'q-article-twain-3', categoryKey: 'essay', textId: 'article-twain-advice', question: 'When do such things take root best?', options: ['In old age', 'In tender early years', 'In middle age', 'Never'], correctIndex: 1 },
 
   // ─── Article: Experience ──────────────────────────────────────
-  { id: 'q-article-exp-1', categoryKey: 'article', textId: 'article-experience', question: 'Where do we find ourselves according to Emerson?', options: ['In a garden', 'On a stair', 'In a room', 'On a path'], correctIndex: 1 },
-  { id: 'q-article-exp-2', categoryKey: 'article', textId: 'article-experience', question: 'What lingers about our eyes all our lifetime?', options: ['Dust', 'Sleep', 'Light', 'Tears'], correctIndex: 1 },
-  { id: 'q-article-exp-3', categoryKey: 'article', textId: 'article-experience', question: 'What do we not know about the series of stairs?', options: ['Their color', 'The extremes', 'Their width', 'Their material'], correctIndex: 1 },
+  { id: 'q-article-exp-1', categoryKey: 'essay', textId: 'article-experience', question: 'Where do we find ourselves according to Emerson?', options: ['In a garden', 'On a stair', 'In a room', 'On a path'], correctIndex: 1 },
+  { id: 'q-article-exp-2', categoryKey: 'essay', textId: 'article-experience', question: 'What lingers about our eyes all our lifetime?', options: ['Dust', 'Sleep', 'Light', 'Tears'], correctIndex: 1 },
+  { id: 'q-article-exp-3', categoryKey: 'essay', textId: 'article-experience', question: 'What do we not know about the series of stairs?', options: ['Their color', 'The extremes', 'Their width', 'Their material'], correctIndex: 1 },
 
   // ─── Article: Compensation ────────────────────────────────────
-  { id: 'q-article-comp-1', categoryKey: 'article', textId: 'article-compensation', question: 'Since when had Emerson wished to write on Compensation?', options: ['Recently', 'Since he was a boy', 'Since college', 'Since retirement'], correctIndex: 1 },
-  { id: 'q-article-comp-2', categoryKey: 'article', textId: 'article-compensation', question: 'Who knew more than the preachers taught?', options: ['Scholars', 'The people', 'Children', 'Artists'], correctIndex: 1 },
-  { id: 'q-article-comp-3', categoryKey: 'article', textId: 'article-compensation', question: 'What charmed his fancy?', options: ['Nature', 'The endless variety of documents', 'Music', 'Art'], correctIndex: 1 },
+  { id: 'q-article-comp-1', categoryKey: 'essay', textId: 'article-compensation', question: 'Since when had Emerson wished to write on Compensation?', options: ['Recently', 'Since he was a boy', 'Since college', 'Since retirement'], correctIndex: 1 },
+  { id: 'q-article-comp-2', categoryKey: 'essay', textId: 'article-compensation', question: 'Who knew more than the preachers taught?', options: ['Scholars', 'The people', 'Children', 'Artists'], correctIndex: 1 },
+  { id: 'q-article-comp-3', categoryKey: 'essay', textId: 'article-compensation', question: 'What charmed his fancy?', options: ['Nature', 'The endless variety of documents', 'Music', 'Art'], correctIndex: 1 },
 
   // ─── Article: Friendship ──────────────────────────────────────
-  { id: 'q-article-friend-1', categoryKey: 'article', textId: 'article-friendship', question: 'What do we have more of than is ever spoken?', options: ['Money', 'Time', 'Kindness', 'Ideas'], correctIndex: 2 },
-  { id: 'q-article-friend-2', categoryKey: 'article', textId: 'article-friendship', question: 'What is the human family bathed with?', options: ['Light', 'An element of love', 'Music', 'Knowledge'], correctIndex: 1 },
-  { id: 'q-article-friend-3', categoryKey: 'article', textId: 'article-friendship', question: 'What chills the world like east winds?', options: ['Fear', 'Selfishness', 'Ignorance', 'Pride'], correctIndex: 1 },
+  { id: 'q-article-friend-1', categoryKey: 'essay', textId: 'article-friendship', question: 'What do we have more of than is ever spoken?', options: ['Money', 'Time', 'Kindness', 'Ideas'], correctIndex: 2 },
+  { id: 'q-article-friend-2', categoryKey: 'essay', textId: 'article-friendship', question: 'What is the human family bathed with?', options: ['Light', 'An element of love', 'Music', 'Knowledge'], correctIndex: 1 },
+  { id: 'q-article-friend-3', categoryKey: 'essay', textId: 'article-friendship', question: 'What chills the world like east winds?', options: ['Fear', 'Selfishness', 'Ignorance', 'Pride'], correctIndex: 1 },
 
   // ─── Article: Essay on Man ────────────────────────────────────
-  { id: 'q-article-man-1', categoryKey: 'article', textId: 'article-essay-man', question: 'What is the proper study of mankind?', options: ['God', 'Nature', 'Man', 'Stars'], correctIndex: 2 },
-  { id: 'q-article-man-2', categoryKey: 'article', textId: 'article-essay-man', question: 'Where is man placed?', options: ['At the top', 'On an isthmus of a middle state', 'At the bottom', 'In isolation'], correctIndex: 1 },
-  { id: 'q-article-man-3', categoryKey: 'article', textId: 'article-essay-man', question: 'What is man in doubt about?', options: ['His wealth', 'Whether to deem himself God or Beast', 'His friends', 'His home'], correctIndex: 1 },
+  { id: 'q-article-man-1', categoryKey: 'essay', textId: 'article-essay-man', question: 'What is the proper study of mankind?', options: ['God', 'Nature', 'Man', 'Stars'], correctIndex: 2 },
+  { id: 'q-article-man-2', categoryKey: 'essay', textId: 'article-essay-man', question: 'Where is man placed?', options: ['At the top', 'On an isthmus of a middle state', 'At the bottom', 'In isolation'], correctIndex: 1 },
+  { id: 'q-article-man-3', categoryKey: 'essay', textId: 'article-essay-man', question: 'What is man in doubt about?', options: ['His wealth', 'Whether to deem himself God or Beast', 'His friends', 'His home'], correctIndex: 1 },
 
   // ─── Article: Rights of Man ───────────────────────────────────
-  { id: 'q-article-rights-1', categoryKey: 'article', textId: 'article-rights-man', question: 'When can a country boast of its constitution?', options: ['When wealthy', 'When the poor are happy', 'When powerful', 'When large'], correctIndex: 1 },
-  { id: 'q-article-rights-2', categoryKey: 'article', textId: 'article-rights-man', question: 'What should be empty of prisoners?', options: ['Courts', 'Jails', 'Ships', 'Cities'], correctIndex: 1 },
-  { id: 'q-article-rights-3', categoryKey: 'article', textId: 'article-rights-man', question: 'What should the taxes not be?', options: ['Collected', 'Oppressive', 'Voluntary', 'Low'], correctIndex: 1 },
+  { id: 'q-article-rights-1', categoryKey: 'essay', textId: 'article-rights-man', question: 'When can a country boast of its constitution?', options: ['When wealthy', 'When the poor are happy', 'When powerful', 'When large'], correctIndex: 1 },
+  { id: 'q-article-rights-2', categoryKey: 'essay', textId: 'article-rights-man', question: 'What should be empty of prisoners?', options: ['Courts', 'Jails', 'Ships', 'Cities'], correctIndex: 1 },
+  { id: 'q-article-rights-3', categoryKey: 'essay', textId: 'article-rights-man', question: 'What should the taxes not be?', options: ['Collected', 'Oppressive', 'Voluntary', 'Low'], correctIndex: 1 },
 
   // ─── Article: Common Sense ────────────────────────────────────
-  { id: 'q-article-common-1', categoryKey: 'article', textId: 'article-common-sense', question: 'What is society in every state?', options: ['A curse', 'A blessing', 'A burden', 'A mystery'], correctIndex: 1 },
-  { id: 'q-article-common-2', categoryKey: 'article', textId: 'article-common-sense', question: 'What is government in its best state?', options: ['Perfect', 'A necessary evil', 'Divine', 'Optional'], correctIndex: 1 },
-  { id: 'q-article-common-3', categoryKey: 'article', textId: 'article-common-sense', question: 'What heightens our calamity?', options: ['Nature', 'Reflecting we furnish the means of suffering', 'Weather', 'Enemies'], correctIndex: 1 },
+  { id: 'q-article-common-1', categoryKey: 'essay', textId: 'article-common-sense', question: 'What is society in every state?', options: ['A curse', 'A blessing', 'A burden', 'A mystery'], correctIndex: 1 },
+  { id: 'q-article-common-2', categoryKey: 'essay', textId: 'article-common-sense', question: 'What is government in its best state?', options: ['Perfect', 'A necessary evil', 'Divine', 'Optional'], correctIndex: 1 },
+  { id: 'q-article-common-3', categoryKey: 'essay', textId: 'article-common-sense', question: 'What heightens our calamity?', options: ['Nature', 'Reflecting we furnish the means of suffering', 'Weather', 'Enemies'], correctIndex: 1 },
 
   // ─── Article: Education ───────────────────────────────────────
-  { id: 'q-article-edu-1', categoryKey: 'article', textId: 'article-education', question: 'What is the duty and concern of parents?', options: ['Wealth', 'Well educating children', 'Fame', 'Property'], correctIndex: 1 },
-  { id: 'q-article-edu-2', categoryKey: 'article', textId: 'article-education', question: 'What depends on proper education?', options: ['Individual success only', 'The welfare and prosperity of the nation', 'Nothing much', 'Family honor'], correctIndex: 1 },
-  { id: 'q-article-edu-3', categoryKey: 'article', textId: 'article-education', question: 'What should everyone do according to Locke?', options: ['Ignore education', 'Lay it seriously to heart', 'Leave it to schools', 'Avoid thinking about it'], correctIndex: 1 },
+  { id: 'q-article-edu-1', categoryKey: 'essay', textId: 'article-education', question: 'What is the duty and concern of parents?', options: ['Wealth', 'Well educating children', 'Fame', 'Property'], correctIndex: 1 },
+  { id: 'q-article-edu-2', categoryKey: 'essay', textId: 'article-education', question: 'What depends on proper education?', options: ['Individual success only', 'The welfare and prosperity of the nation', 'Nothing much', 'Family honor'], correctIndex: 1 },
+  { id: 'q-article-edu-3', categoryKey: 'essay', textId: 'article-education', question: 'What should everyone do according to Locke?', options: ['Ignore education', 'Lay it seriously to heart', 'Leave it to schools', 'Avoid thinking about it'], correctIndex: 1 },
 
   // ─── Article: Poor Richard ────────────────────────────────────
-  { id: 'q-article-poor-1', categoryKey: 'article', textId: 'article-poor-richard', question: 'What makes a man healthy, wealthy and wise?', options: ['Working hard', 'Early to bed and early to rise', 'Reading', 'Prayer'], correctIndex: 1 },
-  { id: 'q-article-poor-2', categoryKey: 'article', textId: 'article-poor-richard', question: 'What pays the best interest?', options: ['Gold', 'An investment in knowledge', 'Real estate', 'Savings'], correctIndex: 1 },
-  { id: 'q-article-poor-3', categoryKey: 'article', textId: 'article-poor-richard', question: 'What stinks after three days?', options: ['Milk', 'Fish and visitors', 'Bread', 'Flowers'], correctIndex: 1 },
+  { id: 'q-article-poor-1', categoryKey: 'essay', textId: 'article-poor-richard', question: 'What makes a man healthy, wealthy and wise?', options: ['Working hard', 'Early to bed and early to rise', 'Reading', 'Prayer'], correctIndex: 1 },
+  { id: 'q-article-poor-2', categoryKey: 'essay', textId: 'article-poor-richard', question: 'What pays the best interest?', options: ['Gold', 'An investment in knowledge', 'Real estate', 'Savings'], correctIndex: 1 },
+  { id: 'q-article-poor-3', categoryKey: 'essay', textId: 'article-poor-richard', question: 'What stinks after three days?', options: ['Milk', 'Fish and visitors', 'Bread', 'Flowers'], correctIndex: 1 },
 
   // ─── Article: Leisure ─────────────────────────────────────────
-  { id: 'q-article-leisure-1', categoryKey: 'article', textId: 'article-leisure', question: 'What saying was Russell brought up on?', options: ['Work hard', 'Satan finds mischief for idle hands', 'Early to bed', 'Knowledge is power'], correctIndex: 1 },
-  { id: 'q-article-leisure-2', categoryKey: 'article', textId: 'article-leisure', question: 'What revolution did Russell\'s opinions undergo?', options: ['Political', 'About work being excessive', 'Religious', 'Scientific'], correctIndex: 1 },
-  { id: 'q-article-leisure-3', categoryKey: 'article', textId: 'article-leisure', question: 'What does Russell think there is too much of?', options: ['Money', 'Work done in the world', 'Leisure', 'Food'], correctIndex: 1 },
+  { id: 'q-article-leisure-1', categoryKey: 'essay', textId: 'article-leisure', question: 'What saying was Russell brought up on?', options: ['Work hard', 'Satan finds mischief for idle hands', 'Early to bed', 'Knowledge is power'], correctIndex: 1 },
+  { id: 'q-article-leisure-2', categoryKey: 'essay', textId: 'article-leisure', question: 'What revolution did Russell\'s opinions undergo?', options: ['Political', 'About work being excessive', 'Religious', 'Scientific'], correctIndex: 1 },
+  { id: 'q-article-leisure-3', categoryKey: 'essay', textId: 'article-leisure', question: 'What does Russell think there is too much of?', options: ['Money', 'Work done in the world', 'Leisure', 'Food'], correctIndex: 1 },
 
   // ─── Article: Simplicity ──────────────────────────────────────
-  { id: 'q-article-simple-1', categoryKey: 'article', textId: 'article-simplicity', question: 'What are we apt to love but not deserve?', options: ['Money', 'Praise', 'Power', 'Friends'], correctIndex: 1 },
-  { id: 'q-article-simple-2', categoryKey: 'article', textId: 'article-simplicity', question: 'What is an able yet humble man compared to?', options: ['A star', 'A jewel worth a kingdom', 'A tree', 'A river'], correctIndex: 1 },
-  { id: 'q-article-simple-3', categoryKey: 'article', textId: 'article-simplicity', question: 'Who has a right to censure?', options: ['Everyone', 'Those who have a heart to help', 'No one', 'Only judges'], correctIndex: 1 },
+  { id: 'q-article-simple-1', categoryKey: 'essay', textId: 'article-simplicity', question: 'What are we apt to love but not deserve?', options: ['Money', 'Praise', 'Power', 'Friends'], correctIndex: 1 },
+  { id: 'q-article-simple-2', categoryKey: 'essay', textId: 'article-simplicity', question: 'What is an able yet humble man compared to?', options: ['A star', 'A jewel worth a kingdom', 'A tree', 'A river'], correctIndex: 1 },
+  { id: 'q-article-simple-3', categoryKey: 'essay', textId: 'article-simplicity', question: 'Who has a right to censure?', options: ['Everyone', 'Those who have a heart to help', 'No one', 'Only judges'], correctIndex: 1 },
 
   // ─── Speech: MLK Dream ────────────────────────────────────────
   { id: 'q-speech-mlk-1', categoryKey: 'speech', textId: 'speech-mlk-dream', question: 'What is the dream rooted in?', options: ['History', 'The American dream', 'Religion', 'Politics'], correctIndex: 1 },
@@ -491,69 +486,69 @@ export const quizQuestions: QuizQuestion[] = [
   { id: 'q-sci-bohr-3', categoryKey: 'science', textId: 'science-bohr', question: 'What is very difficult according to Bohr?', options: ['Math', 'Prediction, especially about the future', 'Physics', 'Understanding'], correctIndex: 1 },
 
   // ─── Literature: Pride and Prejudice ──────────────────────────
-  { id: 'q-lit-pride-1', categoryKey: 'literature', textId: 'literature-pride', question: 'What must a single man with fortune be in want of?', options: ['Money', 'A wife', 'Friends', 'Adventure'], correctIndex: 1 },
-  { id: 'q-lit-pride-2', categoryKey: 'literature', textId: 'literature-pride', question: 'What is fixed in the minds of surrounding families?', options: ['His wealth', 'This truth about marriage', 'His reputation', 'His plans'], correctIndex: 1 },
-  { id: 'q-lit-pride-3', categoryKey: 'literature', textId: 'literature-pride', question: 'He is considered rightful property of whom?', options: ['The state', 'One of their daughters', 'The church', 'No one'], correctIndex: 1 },
+  { id: 'q-lit-pride-1', categoryKey: 'fiction', textId: 'literature-pride', question: 'What must a single man with fortune be in want of?', options: ['Money', 'A wife', 'Friends', 'Adventure'], correctIndex: 1 },
+  { id: 'q-lit-pride-2', categoryKey: 'fiction', textId: 'literature-pride', question: 'What is fixed in the minds of surrounding families?', options: ['His wealth', 'This truth about marriage', 'His reputation', 'His plans'], correctIndex: 1 },
+  { id: 'q-lit-pride-3', categoryKey: 'fiction', textId: 'literature-pride', question: 'He is considered rightful property of whom?', options: ['The state', 'One of their daughters', 'The church', 'No one'], correctIndex: 1 },
 
   // ─── Literature: Tale of Two Cities ───────────────────────────
-  { id: 'q-lit-tale-1', categoryKey: 'literature', textId: 'literature-tale-two', question: 'What kind of times was it?', options: ['Normal', 'Best and worst of times', 'Peaceful', 'Forgotten'], correctIndex: 1 },
-  { id: 'q-lit-tale-2', categoryKey: 'literature', textId: 'literature-tale-two', question: 'What age was it?', options: ['Bronze', 'Wisdom and foolishness', 'Iron', 'Golden'], correctIndex: 1 },
-  { id: 'q-lit-tale-3', categoryKey: 'literature', textId: 'literature-tale-two', question: 'What season of hope and despair?', options: ['Summer and winter', 'Spring and winter', 'Fall and winter', 'Spring and fall'], correctIndex: 1 },
+  { id: 'q-lit-tale-1', categoryKey: 'fiction', textId: 'literature-tale-two', question: 'What kind of times was it?', options: ['Normal', 'Best and worst of times', 'Peaceful', 'Forgotten'], correctIndex: 1 },
+  { id: 'q-lit-tale-2', categoryKey: 'fiction', textId: 'literature-tale-two', question: 'What age was it?', options: ['Bronze', 'Wisdom and foolishness', 'Iron', 'Golden'], correctIndex: 1 },
+  { id: 'q-lit-tale-3', categoryKey: 'fiction', textId: 'literature-tale-two', question: 'What season of hope and despair?', options: ['Summer and winter', 'Spring and winter', 'Fall and winter', 'Spring and fall'], correctIndex: 1 },
 
   // ─── Literature: Anna Karenina ────────────────────────────────
-  { id: 'q-lit-anna-1', categoryKey: 'literature', textId: 'literature-anna', question: 'How are happy families?', options: ['Different', 'All alike', 'Rare', 'Wealthy'], correctIndex: 1 },
-  { id: 'q-lit-anna-2', categoryKey: 'literature', textId: 'literature-anna', question: 'What was in confusion?', options: ['The city', 'The Oblonskys\' house', 'The country', 'The government'], correctIndex: 1 },
-  { id: 'q-lit-anna-3', categoryKey: 'literature', textId: 'literature-anna', question: 'Who was the French girl?', options: ['A maid', 'A governess', 'A friend', 'A stranger'], correctIndex: 1 },
+  { id: 'q-lit-anna-1', categoryKey: 'fiction', textId: 'literature-anna', question: 'How are happy families?', options: ['Different', 'All alike', 'Rare', 'Wealthy'], correctIndex: 1 },
+  { id: 'q-lit-anna-2', categoryKey: 'fiction', textId: 'literature-anna', question: 'What was in confusion?', options: ['The city', 'The Oblonskys\' house', 'The country', 'The government'], correctIndex: 1 },
+  { id: 'q-lit-anna-3', categoryKey: 'fiction', textId: 'literature-anna', question: 'Who was the French girl?', options: ['A maid', 'A governess', 'A friend', 'A stranger'], correctIndex: 1 },
 
   // ─── Literature: 1984 ─────────────────────────────────────────
-  { id: 'q-lit-1984-1', categoryKey: 'literature', textId: 'literature-1984', question: 'What time were the clocks striking?', options: ['Twelve', 'Thirteen', 'Fourteen', 'Fifteen'], correctIndex: 1 },
-  { id: 'q-lit-1984-2', categoryKey: 'literature', textId: 'literature-1984', question: 'What kind of day was it?', options: ['Warm', 'Bright cold day in April', 'Rainy', 'Hot'], correctIndex: 1 },
-  { id: 'q-lit-1984-3', categoryKey: 'literature', textId: 'literature-1984', question: 'What did the hallway smell of?', options: ['Flowers', 'Boiled cabbage and old rag mats', 'Fresh bread', 'Nothing'], correctIndex: 1 },
+  { id: 'q-lit-1984-1', categoryKey: 'fiction', textId: 'literature-1984', question: 'What time were the clocks striking?', options: ['Twelve', 'Thirteen', 'Fourteen', 'Fifteen'], correctIndex: 1 },
+  { id: 'q-lit-1984-2', categoryKey: 'fiction', textId: 'literature-1984', question: 'What kind of day was it?', options: ['Warm', 'Bright cold day in April', 'Rainy', 'Hot'], correctIndex: 1 },
+  { id: 'q-lit-1984-3', categoryKey: 'fiction', textId: 'literature-1984', question: 'What did the hallway smell of?', options: ['Flowers', 'Boiled cabbage and old rag mats', 'Fresh bread', 'Nothing'], correctIndex: 1 },
 
   // ─── Literature: Catcher in the Rye ───────────────────────────
-  { id: 'q-lit-catch-1', categoryKey: 'literature', textId: 'literature-catcher', question: 'What does the narrator call his childhood?', options: ['Happy', 'Lousy', 'Perfect', 'Normal'], correctIndex: 1 },
-  { id: 'q-lit-catch-2', categoryKey: 'literature', textId: 'literature-catcher', question: 'What does he not feel like going into?', options: ['Details', 'David Copperfield kind of crap', 'School', 'Work'], correctIndex: 1 },
-  { id: 'q-lit-catch-3', categoryKey: 'literature', textId: 'literature-catcher', question: 'What does he say at the end?', options: ['I\'m sorry', 'If you want to know the truth', 'I don\'t care', 'That\'s all'], correctIndex: 1 },
+  { id: 'q-lit-catch-1', categoryKey: 'fiction', textId: 'literature-catcher', question: 'What does the narrator call his childhood?', options: ['Happy', 'Lousy', 'Perfect', 'Normal'], correctIndex: 1 },
+  { id: 'q-lit-catch-2', categoryKey: 'fiction', textId: 'literature-catcher', question: 'What does he not feel like going into?', options: ['Details', 'David Copperfield kind of crap', 'School', 'Work'], correctIndex: 1 },
+  { id: 'q-lit-catch-3', categoryKey: 'fiction', textId: 'literature-catcher', question: 'What does he say at the end?', options: ['I\'m sorry', 'If you want to know the truth', 'I don\'t care', 'That\'s all'], correctIndex: 1 },
 
   // ─── Literature: Don Quixote ──────────────────────────────────
-  { id: 'q-lit-quix-1', categoryKey: 'literature', textId: 'literature-don-quixote', question: 'Where did the gentleman live?', options: ['Madrid', 'A village of La Mancha', 'Barcelona', 'Seville'], correctIndex: 1 },
-  { id: 'q-lit-quix-2', categoryKey: 'literature', textId: 'literature-don-quixote', question: 'What did he keep in the lance-rack?', options: ['Swords', 'A lance', 'Books', 'Armor'], correctIndex: 1 },
-  { id: 'q-lit-quix-3', categoryKey: 'literature', textId: 'literature-don-quixote', question: 'What animal did he have for coursing?', options: ['Horse', 'Greyhound', 'Falcon', 'Cat'], correctIndex: 1 },
+  { id: 'q-lit-quix-1', categoryKey: 'fiction', textId: 'literature-don-quixote', question: 'Where did the gentleman live?', options: ['Madrid', 'A village of La Mancha', 'Barcelona', 'Seville'], correctIndex: 1 },
+  { id: 'q-lit-quix-2', categoryKey: 'fiction', textId: 'literature-don-quixote', question: 'What did he keep in the lance-rack?', options: ['Swords', 'A lance', 'Books', 'Armor'], correctIndex: 1 },
+  { id: 'q-lit-quix-3', categoryKey: 'fiction', textId: 'literature-don-quixote', question: 'What animal did he have for coursing?', options: ['Horse', 'Greyhound', 'Falcon', 'Cat'], correctIndex: 1 },
 
   // ─── Literature: Frankenstein ─────────────────────────────────
-  { id: 'q-lit-frank-1', categoryKey: 'literature', textId: 'literature-frankenstein', question: 'What has not accompanied the enterprise?', options: ['Success', 'Disaster', 'Money', 'Friends'], correctIndex: 1 },
-  { id: 'q-lit-frank-2', categoryKey: 'literature', textId: 'literature-frankenstein', question: 'Where has the narrator arrived?', options: ['London', 'Far north of London', 'Paris', 'Rome'], correctIndex: 1 },
-  { id: 'q-lit-frank-3', categoryKey: 'literature', textId: 'literature-frankenstein', question: 'What plays upon his cheeks?', options: ['Warmth', 'A cold northern breeze', 'Sunshine', 'Rain'], correctIndex: 1 },
+  { id: 'q-lit-frank-1', categoryKey: 'fiction', textId: 'literature-frankenstein', question: 'What has not accompanied the enterprise?', options: ['Success', 'Disaster', 'Money', 'Friends'], correctIndex: 1 },
+  { id: 'q-lit-frank-2', categoryKey: 'fiction', textId: 'literature-frankenstein', question: 'Where has the narrator arrived?', options: ['London', 'Far north of London', 'Paris', 'Rome'], correctIndex: 1 },
+  { id: 'q-lit-frank-3', categoryKey: 'fiction', textId: 'literature-frankenstein', question: 'What plays upon his cheeks?', options: ['Warmth', 'A cold northern breeze', 'Sunshine', 'Rain'], correctIndex: 1 },
 
   // ─── Literature: Wuthering Heights ────────────────────────────
-  { id: 'q-lit-wuth-1', categoryKey: 'literature', textId: 'literature-wuthering', question: 'What has the narrator just returned from?', options: ['A journey', 'A visit to the landlord', 'War', 'School'], correctIndex: 1 },
-  { id: 'q-lit-wuth-2', categoryKey: 'literature', textId: 'literature-wuthering', question: 'What kind of neighbour will he have?', options: ['Friendly', 'Solitary', 'Rich', 'Famous'], correctIndex: 1 },
-  { id: 'q-lit-wuth-3', categoryKey: 'literature', textId: 'literature-wuthering', question: 'What is this situation perfect for?', options: ['Farming', 'A misanthropist\'s Heaven', 'Business', 'Family'], correctIndex: 1 },
+  { id: 'q-lit-wuth-1', categoryKey: 'fiction', textId: 'literature-wuthering', question: 'What has the narrator just returned from?', options: ['A journey', 'A visit to the landlord', 'War', 'School'], correctIndex: 1 },
+  { id: 'q-lit-wuth-2', categoryKey: 'fiction', textId: 'literature-wuthering', question: 'What kind of neighbour will he have?', options: ['Friendly', 'Solitary', 'Rich', 'Famous'], correctIndex: 1 },
+  { id: 'q-lit-wuth-3', categoryKey: 'fiction', textId: 'literature-wuthering', question: 'What is this situation perfect for?', options: ['Farming', 'A misanthropist\'s Heaven', 'Business', 'Family'], correctIndex: 1 },
 
   // ─── Literature: Jane Eyre ────────────────────────────────────
-  { id: 'q-lit-jane-1', categoryKey: 'literature', textId: 'literature-jane-eyre', question: 'What was impossible that day?', options: ['Reading', 'Taking a walk', 'Eating', 'Sleeping'], correctIndex: 1 },
-  { id: 'q-lit-jane-2', categoryKey: 'literature', textId: 'literature-jane-eyre', question: 'What had the wind brought?', options: ['Warmth', 'Clouds and penetrating rain', 'Snow', 'Dust'], correctIndex: 1 },
-  { id: 'q-lit-jane-3', categoryKey: 'literature', textId: 'literature-jane-eyre', question: 'What did the narrator never like?', options: ['Books', 'Long walks', 'Company', 'Music'], correctIndex: 1 },
+  { id: 'q-lit-jane-1', categoryKey: 'fiction', textId: 'literature-jane-eyre', question: 'What was impossible that day?', options: ['Reading', 'Taking a walk', 'Eating', 'Sleeping'], correctIndex: 1 },
+  { id: 'q-lit-jane-2', categoryKey: 'fiction', textId: 'literature-jane-eyre', question: 'What had the wind brought?', options: ['Warmth', 'Clouds and penetrating rain', 'Snow', 'Dust'], correctIndex: 1 },
+  { id: 'q-lit-jane-3', categoryKey: 'fiction', textId: 'literature-jane-eyre', question: 'What did the narrator never like?', options: ['Books', 'Long walks', 'Company', 'Music'], correctIndex: 1 },
 
   // ─── Literature: Crime and Punishment ─────────────────────────
-  { id: 'q-lit-crime-1', categoryKey: 'literature', textId: 'literature-crime', question: 'What kind of evening was it?', options: ['Cold', 'Exceptionally hot', 'Rainy', 'Windy'], correctIndex: 1 },
-  { id: 'q-lit-crime-2', categoryKey: 'literature', textId: 'literature-crime', question: 'What was the young man\'s garret like?', options: ['Spacious', 'More like a cupboard', 'Comfortable', 'Bright'], correctIndex: 1 },
-  { id: 'q-lit-crime-3', categoryKey: 'literature', textId: 'literature-crime', question: 'How did he walk?', options: ['Quickly', 'Slowly, as though in hesitation', 'Running', 'Normally'], correctIndex: 1 },
+  { id: 'q-lit-crime-1', categoryKey: 'fiction', textId: 'literature-crime', question: 'What kind of evening was it?', options: ['Cold', 'Exceptionally hot', 'Rainy', 'Windy'], correctIndex: 1 },
+  { id: 'q-lit-crime-2', categoryKey: 'fiction', textId: 'literature-crime', question: 'What was the young man\'s garret like?', options: ['Spacious', 'More like a cupboard', 'Comfortable', 'Bright'], correctIndex: 1 },
+  { id: 'q-lit-crime-3', categoryKey: 'fiction', textId: 'literature-crime', question: 'How did he walk?', options: ['Quickly', 'Slowly, as though in hesitation', 'Running', 'Normally'], correctIndex: 1 },
 
   // ─── Literature: Brothers Karamazov ───────────────────────────
-  { id: 'q-lit-bros-1', categoryKey: 'literature', textId: 'literature-brothers', question: 'Which son was Alexey?', options: ['First', 'Second', 'Third', 'Fourth'], correctIndex: 2 },
-  { id: 'q-lit-bros-2', categoryKey: 'literature', textId: 'literature-brothers', question: 'How did the father die?', options: ['Peacefully', 'In a gloomy and tragic way', 'Happily', 'Unknown'], correctIndex: 1 },
-  { id: 'q-lit-bros-3', categoryKey: 'literature', textId: 'literature-brothers', question: 'How many years ago did this happen?', options: ['Three', 'Seven', 'Thirteen', 'Twenty'], correctIndex: 2 },
+  { id: 'q-lit-bros-1', categoryKey: 'fiction', textId: 'literature-brothers', question: 'Which son was Alexey?', options: ['First', 'Second', 'Third', 'Fourth'], correctIndex: 2 },
+  { id: 'q-lit-bros-2', categoryKey: 'fiction', textId: 'literature-brothers', question: 'How did the father die?', options: ['Peacefully', 'In a gloomy and tragic way', 'Happily', 'Unknown'], correctIndex: 1 },
+  { id: 'q-lit-bros-3', categoryKey: 'fiction', textId: 'literature-brothers', question: 'How many years ago did this happen?', options: ['Three', 'Seven', 'Thirteen', 'Twenty'], correctIndex: 2 },
 
   // ─── Literature: Odyssey ──────────────────────────────────────
-  { id: 'q-lit-ody-1', categoryKey: 'literature', textId: 'literature-odyssey', question: 'Who is asked to tell the story?', options: ['Zeus', 'O muse', 'Homer', 'The hero'], correctIndex: 1 },
-  { id: 'q-lit-ody-2', categoryKey: 'literature', textId: 'literature-odyssey', question: 'What famous town had the hero sacked?', options: ['Athens', 'Troy', 'Sparta', 'Rome'], correctIndex: 1 },
-  { id: 'q-lit-ody-3', categoryKey: 'literature', textId: 'literature-odyssey', question: 'What was the hero trying to do?', options: ['Conquer more', 'Bring his men safely home', 'Find treasure', 'Become king'], correctIndex: 1 },
+  { id: 'q-lit-ody-1', categoryKey: 'fiction', textId: 'literature-odyssey', question: 'Who is asked to tell the story?', options: ['Zeus', 'O muse', 'Homer', 'The hero'], correctIndex: 1 },
+  { id: 'q-lit-ody-2', categoryKey: 'fiction', textId: 'literature-odyssey', question: 'What famous town had the hero sacked?', options: ['Athens', 'Troy', 'Sparta', 'Rome'], correctIndex: 1 },
+  { id: 'q-lit-ody-3', categoryKey: 'fiction', textId: 'literature-odyssey', question: 'What was the hero trying to do?', options: ['Conquer more', 'Bring his men safely home', 'Find treasure', 'Become king'], correctIndex: 1 },
 
   // ─── Literature: Iliad ────────────────────────────────────────
-  { id: 'q-lit-iliad-1', categoryKey: 'literature', textId: 'literature-iliad', question: 'What is the goddess asked to sing of?', options: ['Love', 'The anger of Achilles', 'Peace', 'Victory'], correctIndex: 1 },
-  { id: 'q-lit-iliad-2', categoryKey: 'literature', textId: 'literature-iliad', question: 'Where were many souls sent?', options: ['Heaven', 'Hades', 'Home', 'Nowhere'], correctIndex: 1 },
-  { id: 'q-lit-iliad-3', categoryKey: 'literature', textId: 'literature-iliad', question: 'Who first fell out with Achilles?', options: ['Hector', 'The son of Atreus', 'Paris', 'Zeus'], correctIndex: 1 },
+  { id: 'q-lit-iliad-1', categoryKey: 'fiction', textId: 'literature-iliad', question: 'What is the goddess asked to sing of?', options: ['Love', 'The anger of Achilles', 'Peace', 'Victory'], correctIndex: 1 },
+  { id: 'q-lit-iliad-2', categoryKey: 'fiction', textId: 'literature-iliad', question: 'Where were many souls sent?', options: ['Heaven', 'Hades', 'Home', 'Nowhere'], correctIndex: 1 },
+  { id: 'q-lit-iliad-3', categoryKey: 'fiction', textId: 'literature-iliad', question: 'Who first fell out with Achilles?', options: ['Hector', 'The son of Atreus', 'Paris', 'Zeus'], correctIndex: 1 },
 
   // ─── Poetry: The Raven ────────────────────────────────────────
   { id: 'q-poetry-raven-1', categoryKey: 'poetry', textId: 'poetry-raven', question: 'What kind of midnight was it?', options: ['Bright', 'Dreary', 'Peaceful', 'Warm'], correctIndex: 1 },
@@ -691,74 +686,74 @@ export const quizQuestions: QuizQuestion[] = [
   { id: 'q-hist-aug-3', categoryKey: 'history', textId: 'history-augustine', question: 'What does God resist?', options: ['The weak', 'The proud', 'The poor', 'The humble'], correctIndex: 1 },
 
   // ─── Mindfulness: Thich Nhat Hanh ─────────────────────────────
-  { id: 'q-mind-thich-1', categoryKey: 'mindfulness', textId: 'mindfulness-thich', question: 'How should you drink your tea?', options: ['Quickly', 'Slowly and reverently', 'While working', 'While talking'], correctIndex: 1 },
-  { id: 'q-mind-thich-2', categoryKey: 'mindfulness', textId: 'mindfulness-thich', question: 'What is the only moment that is life?', options: ['The past', 'This moment', 'The future', 'Memory'], correctIndex: 1 },
-  { id: 'q-mind-thich-3', categoryKey: 'mindfulness', textId: 'mindfulness-thich', question: 'How should you walk?', options: ['Quickly', 'As if kissing the Earth with your feet', 'Looking down', 'Alone'], correctIndex: 1 },
+  { id: 'q-mind-thich-1', categoryKey: 'wisdom', textId: 'mindfulness-thich', question: 'How should you drink your tea?', options: ['Quickly', 'Slowly and reverently', 'While working', 'While talking'], correctIndex: 1 },
+  { id: 'q-mind-thich-2', categoryKey: 'wisdom', textId: 'mindfulness-thich', question: 'What is the only moment that is life?', options: ['The past', 'This moment', 'The future', 'Memory'], correctIndex: 1 },
+  { id: 'q-mind-thich-3', categoryKey: 'wisdom', textId: 'mindfulness-thich', question: 'How should you walk?', options: ['Quickly', 'As if kissing the Earth with your feet', 'Looking down', 'Alone'], correctIndex: 1 },
 
   // ─── Mindfulness: Zen Mind ────────────────────────────────────
-  { id: 'q-mind-zen-1', categoryKey: 'mindfulness', textId: 'mindfulness-zen-mind', question: 'What has many possibilities?', options: ['Expert\'s mind', 'Beginner\'s mind', 'Child\'s mind', 'Old mind'], correctIndex: 1 },
-  { id: 'q-mind-zen-2', categoryKey: 'mindfulness', textId: 'mindfulness-zen-mind', question: 'What is the empty mind ready for?', options: ['Nothing', 'Anything', 'Only meditation', 'Sleep'], correctIndex: 1 },
-  { id: 'q-mind-zen-3', categoryKey: 'mindfulness', textId: 'mindfulness-zen-mind', question: 'What limits our vast mind?', options: ['Nothing', 'Self-centered thoughts', 'Others', 'The world'], correctIndex: 1 },
+  { id: 'q-mind-zen-1', categoryKey: 'wisdom', textId: 'mindfulness-zen-mind', question: 'What has many possibilities?', options: ['Expert\'s mind', 'Beginner\'s mind', 'Child\'s mind', 'Old mind'], correctIndex: 1 },
+  { id: 'q-mind-zen-2', categoryKey: 'wisdom', textId: 'mindfulness-zen-mind', question: 'What is the empty mind ready for?', options: ['Nothing', 'Anything', 'Only meditation', 'Sleep'], correctIndex: 1 },
+  { id: 'q-mind-zen-3', categoryKey: 'wisdom', textId: 'mindfulness-zen-mind', question: 'What limits our vast mind?', options: ['Nothing', 'Self-centered thoughts', 'Others', 'The world'], correctIndex: 1 },
 
   // ─── Mindfulness: Rumi ────────────────────────────────────────
-  { id: 'q-mind-rumi-1', categoryKey: 'mindfulness', textId: 'mindfulness-rumi', question: 'What is this being human compared to?', options: ['A journey', 'A guest house', 'A prison', 'A garden'], correctIndex: 1 },
-  { id: 'q-mind-rumi-2', categoryKey: 'mindfulness', textId: 'mindfulness-rumi', question: 'What comes every morning?', options: ['Sunrise', 'A new arrival', 'Work', 'Worry'], correctIndex: 1 },
-  { id: 'q-mind-rumi-3', categoryKey: 'mindfulness', textId: 'mindfulness-rumi', question: 'How should you treat each guest?', options: ['With suspicion', 'Honorably', 'Quickly', 'Carefully'], correctIndex: 1 },
+  { id: 'q-mind-rumi-1', categoryKey: 'wisdom', textId: 'mindfulness-rumi', question: 'What is this being human compared to?', options: ['A journey', 'A guest house', 'A prison', 'A garden'], correctIndex: 1 },
+  { id: 'q-mind-rumi-2', categoryKey: 'wisdom', textId: 'mindfulness-rumi', question: 'What comes every morning?', options: ['Sunrise', 'A new arrival', 'Work', 'Worry'], correctIndex: 1 },
+  { id: 'q-mind-rumi-3', categoryKey: 'wisdom', textId: 'mindfulness-rumi', question: 'How should you treat each guest?', options: ['With suspicion', 'Honorably', 'Quickly', 'Carefully'], correctIndex: 1 },
 
   // ─── Mindfulness: Kahlil ──────────────────────────────────────
-  { id: 'q-mind-kah-1', categoryKey: 'mindfulness', textId: 'mindfulness-kahlil', question: 'What is pain the breaking of?', options: ['The heart', 'The shell that encloses understanding', 'The body', 'The spirit'], correctIndex: 1 },
-  { id: 'q-mind-kah-2', categoryKey: 'mindfulness', textId: 'mindfulness-kahlil', question: 'What must the stone of the fruit do?', options: ['Stay hard', 'Break', 'Grow', 'Decay'], correctIndex: 1 },
-  { id: 'q-mind-kah-3', categoryKey: 'mindfulness', textId: 'mindfulness-kahlil', question: 'If you keep wonder, what would pain seem?', options: ['Worse', 'Not less wondrous than joy', 'Gone', 'Meaningless'], correctIndex: 1 },
+  { id: 'q-mind-kah-1', categoryKey: 'wisdom', textId: 'mindfulness-kahlil', question: 'What is pain the breaking of?', options: ['The heart', 'The shell that encloses understanding', 'The body', 'The spirit'], correctIndex: 1 },
+  { id: 'q-mind-kah-2', categoryKey: 'wisdom', textId: 'mindfulness-kahlil', question: 'What must the stone of the fruit do?', options: ['Stay hard', 'Break', 'Grow', 'Decay'], correctIndex: 1 },
+  { id: 'q-mind-kah-3', categoryKey: 'wisdom', textId: 'mindfulness-kahlil', question: 'If you keep wonder, what would pain seem?', options: ['Worse', 'Not less wondrous than joy', 'Gone', 'Meaningless'], correctIndex: 1 },
 
   // ─── Mindfulness: Dhammapada ───────────────────────────────────
-  { id: 'q-mind-dham-1', categoryKey: 'mindfulness', textId: 'mindfulness-dhammapada', question: 'What is all that we are the result of?', options: ['Actions', 'What we have thought', 'Luck', 'Others'], correctIndex: 1 },
-  { id: 'q-mind-dham-2', categoryKey: 'mindfulness', textId: 'mindfulness-dhammapada', question: 'What follows an evil thought?', options: ['Happiness', 'Pain', 'Nothing', 'Wisdom'], correctIndex: 1 },
-  { id: 'q-mind-dham-3', categoryKey: 'mindfulness', textId: 'mindfulness-dhammapada', question: 'What follows a pure thought?', options: ['Pain', 'Happiness', 'Confusion', 'Nothing'], correctIndex: 1 },
+  { id: 'q-mind-dham-1', categoryKey: 'wisdom', textId: 'mindfulness-dhammapada', question: 'What is all that we are the result of?', options: ['Actions', 'What we have thought', 'Luck', 'Others'], correctIndex: 1 },
+  { id: 'q-mind-dham-2', categoryKey: 'wisdom', textId: 'mindfulness-dhammapada', question: 'What follows an evil thought?', options: ['Happiness', 'Pain', 'Nothing', 'Wisdom'], correctIndex: 1 },
+  { id: 'q-mind-dham-3', categoryKey: 'wisdom', textId: 'mindfulness-dhammapada', question: 'What follows a pure thought?', options: ['Pain', 'Happiness', 'Confusion', 'Nothing'], correctIndex: 1 },
 
   // ─── Mindfulness: Eckhart ─────────────────────────────────────
-  { id: 'q-mind-eck-1', categoryKey: 'mindfulness', textId: 'mindfulness-eckhart', question: 'What is all you have?', options: ['The past', 'The present moment', 'The future', 'Possessions'], correctIndex: 1 },
-  { id: 'q-mind-eck-2', categoryKey: 'mindfulness', textId: 'mindfulness-eckhart', question: 'Why isn\'t time precious?', options: ['It\'s infinite', 'It is an illusion', 'It\'s free', 'It\'s fast'], correctIndex: 1 },
-  { id: 'q-mind-eck-3', categoryKey: 'mindfulness', textId: 'mindfulness-eckhart', question: 'What makes you miss the Now?', options: ['Sleep', 'Being focused on past and future', 'Work', 'Friends'], correctIndex: 1 },
+  { id: 'q-mind-eck-1', categoryKey: 'wisdom', textId: 'mindfulness-eckhart', question: 'What is all you have?', options: ['The past', 'The present moment', 'The future', 'Possessions'], correctIndex: 1 },
+  { id: 'q-mind-eck-2', categoryKey: 'wisdom', textId: 'mindfulness-eckhart', question: 'Why isn\'t time precious?', options: ['It\'s infinite', 'It is an illusion', 'It\'s free', 'It\'s fast'], correctIndex: 1 },
+  { id: 'q-mind-eck-3', categoryKey: 'wisdom', textId: 'mindfulness-eckhart', question: 'What makes you miss the Now?', options: ['Sleep', 'Being focused on past and future', 'Work', 'Friends'], correctIndex: 1 },
 
   // ─── Mindfulness: Chuang Tzu ──────────────────────────────────
-  { id: 'q-mind-chuang-1', categoryKey: 'mindfulness', textId: 'mindfulness-chuang', question: 'Why does the fish trap exist?', options: ['For fun', 'Because of the fish', 'To float', 'For decoration'], correctIndex: 1 },
-  { id: 'q-mind-chuang-2', categoryKey: 'mindfulness', textId: 'mindfulness-chuang', question: 'What can you forget once you have the fish?', options: ['Nothing', 'The trap', 'The water', 'The fishing'], correctIndex: 1 },
-  { id: 'q-mind-chuang-3', categoryKey: 'mindfulness', textId: 'mindfulness-chuang', question: 'What should you flow with?', options: ['Nothing', 'Whatever may happen', 'Only good things', 'Only plans'], correctIndex: 1 },
+  { id: 'q-mind-chuang-1', categoryKey: 'wisdom', textId: 'mindfulness-chuang', question: 'Why does the fish trap exist?', options: ['For fun', 'Because of the fish', 'To float', 'For decoration'], correctIndex: 1 },
+  { id: 'q-mind-chuang-2', categoryKey: 'wisdom', textId: 'mindfulness-chuang', question: 'What can you forget once you have the fish?', options: ['Nothing', 'The trap', 'The water', 'The fishing'], correctIndex: 1 },
+  { id: 'q-mind-chuang-3', categoryKey: 'wisdom', textId: 'mindfulness-chuang', question: 'What should you flow with?', options: ['Nothing', 'Whatever may happen', 'Only good things', 'Only plans'], correctIndex: 1 },
 
   // ─── Mindfulness: Thoreau Simplify ────────────────────────────
-  { id: 'q-mind-simp-1', categoryKey: 'mindfulness', textId: 'mindfulness-thoreau-simplify', question: 'What does Thoreau repeat?', options: ['Work, work', 'Simplify, simplify', 'Think, think', 'Live, live'], correctIndex: 1 },
-  { id: 'q-mind-simp-2', categoryKey: 'mindfulness', textId: 'mindfulness-thoreau-simplify', question: 'How is our life frittered away?', options: ['By wealth', 'By detail', 'By travel', 'By friends'], correctIndex: 1 },
-  { id: 'q-mind-simp-3', categoryKey: 'mindfulness', textId: 'mindfulness-thoreau-simplify', question: 'How many affairs should you have?', options: ['A hundred', 'Two or three', 'None', 'Unlimited'], correctIndex: 1 },
+  { id: 'q-mind-simp-1', categoryKey: 'wisdom', textId: 'mindfulness-thoreau-simplify', question: 'What does Thoreau repeat?', options: ['Work, work', 'Simplify, simplify', 'Think, think', 'Live, live'], correctIndex: 1 },
+  { id: 'q-mind-simp-2', categoryKey: 'wisdom', textId: 'mindfulness-thoreau-simplify', question: 'How is our life frittered away?', options: ['By wealth', 'By detail', 'By travel', 'By friends'], correctIndex: 1 },
+  { id: 'q-mind-simp-3', categoryKey: 'wisdom', textId: 'mindfulness-thoreau-simplify', question: 'How many affairs should you have?', options: ['A hundred', 'Two or three', 'None', 'Unlimited'], correctIndex: 1 },
 
   // ─── Mindfulness: Hafiz ───────────────────────────────────────
-  { id: 'q-mind-haf-1', categoryKey: 'mindfulness', textId: 'mindfulness-hafiz', question: 'What never says "you owe me" to the earth?', options: ['The moon', 'The sun', 'Stars', 'Clouds'], correctIndex: 1 },
-  { id: 'q-mind-haf-2', categoryKey: 'mindfulness', textId: 'mindfulness-hafiz', question: 'What is the cheapest room in the house?', options: ['Love', 'Fear', 'Hope', 'Joy'], correctIndex: 1 },
-  { id: 'q-mind-haf-3', categoryKey: 'mindfulness', textId: 'mindfulness-hafiz', question: 'What becomes the house we live in?', options: ['Actions', 'What we speak', 'Dreams', 'Possessions'], correctIndex: 1 },
+  { id: 'q-mind-haf-1', categoryKey: 'wisdom', textId: 'mindfulness-hafiz', question: 'What never says "you owe me" to the earth?', options: ['The moon', 'The sun', 'Stars', 'Clouds'], correctIndex: 1 },
+  { id: 'q-mind-haf-2', categoryKey: 'wisdom', textId: 'mindfulness-hafiz', question: 'What is the cheapest room in the house?', options: ['Love', 'Fear', 'Hope', 'Joy'], correctIndex: 1 },
+  { id: 'q-mind-haf-3', categoryKey: 'wisdom', textId: 'mindfulness-hafiz', question: 'What becomes the house we live in?', options: ['Actions', 'What we speak', 'Dreams', 'Possessions'], correctIndex: 1 },
 
   // ─── Mindfulness: Pema ────────────────────────────────────────
-  { id: 'q-mind-pema-1', categoryKey: 'mindfulness', textId: 'mindfulness-pema', question: 'Do things really get solved?', options: ['Yes, always', 'No, they come together and fall apart', 'Sometimes', 'Never'], correctIndex: 1 },
-  { id: 'q-mind-pema-2', categoryKey: 'mindfulness', textId: 'mindfulness-pema', question: 'Where does healing come from?', options: ['Avoiding pain', 'Letting there be room for all of this', 'Forgetting', 'Fighting'], correctIndex: 1 },
-  { id: 'q-mind-pema-3', categoryKey: 'mindfulness', textId: 'mindfulness-pema', question: 'What should there be room for?', options: ['Only joy', 'Grief, relief, misery, joy', 'Only relief', 'Nothing'], correctIndex: 1 },
+  { id: 'q-mind-pema-1', categoryKey: 'wisdom', textId: 'mindfulness-pema', question: 'Do things really get solved?', options: ['Yes, always', 'No, they come together and fall apart', 'Sometimes', 'Never'], correctIndex: 1 },
+  { id: 'q-mind-pema-2', categoryKey: 'wisdom', textId: 'mindfulness-pema', question: 'Where does healing come from?', options: ['Avoiding pain', 'Letting there be room for all of this', 'Forgetting', 'Fighting'], correctIndex: 1 },
+  { id: 'q-mind-pema-3', categoryKey: 'wisdom', textId: 'mindfulness-pema', question: 'What should there be room for?', options: ['Only joy', 'Grief, relief, misery, joy', 'Only relief', 'Nothing'], correctIndex: 1 },
 
   // ─── Mindfulness: Kabat-Zinn ──────────────────────────────────
-  { id: 'q-mind-kab-1', categoryKey: 'mindfulness', textId: 'mindfulness-kabat-zinn', question: 'What is mindfulness?', options: ['Thinking hard', 'Paying attention on purpose', 'Forgetting', 'Planning'], correctIndex: 1 },
-  { id: 'q-mind-kab-2', categoryKey: 'mindfulness', textId: 'mindfulness-kabat-zinn', question: 'What aren\'t little?', options: ['The big things', 'The little things and moments', 'Nothing', 'Problems'], correctIndex: 1 },
-  { id: 'q-mind-kab-3', categoryKey: 'mindfulness', textId: 'mindfulness-kabat-zinn', question: 'What can you learn to do with waves?', options: ['Stop them', 'Surf', 'Ignore them', 'Fear them'], correctIndex: 1 },
+  { id: 'q-mind-kab-1', categoryKey: 'wisdom', textId: 'mindfulness-kabat-zinn', question: 'What is mindfulness?', options: ['Thinking hard', 'Paying attention on purpose', 'Forgetting', 'Planning'], correctIndex: 1 },
+  { id: 'q-mind-kab-2', categoryKey: 'wisdom', textId: 'mindfulness-kabat-zinn', question: 'What aren\'t little?', options: ['The big things', 'The little things and moments', 'Nothing', 'Problems'], correctIndex: 1 },
+  { id: 'q-mind-kab-3', categoryKey: 'wisdom', textId: 'mindfulness-kabat-zinn', question: 'What can you learn to do with waves?', options: ['Stop them', 'Surf', 'Ignore them', 'Fear them'], correctIndex: 1 },
 
   // ─── Mindfulness: Osho ────────────────────────────────────────
-  { id: 'q-mind-osho-1', categoryKey: 'mindfulness', textId: 'mindfulness-osho', question: 'What should you plan for?', options: ['Failure', 'A miracle', 'Nothing', 'Safety'], correctIndex: 1 },
-  { id: 'q-mind-osho-2', categoryKey: 'mindfulness', textId: 'mindfulness-osho', question: 'What is the greatest rebellion in existence?', options: ['War', 'Creativity', 'Politics', 'Wealth'], correctIndex: 1 },
-  { id: 'q-mind-osho-3', categoryKey: 'mindfulness', textId: 'mindfulness-osho', question: 'How should you experience life?', options: ['Safely', 'In all possible ways', 'Carefully', 'Slowly'], correctIndex: 1 },
+  { id: 'q-mind-osho-1', categoryKey: 'wisdom', textId: 'mindfulness-osho', question: 'What should you plan for?', options: ['Failure', 'A miracle', 'Nothing', 'Safety'], correctIndex: 1 },
+  { id: 'q-mind-osho-2', categoryKey: 'wisdom', textId: 'mindfulness-osho', question: 'What is the greatest rebellion in existence?', options: ['War', 'Creativity', 'Politics', 'Wealth'], correctIndex: 1 },
+  { id: 'q-mind-osho-3', categoryKey: 'wisdom', textId: 'mindfulness-osho', question: 'How should you experience life?', options: ['Safely', 'In all possible ways', 'Carefully', 'Slowly'], correctIndex: 1 },
 
   // ─── Mindfulness: Krishnamurti ─────────────────────────────────
-  { id: 'q-mind-krish-1', categoryKey: 'mindfulness', textId: 'mindfulness-krishnamurti', question: 'What must you understand?', options: ['Part of life', 'The whole of life', 'Only work', 'Only love'], correctIndex: 1 },
-  { id: 'q-mind-krish-2', categoryKey: 'mindfulness', textId: 'mindfulness-krishnamurti', question: 'What should you do according to Krishnamurti?', options: ['Only read', 'Read, look at skies, sing, dance, write poems, suffer', 'Only meditate', 'Only work'], correctIndex: 1 },
-  { id: 'q-mind-krish-3', categoryKey: 'mindfulness', textId: 'mindfulness-krishnamurti', question: 'What happens when the mind is secure?', options: ['Growth', 'It is in decay', 'Peace', 'Wisdom'], correctIndex: 1 },
+  { id: 'q-mind-krish-1', categoryKey: 'wisdom', textId: 'mindfulness-krishnamurti', question: 'What must you understand?', options: ['Part of life', 'The whole of life', 'Only work', 'Only love'], correctIndex: 1 },
+  { id: 'q-mind-krish-2', categoryKey: 'wisdom', textId: 'mindfulness-krishnamurti', question: 'What should you do according to Krishnamurti?', options: ['Only read', 'Read, look at skies, sing, dance, write poems, suffer', 'Only meditate', 'Only work'], correctIndex: 1 },
+  { id: 'q-mind-krish-3', categoryKey: 'wisdom', textId: 'mindfulness-krishnamurti', question: 'What happens when the mind is secure?', options: ['Growth', 'It is in decay', 'Peace', 'Wisdom'], correctIndex: 1 },
 
   // ─── Mindfulness: Alan Watts ──────────────────────────────────
-  { id: 'q-mind-watts-1', categoryKey: 'mindfulness', textId: 'mindfulness-watts', question: 'How do you make sense of change?', options: ['Fight it', 'Plunge into it and join the dance', 'Avoid it', 'Ignore it'], correctIndex: 1 },
-  { id: 'q-mind-watts-2', categoryKey: 'mindfulness', textId: 'mindfulness-watts', question: 'What are our private thoughts not?', options: ['Important', 'Actually our own', 'Meaningful', 'Real'], correctIndex: 1 },
-  { id: 'q-mind-watts-3', categoryKey: 'mindfulness', textId: 'mindfulness-watts', question: 'How is muddy water best cleared?', options: ['By stirring', 'By leaving it alone', 'By filtering', 'By heating'], correctIndex: 1 },
+  { id: 'q-mind-watts-1', categoryKey: 'wisdom', textId: 'mindfulness-watts', question: 'How do you make sense of change?', options: ['Fight it', 'Plunge into it and join the dance', 'Avoid it', 'Ignore it'], correctIndex: 1 },
+  { id: 'q-mind-watts-2', categoryKey: 'wisdom', textId: 'mindfulness-watts', question: 'What are our private thoughts not?', options: ['Important', 'Actually our own', 'Meaningful', 'Real'], correctIndex: 1 },
+  { id: 'q-mind-watts-3', categoryKey: 'wisdom', textId: 'mindfulness-watts', question: 'How is muddy water best cleared?', options: ['By stirring', 'By leaving it alone', 'By filtering', 'By heating'], correctIndex: 1 },
 
   // ─── Story: The Tortoise and the Hare ─────────────────────────
   { id: 'q-story-tortoise-1', categoryKey: 'story', textId: 'story-tortoise', question: 'Who challenged the Hare to a race?', options: ['The Fox', 'The Tortoise', 'The Owl', 'The Rabbit'], correctIndex: 1 },

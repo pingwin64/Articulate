@@ -427,11 +427,16 @@ export default function ReadingScreen() {
       setPronunciationState('result');
       showFeedbackAnim();
 
-      // Haptics
-      if (hapticFeedback) {
-        if (feedback.result === 'perfect') {
+      // Haptics + track perfect pronunciations
+      if (feedback.result === 'perfect') {
+        if (hapticFeedback) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } else if (feedback.result === 'close') {
+        }
+        // +5 level progress per perfect, tracked for badges
+        const { incrementPerfectPronunciations } = useSettingsStore.getState();
+        incrementPerfectPronunciations();
+      } else if (feedback.result === 'close') {
+        if (hapticFeedback) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
       }
@@ -461,6 +466,16 @@ export default function ReadingScreen() {
     // If showing result, dismiss and return
     if (pronunciationState === 'result') {
       dismissPronunciationFeedback();
+      return;
+    }
+
+    // Skip pronunciation for very short words (Whisper unreliable on "a", "it", "the")
+    const rawWord = words[currentIndex]?.replace(/[^\w'-]/g, '') ?? '';
+    if (rawWord.length < 3) {
+      setPronunciationError('Too short to score');
+      setPronunciationState('result');
+      showFeedbackAnim();
+      pronunciationTimerRef.current = setTimeout(dismissPronunciationFeedback, 2000);
       return;
     }
 

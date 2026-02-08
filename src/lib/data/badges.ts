@@ -34,27 +34,27 @@ export interface Badge {
 // Category names for badge generation
 const CATEGORY_NAMES: Record<string, string> = {
   story: 'Story',
-  article: 'Article',
+  essay: 'Essays',
   speech: 'Speech',
   philosophy: 'Philosophy',
   science: 'Science',
-  literature: 'Literature',
+  fiction: 'Fiction',
   poetry: 'Poetry',
   history: 'History',
-  mindfulness: 'Mindfulness',
+  wisdom: 'Wisdom',
 };
 
 // Category-specific icons
 const CATEGORY_ICONS: Record<string, FeatherIconName> = {
   story: 'book',
-  article: 'file-text',
+  essay: 'file-text',
   speech: 'mic',
   philosophy: 'compass',
   science: 'cpu',
-  literature: 'feather',
+  fiction: 'feather',
   poetry: 'heart',
   history: 'clock',
-  mindfulness: 'eye',
+  wisdom: 'eye',
 };
 
 // Generate category milestones (9 categories x 3 tiers = 27 badges)
@@ -89,16 +89,16 @@ function generateCategoryBadges(): Badge[] {
       threshold: 10,
     });
 
-    // Gold - 25 texts
+    // Gold - 15 texts
     badges.push({
       id: `category-${key}-gold`,
       name: `${name} Master`,
-      description: `Complete 25 ${name.toLowerCase()} texts`,
+      description: `Complete 15 ${name.toLowerCase()} texts`,
       category: 'category',
       tier: 'gold',
       icon,
       categoryKey: key,
-      threshold: 25,
+      threshold: 15,
     });
   }
 
@@ -284,38 +284,38 @@ const LEVEL_BADGES: Badge[] = [
   {
     id: 'reached-intermediate',
     name: 'Intermediate',
-    description: 'Reach Level 2 (1,000 words)',
+    description: 'Reach Level 2 (750 words)',
     category: 'special',
     tier: 'bronze',
     icon: 'trending-up',
-    threshold: 1000,
+    threshold: 750,
   },
   {
     id: 'reached-advanced',
     name: 'Advanced',
-    description: 'Reach Level 3 (4,000 words)',
+    description: 'Reach Level 3 (2,500 words)',
     category: 'special',
     tier: 'silver',
     icon: 'bar-chart-2',
-    threshold: 4000,
+    threshold: 2500,
   },
   {
     id: 'reached-expert',
     name: 'Expert',
-    description: 'Reach Level 4 (8,000 words)',
+    description: 'Reach Level 4 (5,500 words)',
     category: 'special',
     tier: 'silver',
     icon: 'award',
-    threshold: 8000,
+    threshold: 5500,
   },
   {
     id: 'reached-master',
     name: 'Master',
-    description: 'Reach Level 5 (15,000 words)',
+    description: 'Reach Level 5 (10,000 words)',
     category: 'special',
     tier: 'gold',
     icon: 'star',
-    threshold: 15000,
+    threshold: 10000,
     reward: {
       type: 'theme',
       id: 'master-theme',
@@ -426,6 +426,37 @@ const SPECIAL_BADGES: Badge[] = [
   },
 ];
 
+// Pronunciation badges (3)
+const PRONUNCIATION_BADGES: Badge[] = [
+  {
+    id: 'pronunciation-50',
+    name: 'Clear Voice',
+    description: 'Get 50 perfect pronunciations',
+    category: 'special',
+    tier: 'bronze',
+    icon: 'mic',
+    threshold: 50,
+  },
+  {
+    id: 'pronunciation-200',
+    name: 'Silver Tongue',
+    description: 'Get 200 perfect pronunciations',
+    category: 'special',
+    tier: 'silver',
+    icon: 'mic',
+    threshold: 200,
+  },
+  {
+    id: 'pronunciation-500',
+    name: 'Voice Master',
+    description: 'Get 500 perfect pronunciations',
+    category: 'special',
+    tier: 'gold',
+    icon: 'mic',
+    threshold: 500,
+  },
+];
+
 // All badges combined
 export const ALL_BADGES: Badge[] = [
   ...generateCategoryBadges(),
@@ -436,6 +467,7 @@ export const ALL_BADGES: Badge[] = [
   ...SPECIAL_BADGES,
   ...LEVEL_BADGES,
   ...DIFFICULTY_BADGES,
+  ...PRONUNCIATION_BADGES,
 ];
 
 // Helper to get badge by ID

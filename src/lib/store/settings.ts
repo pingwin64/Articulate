@@ -23,8 +23,8 @@ const mmkvStorage = {
 export type TTSSpeed = 'slow' | 'normal' | 'fast';
 export type VoiceGender = 'male' | 'female';
 
-// New 5-level system thresholds (words)
-export const LEVEL_THRESHOLDS = [0, 1000, 4000, 8000, 15000];
+// New 5-level system thresholds (words) — lowered for better progression feel
+export const LEVEL_THRESHOLDS = [0, 750, 2500, 5500, 10000];
 export const LEVEL_NAMES = ['Beginner', 'Intermediate', 'Advanced', 'Expert', 'Master'] as const;
 
 // Streak celebration milestones - single source of truth
@@ -369,6 +369,10 @@ export interface SettingsState {
   advancedTextsCompleted: number;
   incrementDifficultyCount: (difficulty: TextDifficultyLevel) => void;
 
+  // Pronunciation Tracking
+  perfectPronunciations: number;
+  incrementPerfectPronunciations: () => void;
+
   // Streak Celebrations
   shownStreakCelebrations: number[];
   markStreakCelebrationShown: (milestone: number) => void;
@@ -479,7 +483,7 @@ export const useSettingsStore = create<SettingsState>()(
 
         set({ levelProgress: newProgress });
 
-        // Check for level-up badges
+        // Check for level-up badges (thresholds match LEVEL_THRESHOLDS)
         if (newLevel > oldLevel) {
           const unlockBadge = get().unlockBadge;
           if (newLevel >= 2) unlockBadge('reached-intermediate');
@@ -513,7 +517,7 @@ export const useSettingsStore = create<SettingsState>()(
 
         set({ levelProgress: newProgress });
 
-        // Check for level-up badges
+        // Check for level-up badges (thresholds match LEVEL_THRESHOLDS)
         if (newLevel > oldLevel) {
           const unlockBadge = get().unlockBadge;
           if (newLevel >= 2) unlockBadge('reached-intermediate');
@@ -1157,6 +1161,23 @@ export const useSettingsStore = create<SettingsState>()(
         set(updates);
       },
 
+      // Pronunciation Tracking
+      perfectPronunciations: 0,
+      incrementPerfectPronunciations: () => {
+        const state = get();
+        const newCount = state.perfectPronunciations + 1;
+        set({ perfectPronunciations: newCount });
+
+        // +5 level progress per perfect pronunciation
+        get().addLevelProgress(5);
+
+        // Pronunciation badges
+        const unlockBadge = get().unlockBadge;
+        if (newCount >= 50) unlockBadge('pronunciation-50');
+        if (newCount >= 200) unlockBadge('pronunciation-200');
+        if (newCount >= 500) unlockBadge('pronunciation-500');
+      },
+
       // Streak Celebrations
       shownStreakCelebrations: [],
       markStreakCelebrationShown: (milestone) =>
@@ -1258,12 +1279,13 @@ export const useSettingsStore = create<SettingsState>()(
         beginnerTextsCompleted: 0,
         intermediateTextsCompleted: 0,
         advancedTextsCompleted: 0,
+        perfectPronunciations: 0,
         shownStreakCelebrations: [],
       }),
     }),
     {
       name: 'articulate-settings',
-      version: 17,
+      version: 18,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -1406,6 +1428,111 @@ export const useSettingsStore = create<SettingsState>()(
         if (version < 17) {
           // v17: Pronunciation practice
           persisted.hasUsedPronunciation = persisted.hasUsedPronunciation ?? false;
+        }
+        if (version < 18) {
+          // v18: Pronunciation counter, category renames, lowered thresholds
+          persisted.perfectPronunciations = persisted.perfectPronunciations ?? 0;
+
+          // ── Category key renames: article→essay, literature→fiction, mindfulness→wisdom ──
+          const keyRenames: Record<string, string> = {
+            article: 'essay',
+            literature: 'fiction',
+            mindfulness: 'wisdom',
+          };
+
+          // Migrate categoryReadCounts
+          const counts = persisted.categoryReadCounts ?? {};
+          for (const [oldKey, newKey] of Object.entries(keyRenames)) {
+            if (counts[oldKey] !== undefined) {
+              counts[newKey] = (counts[newKey] ?? 0) + counts[oldKey];
+              delete counts[oldKey];
+            }
+          }
+          persisted.categoryReadCounts = counts;
+
+          // Migrate readingHistory entries
+          if (Array.isArray(persisted.readingHistory)) {
+            persisted.readingHistory = persisted.readingHistory.map((entry: any) => {
+              if (entry.categoryKey && keyRenames[entry.categoryKey]) {
+                return { ...entry, categoryKey: keyRenames[entry.categoryKey] };
+              }
+              return entry;
+            });
+          }
+
+          // Migrate weeklyCategoriesRead
+          if (Array.isArray(persisted.weeklyCategoriesRead)) {
+            persisted.weeklyCategoriesRead = persisted.weeklyCategoriesRead.map(
+              (key: string) => keyRenames[key] ?? key
+            );
+          }
+
+          // Migrate favoriteTexts
+          if (Array.isArray(persisted.favoriteTexts)) {
+            persisted.favoriteTexts = persisted.favoriteTexts.map((fav: any) => {
+              if (fav.categoryKey && keyRenames[fav.categoryKey]) {
+                return { ...fav, categoryKey: keyRenames[fav.categoryKey] };
+              }
+              return fav;
+            });
+          }
+
+          // Migrate resumePoints keys
+          if (persisted.resumePoints && typeof persisted.resumePoints === 'object') {
+            const newResumePoints: Record<string, any> = {};
+            for (const [key, value] of Object.entries(persisted.resumePoints)) {
+              let newKey = key;
+              for (const [oldCat, newCat] of Object.entries(keyRenames)) {
+                newKey = newKey.replace(oldCat, newCat);
+              }
+              const entry = value as any;
+              if (entry?.categoryKey && keyRenames[entry.categoryKey]) {
+                newResumePoints[newKey] = { ...entry, categoryKey: keyRenames[entry.categoryKey] };
+              } else {
+                newResumePoints[newKey] = entry;
+              }
+            }
+            persisted.resumePoints = newResumePoints;
+          }
+
+          // Migrate resumeData
+          if (persisted.resumeData?.categoryKey && keyRenames[persisted.resumeData.categoryKey]) {
+            persisted.resumeData = {
+              ...persisted.resumeData,
+              categoryKey: keyRenames[persisted.resumeData.categoryKey],
+            };
+          }
+
+          // Migrate badge IDs: category-article-* → category-essay-*, etc.
+          const badges: string[] = persisted.unlockedBadges ?? [];
+          persisted.unlockedBadges = badges.map((id: string) => {
+            for (const [oldKey, newKey] of Object.entries(keyRenames)) {
+              if (id.includes(`category-${oldKey}-`)) {
+                return id.replace(`category-${oldKey}-`, `category-${newKey}-`);
+              }
+            }
+            return id;
+          });
+
+          // Auto-unlock badges from lowered thresholds
+          const updatedBadges = persisted.unlockedBadges;
+          const unlockIfEarned = (id: string) => {
+            if (!updatedBadges.includes(id)) updatedBadges.push(id);
+          };
+
+          // Level badges (new thresholds: 750, 2500, 5500, 10000)
+          const lp = persisted.levelProgress ?? 0;
+          if (lp >= 750) unlockIfEarned('reached-intermediate');
+          if (lp >= 2500) unlockIfEarned('reached-advanced');
+          if (lp >= 5500) unlockIfEarned('reached-expert');
+          if (lp >= 10000) unlockIfEarned('reached-master');
+
+          // Gold category badges (new threshold: 15, using NEW key names)
+          const newCatKeys = ['story', 'essay', 'speech', 'philosophy', 'science', 'fiction', 'poetry', 'history', 'wisdom'];
+          for (const key of newCatKeys) {
+            const count = persisted.categoryReadCounts[key] ?? 0;
+            if (count >= 15) unlockIfEarned(`category-${key}-gold`);
+          }
         }
         return persisted;
       },

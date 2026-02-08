@@ -26,11 +26,11 @@ import { Spacing } from '../design/theme';
 import { ALL_BADGES, getBadgeById, type Badge } from '../lib/data/badges';
 import { cancelStreakAtRiskReminder } from '../lib/notifications';
 
-// Difficulty multipliers for level progress
+// Difficulty multipliers for level progress — wider spread so difficulty choice matters
 const DIFFICULTY_MULTIPLIERS: Record<TextDifficulty, number> = {
   beginner: 1.0,
-  intermediate: 1.25,
-  advanced: 1.5,
+  intermediate: 1.5,
+  advanced: 2.5,
 };
 
 export default function CompleteScreen() {
@@ -288,10 +288,10 @@ export default function CompleteScreen() {
             if (badge.id === 'challenge-first' && state.weeklyChallengesCompleted >= 1) shouldUnlock = true;
             if (badge.id === 'challenge-10' && state.weeklyChallengesCompleted >= 10) shouldUnlock = true;
             // Level badges (checked automatically via addLevelProgress, but also check here for migration)
-            if (badge.id === 'reached-intermediate' && state.levelProgress >= 1000) shouldUnlock = true;
-            if (badge.id === 'reached-advanced' && state.levelProgress >= 4000) shouldUnlock = true;
-            if (badge.id === 'reached-expert' && state.levelProgress >= 8000) shouldUnlock = true;
-            if (badge.id === 'reached-master' && state.levelProgress >= 15000) shouldUnlock = true;
+            if (badge.id === 'reached-intermediate' && state.levelProgress >= 750) shouldUnlock = true;
+            if (badge.id === 'reached-advanced' && state.levelProgress >= 2500) shouldUnlock = true;
+            if (badge.id === 'reached-expert' && state.levelProgress >= 5500) shouldUnlock = true;
+            if (badge.id === 'reached-master' && state.levelProgress >= 10000) shouldUnlock = true;
             // Difficulty badges
             if (badge.id === 'difficulty-advanced-5' && state.advancedTextsCompleted >= 5) shouldUnlock = true;
             if (badge.id === 'difficulty-advanced-10' && state.advancedTextsCompleted >= 10) shouldUnlock = true;

@@ -6,7 +6,7 @@ export interface FeaturedText {
   isPremium: boolean;
 }
 
-const FREE_CATEGORY_KEYS = ['story', 'article', 'speech'];
+const FREE_CATEGORY_KEYS = ['story', 'poetry', 'speech'];
 
 // Build flat list of all texts with their category
 const ALL_TEXTS: { text: TextEntry; category: Category }[] = [];
