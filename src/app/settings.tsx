@@ -7,11 +7,8 @@ import {
   Pressable,
   Alert,
   Linking,
-  Share,
-  Image,
   ActionSheetIOS,
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import Animated, {
   useAnimatedStyle,
@@ -25,7 +22,6 @@ import * as Haptics from 'expo-haptics';
 import * as StoreReview from 'expo-store-review';
 import { useRouter } from 'expo-router';
 import { useShallow } from 'zustand/react/shallow';
-import { LinearGradient } from 'expo-linear-gradient';
 import { GlassSlider } from '../components/GlassSlider';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
@@ -33,19 +29,9 @@ import { useSettingsStore } from '../lib/store/settings';
 import { GlassCard } from '../components/GlassCard';
 import { GlassToggle } from '../components/GlassToggle';
 import { GlassSegmentedControl } from '../components/GlassSegmentedControl';
-import { FontPicker } from '../components/FontPicker';
-import { WordPreview } from '../components/WordPreview';
 import { Paywall } from '../components/Paywall';
-import {
-  BackgroundThemes,
-  WordColors,
-  WordSizeRange,
-  Spacing,
-  Radius,
-} from '../design/theme';
-import type { FontFamilyKey, WordColorKey } from '../design/theme';
-import type { TTSSpeed, PaywallContext, VoiceGender } from '../lib/store/settings';
-import { getLevelName } from '../lib/store/settings';
+import { Spacing } from '../design/theme';
+import type { PaywallContext, TTSSpeed, VoiceGender } from '../lib/store/settings';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   requestNotificationPermissions,
@@ -53,8 +39,18 @@ import {
   cancelAllReminders,
 } from '../lib/notifications';
 import { restorePurchases } from '../lib/purchases';
-import { ALL_BADGES } from '../lib/data/badges';
 import type { FeatherIconName } from '../types/icons';
+
+// Profile Zone Components
+import { HeroProfileSection } from '../components/profile/HeroProfileSection';
+import { StatsDashboard } from '../components/profile/StatsDashboard';
+import { AchievementShowcase } from '../components/profile/AchievementShowcase';
+import { QuickActionCards } from '../components/profile/QuickActionCards';
+import { ReadingHistorySection } from '../components/profile/ReadingHistorySection';
+import { AppearanceSection } from '../components/profile/AppearanceSection';
+import { ProfileZoneDivider } from '../components/profile/ProfileZoneDivider';
+
+// ─── Settings Zone Helpers ───────────────────────────────────────────────────
 
 function SectionHeader({ title, icon }: { title: string; icon?: FeatherIconName }) {
   const { colors } = useTheme();
@@ -136,106 +132,8 @@ function LockedSettingRow({
   );
 }
 
-function ProfileOrb({ onEdit }: { onEdit: () => void }) {
-  const { colors, glass, isDark } = useTheme();
-  const profileImage = useSettingsStore((s) => s.profileImage);
-  const profileColor = useSettingsStore((s) => s.profileColor);
-  const accentColor44 = profileColor + '44';
-
-  return (
-    <Pressable onPress={onEdit} style={styles.orbContainer}>
-      {profileImage ? (
-        <Image
-          source={{ uri: profileImage }}
-          style={[styles.orb, { borderColor: glass.border }]}
-        />
-      ) : (
-        <LinearGradient
-          colors={[profileColor, accentColor44]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.orb, { borderColor: glass.border }]}
-        />
-      )}
-      <View style={[styles.editBadge, { backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)', borderColor: glass.border }]}>
-        <Feather name="edit-2" size={12} color={colors.primary} />
-      </View>
-    </Pressable>
-  );
-}
-
-function ReferralCard() {
-  const { colors, glass, isDark } = useTheme();
-  const [copied, setCopied] = useState(false);
-
-  const referralLink = 'https://articulate.app/invite/ABC123'; // Placeholder - will be user-specific
-
-  const handleCopyLink = async () => {
-    await Clipboard.setStringAsync(referralLink);
-    setCopied(true);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        message: `Try Articulate - the minimalist reading app! Use my invite link to get a free month of Pro: ${referralLink}`,
-        url: referralLink,
-      });
-    } catch {
-      // User cancelled
-    }
-  };
-
-  return (
-    <GlassCard>
-      <View style={styles.referralContent}>
-        <View style={styles.referralHeader}>
-          <View style={[styles.referralIconBg, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)' }]}>
-            <Feather name="gift" size={20} color={colors.primary} />
-          </View>
-          <View style={styles.referralText}>
-            <Text style={[styles.referralTitle, { color: colors.primary }]}>
-              Refer and earn rewards
-            </Text>
-            <Text style={[styles.referralSubtitle, { color: colors.muted }]}>
-              Give a month of Pro, get a month free
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.referralActions}>
-          <Pressable
-            onPress={handleCopyLink}
-            style={[
-              styles.referralLinkButton,
-              { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)', borderColor: glass.border },
-            ]}
-          >
-            <Text style={[styles.referralLinkText, { color: colors.secondary }]} numberOfLines={1}>
-              {referralLink}
-            </Text>
-            <Feather name={copied ? 'check' : 'copy'} size={16} color={copied ? colors.success ?? colors.primary : colors.muted} />
-          </Pressable>
-
-          <Pressable
-            onPress={handleShare}
-            style={[styles.shareButton, { backgroundColor: colors.primary }]}
-          >
-            <Feather name="share" size={16} color={isDark ? colors.bg : '#FFFFFF'} />
-            <Text style={[styles.shareButtonText, { color: isDark ? colors.bg : '#FFFFFF' }]}>
-              Invite Friends
-            </Text>
-          </Pressable>
-        </View>
-      </View>
-    </GlassCard>
-  );
-}
-
 function SettingsUpgradeCTA({ onPress }: { onPress: () => void }) {
-  const { colors, glass, isDark } = useTheme();
+  const { colors, glass } = useTheme();
   const reduceMotion = useSettingsStore((s) => s.reduceMotion);
   const shimmerOpacity = useSharedValue(0.4);
 
@@ -281,6 +179,8 @@ function SettingsUpgradeCTA({ onPress }: { onPress: () => void }) {
   );
 }
 
+// ─── Main Screen ─────────────────────────────────────────────────────────────
+
 export default function SettingsScreen() {
   const { colors, glass, isDark } = useTheme();
   const router = useRouter();
@@ -290,13 +190,6 @@ export default function SettingsScreen() {
     trialActive,
     profileImage, setProfileImage,
     profileColor, setProfileColor,
-    themeMode, setThemeMode,
-    backgroundTheme, setBackgroundTheme,
-    fontFamily, setFontFamily,
-    wordSize, setWordSize,
-    wordBold, setWordBold,
-    wordColor, setWordColor,
-    levelProgress,
     sentenceRecap, setSentenceRecap,
     hapticFeedback, setHapticFeedback,
     breathingAnimation, setBreathingAnimation,
@@ -309,11 +202,7 @@ export default function SettingsScreen() {
     setPaywallContext,
     paywallContext,
     addTrialFeatureUsed,
-    totalWordsRead,
     currentStreak,
-    readingHistory,
-    unlockedRewards,
-    trialDaysRemaining,
     notificationsEnabled, setNotificationsEnabled,
     reminderHour, reminderMinute, setReminderTime,
     reduceMotion, setReduceMotion,
@@ -324,13 +213,6 @@ export default function SettingsScreen() {
     trialActive: s.trialActive,
     profileImage: s.profileImage, setProfileImage: s.setProfileImage,
     profileColor: s.profileColor, setProfileColor: s.setProfileColor,
-    themeMode: s.themeMode, setThemeMode: s.setThemeMode,
-    backgroundTheme: s.backgroundTheme, setBackgroundTheme: s.setBackgroundTheme,
-    fontFamily: s.fontFamily, setFontFamily: s.setFontFamily,
-    wordSize: s.wordSize, setWordSize: s.setWordSize,
-    wordBold: s.wordBold, setWordBold: s.setWordBold,
-    wordColor: s.wordColor, setWordColor: s.setWordColor,
-    levelProgress: s.levelProgress,
     sentenceRecap: s.sentenceRecap, setSentenceRecap: s.setSentenceRecap,
     hapticFeedback: s.hapticFeedback, setHapticFeedback: s.setHapticFeedback,
     breathingAnimation: s.breathingAnimation, setBreathingAnimation: s.setBreathingAnimation,
@@ -343,11 +225,7 @@ export default function SettingsScreen() {
     setPaywallContext: s.setPaywallContext,
     paywallContext: s.paywallContext,
     addTrialFeatureUsed: s.addTrialFeatureUsed,
-    totalWordsRead: s.totalWordsRead,
     currentStreak: s.currentStreak,
-    readingHistory: s.readingHistory,
-    unlockedRewards: s.unlockedRewards,
-    trialDaysRemaining: s.trialDaysRemaining,
     notificationsEnabled: s.notificationsEnabled, setNotificationsEnabled: s.setNotificationsEnabled,
     reminderHour: s.reminderHour, reminderMinute: s.reminderMinute, setReminderTime: s.setReminderTime,
     reduceMotion: s.reduceMotion, setReduceMotion: s.setReduceMotion,
@@ -382,18 +260,11 @@ export default function SettingsScreen() {
 
   // Profile color options
   const PROFILE_COLORS = [
-    '#A78BFA', // Purple (default)
-    '#60A5FA', // Blue
-    '#34D399', // Green
-    '#F472B6', // Pink
-    '#FBBF24', // Yellow
-    '#F87171', // Red
-    '#818CF8', // Indigo
-    '#2DD4BF', // Teal
+    '#A78BFA', '#60A5FA', '#34D399', '#F472B6',
+    '#FBBF24', '#F87171', '#818CF8', '#2DD4BF',
   ];
 
   const handleEditProfile = useCallback(() => {
-    // Pro users get photo + color options, free users only get color
     if (isPremium || trialActive) {
       const options = profileImage
         ? ['Choose Photo', 'Change Color', 'Remove Photo', 'Cancel']
@@ -402,14 +273,9 @@ export default function SettingsScreen() {
       const destructiveIndex = profileImage ? 2 : undefined;
 
       ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options,
-          cancelButtonIndex: cancelIndex,
-          destructiveButtonIndex: destructiveIndex,
-        },
+        { options, cancelButtonIndex: cancelIndex, destructiveButtonIndex: destructiveIndex },
         async (buttonIndex) => {
           if (buttonIndex === 0) {
-            // Choose photo
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== 'granted') {
               Alert.alert('Permission needed', 'Please allow access to your photos to set a profile picture.');
@@ -425,32 +291,23 @@ export default function SettingsScreen() {
               setProfileImage(result.assets[0].uri);
             }
           } else if (buttonIndex === 1) {
-            // Change color
             ActionSheetIOS.showActionSheetWithOptions(
-              {
-                options: ['Purple', 'Blue', 'Green', 'Pink', 'Yellow', 'Red', 'Indigo', 'Teal', 'Cancel'],
-                cancelButtonIndex: 8,
-              },
+              { options: ['Purple', 'Blue', 'Green', 'Pink', 'Yellow', 'Red', 'Indigo', 'Teal', 'Cancel'], cancelButtonIndex: 8 },
               (colorIndex) => {
                 if (colorIndex < 8) {
                   setProfileColor(PROFILE_COLORS[colorIndex]);
-                  setProfileImage(null); // Clear image when choosing color
+                  setProfileImage(null);
                 }
               }
             );
           } else if (buttonIndex === 2 && profileImage) {
-            // Remove photo
             setProfileImage(null);
           }
         }
       );
     } else {
-      // Free users: color only
       ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Purple', 'Blue', 'Green', 'Pink', 'Yellow', 'Red', 'Indigo', 'Teal', 'Cancel'],
-          cancelButtonIndex: 8,
-        },
+        { options: ['Purple', 'Blue', 'Green', 'Pink', 'Yellow', 'Red', 'Indigo', 'Teal', 'Cancel'], cancelButtonIndex: 8 },
         (colorIndex) => {
           if (colorIndex < 8) {
             setProfileColor(PROFILE_COLORS[colorIndex]);
@@ -460,30 +317,10 @@ export default function SettingsScreen() {
     }
   }, [isPremium, trialActive, profileImage, setProfileImage, setProfileColor]);
 
-  const handleSetFontFamily = useCallback((v: FontFamilyKey) => {
-    setFontFamily(v);
-    if (trialActive) addTrialFeatureUsed(`font:${v}`);
-  }, [setFontFamily, trialActive, addTrialFeatureUsed]);
-
-  const handleSetWordColor = useCallback((v: WordColorKey) => {
-    setWordColor(v);
-    if (trialActive) addTrialFeatureUsed(`color:${v}`);
-  }, [setWordColor, trialActive, addTrialFeatureUsed]);
-
-  const handleSetWordSize = useCallback((v: number) => {
-    setWordSize(v);
-    if (trialActive) addTrialFeatureUsed(`size:${v}`);
-  }, [setWordSize, trialActive, addTrialFeatureUsed]);
-
-  const handleSetWordBold = useCallback((v: boolean) => {
-    setWordBold(v);
-    if (trialActive && v) addTrialFeatureUsed('bold');
-  }, [setWordBold, trialActive, addTrialFeatureUsed]);
-
-  const handleSetBackgroundTheme = useCallback((v: string) => {
-    setBackgroundTheme(v);
-    if (trialActive) addTrialFeatureUsed(`background:${v}`);
-  }, [setBackgroundTheme, trialActive, addTrialFeatureUsed]);
+  // Settings Zone handlers
+  const handleLockedPress = (context: PaywallContext) => {
+    setPaywallContext(context);
+  };
 
   const handleSetAutoPlay = useCallback((v: boolean) => {
     setAutoPlay(v);
@@ -499,10 +336,6 @@ export default function SettingsScreen() {
     setChunkSize(v);
     if (trialActive && v > 1) addTrialFeatureUsed('chunk');
   }, [setChunkSize, trialActive, addTrialFeatureUsed]);
-
-  const handleLockedPress = (context: PaywallContext) => {
-    setPaywallContext(context);
-  };
 
   const handleToggleNotifications = useCallback(async (enabled: boolean) => {
     try {
@@ -530,28 +363,6 @@ export default function SettingsScreen() {
     }
   }, [setReminderTime, notificationsEnabled, currentStreak]);
 
-  const reminderTimeLabel = `${String(reminderHour).padStart(2, '0')}:${String(reminderMinute).padStart(2, '0')}`;
-
-  const readingLevelLabel = getLevelName(levelProgress);
-
-  const formatNumber = (n: number) =>
-    n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
-
-  const membershipLabel = isPremium ? 'PRO'
-    : trialActive ? `TRIAL \u00B7 ${trialDaysRemaining()} days left` : 'FREE';
-
-  const membershipBadgeBg = isPremium
-    ? isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'
-    : trialActive
-      ? isDark ? 'rgba(255,149,0,0.15)' : 'rgba(255,149,0,0.1)'
-      : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)';
-
-  const membershipBadgeColor = isPremium ? colors.primary
-    : trialActive ? colors.warning : colors.muted;
-
-  const themeModes = ['Light', 'Dark', 'System'];
-  const themeIndex = themeMode === 'dark' ? 1 : themeMode === 'system' ? 2 : 0;
-
   const ttsSpeeds: TTSSpeed[] = ['slow', 'normal', 'fast'];
   const ttsLabels = ['Slow', 'Normal', 'Fast'];
   const ttsIndex = ttsSpeeds.indexOf(ttsSpeed);
@@ -571,723 +382,363 @@ export default function SettingsScreen() {
         scrollEnabled={true}
         keyboardShouldPersistTaps="handled"
       >
-          {/* Profile identity */}
-          <View style={styles.profileSection}>
-            <ProfileOrb onEdit={handleEditProfile} />
-            <Text style={[styles.identityTitle, { color: colors.primary }]}>
-              {readingLevelLabel}
+        {/* ═══════════════════════════════════════════════════════════════════
+            PROFILE & CUSTOMIZATION ZONE
+            ═══════════════════════════════════════════════════════════════════ */}
+
+        <HeroProfileSection
+          onEditProfile={handleEditProfile}
+          reduceMotion={reduceMotion}
+        />
+
+        <StatsDashboard reduceMotion={reduceMotion} />
+
+        <AchievementShowcase reduceMotion={reduceMotion} />
+
+        <QuickActionCards
+          reduceMotion={reduceMotion}
+          onPaywall={(ctx) => setPaywallContext(ctx)}
+        />
+
+        <ReadingHistorySection reduceMotion={reduceMotion} />
+
+        {/* Upgrade CTA for free users */}
+        {!isPremium && !trialActive && (
+          <SettingsUpgradeCTA onPress={() => setPaywallContext('settings_upgrade')} />
+        )}
+
+        <AppearanceSection
+          reduceMotion={reduceMotion}
+          peekAndShowPaywall={peekAndShowPaywall}
+          handleLockedPress={handleLockedPress}
+        />
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            SETTINGS ZONE
+            ═══════════════════════════════════════════════════════════════════ */}
+
+        <ProfileZoneDivider />
+
+        {/* Reading */}
+        <SectionHeader title="Reading" icon="book" />
+        <GlassCard>
+          <View style={styles.settingBlock}>
+            <Text style={[styles.settingLabel, { color: colors.primary }]}>
+              Words at a Time
             </Text>
-            <Text style={[styles.identitySubtitle, { color: colors.muted }]}>
-              {formatNumber(totalWordsRead)} words{currentStreak > 0 ? ` \u00B7 ${currentStreak} day streak` : ''}
-            </Text>
-            {!isPremium ? (
-              <View
-                style={[styles.upgradeBadge, { backgroundColor: membershipBadgeBg, borderColor: membershipBadgeColor + '40' }]}
-              >
-                <Text style={[styles.membershipBadgeText, { color: membershipBadgeColor }]}>
-                  {membershipLabel}
-                </Text>
-              </View>
-            ) : (
-              <View style={[styles.proBadgeTop, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' }]}>
-                <Feather name="award" size={12} color={colors.primary} />
-                <Text style={[styles.proBadgeTopText, { color: colors.primary }]}>PRO</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Upgrade CTA for free users */}
-          {!isPremium && !trialActive && (
-            <SettingsUpgradeCTA onPress={() => setPaywallContext('settings_upgrade')} />
-          )}
-
-          {/* Achievements Card */}
-          <Pressable onPress={() => router.push('/achievements')}>
-            <GlassCard>
-              <View style={styles.achievementsRow}>
-                <View style={styles.achievementsLeft}>
-                  <Feather name="award" size={20} color={colors.primary} />
-                  <View style={styles.achievementsText}>
-                    <Text style={[styles.achievementsTitle, { color: colors.primary }]}>
-                      Achievements
-                    </Text>
-                    <Text style={[styles.achievementsSubtitle, { color: colors.muted }]}>
-                      View your badges and progress
-                    </Text>
-                  </View>
-                </View>
-                <Feather name="chevron-right" size={18} color={colors.muted} />
-              </View>
-            </GlassCard>
-          </Pressable>
-
-          {/* My Library Card */}
-          <Pressable onPress={() => {
-            if (isPremium) {
-              router.push('/library');
-            } else {
-              setPaywallContext('locked_library');
-            }
-          }}>
-            <GlassCard>
-              <View style={styles.achievementsRow}>
-                <View style={styles.achievementsLeft}>
-                  <Feather name="book" size={20} color={colors.primary} />
-                  <View style={styles.achievementsText}>
-                    <Text style={[styles.achievementsTitle, { color: colors.primary }]}>
-                      My Library
-                    </Text>
-                    <Text style={[styles.achievementsSubtitle, { color: colors.muted }]}>
-                      {isPremium ? 'Favorites, texts & saved words' : 'Your personal collection'}
-                    </Text>
-                  </View>
-                </View>
-                {isPremium ? (
-                  <Feather name="chevron-right" size={18} color={colors.muted} />
-                ) : (
-                  <Feather name="lock" size={16} color={colors.muted} />
-                )}
-              </View>
-            </GlassCard>
-          </Pressable>
-
-          {/* Get a Free Month - Referral */}
-          <Pressable onPress={() => router.push('/referral')}>
-            <GlassCard>
-              <View style={styles.achievementsRow}>
-                <View style={styles.achievementsLeft}>
-                  <Feather name="gift" size={20} color={colors.primary} />
-                  <View style={styles.achievementsText}>
-                    <Text style={[styles.achievementsTitle, { color: colors.primary }]}>
-                      Get a free month
-                    </Text>
-                    <Text style={[styles.achievementsSubtitle, { color: colors.muted }]}>
-                      Refer friends and earn rewards
-                    </Text>
-                  </View>
-                </View>
-                <Feather name="chevron-right" size={18} color={colors.muted} />
-              </View>
-            </GlassCard>
-          </Pressable>
-
-          {/* Reading History */}
-          {readingHistory.length > 0 && (
-            <>
-              <SectionHeader title="Reading History" icon="clock" />
-              <GlassCard>
-                {readingHistory.slice(0, 5).map((entry, index) => {
-                  const date = new Date(entry.completedAt);
-                  const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-                  const isLast = index === Math.min(readingHistory.length, 5) - 1;
-                  return (
-                    <View
-                      key={entry.id}
-                      style={[
-                        styles.historyRow,
-                        !isLast && { borderBottomWidth: 0.5, borderBottomColor: glass.border },
-                      ]}
-                    >
-                      <View style={styles.historyInfo}>
-                        <Text style={[styles.historyTitle, { color: colors.primary }]} numberOfLines={1}>
-                          {entry.title}
-                        </Text>
-                        <Text style={[styles.historyMeta, { color: colors.muted }]}>
-                          {entry.wordsRead} words · {entry.wpm} WPM · {dateStr}
-                        </Text>
-                      </View>
-                      <Feather name="check-circle" size={16} color={colors.success} />
-                    </View>
-                  );
-                })}
-                {readingHistory.length > 5 && (
-                  <Text style={[styles.historyMore, { color: colors.secondary }]}>
-                    +{readingHistory.length - 5} more completed
-                  </Text>
-                )}
-              </GlassCard>
-            </>
-          )}
-
-          {/* Referral Program — hidden until referral system is live
-          <ReferralCard />
-          */}
-
-          {/* Section 1: Appearance */}
-          <SectionHeader title="Appearance" icon="eye" />
-          <GlassCard>
-            {/* Live Word Preview - shows font and color */}
-            <View style={styles.wordPreviewContainer}>
-              <WordPreview />
+            <View style={styles.segmentedControlWrapper}>
+              <GlassSegmentedControl
+                options={['1', '2', '3']}
+                selectedIndex={chunkSize - 1}
+                onSelect={(i) => {
+                  const size = (i + 1) as 1 | 2 | 3;
+                  if (size > 1 && !isPremium && !trialActive) {
+                    setPaywallContext('locked_chunk');
+                    return;
+                  }
+                  handleSetChunkSize(size);
+                }}
+              />
             </View>
-            <View style={[styles.separator, { backgroundColor: glass.border }]} />
+          </View>
+          <View style={[styles.separator, { backgroundColor: glass.border }]} />
+          <SettingRow label="Sentence Recap">
+            <GlassToggle
+              value={sentenceRecap}
+              onValueChange={setSentenceRecap}
+            />
+          </SettingRow>
+          <SettingRow label="Haptic Feedback" noBorder>
+            <GlassToggle
+              value={hapticFeedback}
+              onValueChange={setHapticFeedback}
+            />
+          </SettingRow>
+        </GlassCard>
 
-            {/* Font picker - Pro only */}
-            {isPremium || trialActive ? (
-              <View style={styles.settingBlock}>
-                <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                  Font
-                </Text>
-                <View style={styles.fontPickerContainer}>
-                  <FontPicker
-                    selected={fontFamily}
-                    onSelect={(key: FontFamilyKey) => handleSetFontFamily(key)}
-                  />
-                </View>
+        {/* Audio */}
+        <SectionHeader title="Audio" icon="volume-2" />
+        <GlassCard>
+          <View style={styles.settingBlock}>
+            <Text style={[styles.settingLabel, { color: colors.primary }]}>
+              Voice
+            </Text>
+            <View style={styles.segmentedControlWrapper}>
+              <GlassSegmentedControl
+                options={voiceLabels}
+                selectedIndex={voiceIndex}
+                onSelect={(i) => setVoiceGender(voiceGenders[i])}
+              />
+            </View>
+          </View>
+          <View style={[styles.separator, { backgroundColor: glass.border }]} />
+          {isPremium || trialActive ? (
+            <View style={styles.settingBlock}>
+              <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                TTS Speed
+              </Text>
+              <View style={styles.segmentedControlWrapper}>
+                <GlassSegmentedControl
+                  options={ttsLabels}
+                  selectedIndex={ttsIndex}
+                  onSelect={(i) => setTtsSpeed(ttsSpeeds[i])}
+                />
               </View>
-            ) : (
-              <LockedSettingRow label="Font" isPremium={false} onLockedPress={() => {
-                const origFont = fontFamily;
-                peekAndShowPaywall(
-                  'locked_font',
-                  () => setFontFamily('literata'),
-                  () => setFontFamily(origFont),
-                );
-              }}>
-                <View />
-              </LockedSettingRow>
-            )}
-
-            <View style={[styles.separator, { backgroundColor: glass.border }]} />
-
-            {/* Size slider - Pro only */}
-            {isPremium || trialActive ? (
+            </View>
+          ) : (
+            <LockedSettingRow label="TTS Speed" isPremium={false} onLockedPress={() => handleLockedPress('locked_tts')}>
+              <View />
+            </LockedSettingRow>
+          )}
+          <View style={[styles.separator, { backgroundColor: glass.border }]} />
+          <LockedSettingRow label="Auto-Play" isPremium={isPremium || trialActive} noBorder={(!isPremium && !trialActive) || !autoPlay} onLockedPress={() => handleLockedPress('locked_autoplay')}>
+            <GlassToggle
+              value={autoPlay}
+              onValueChange={handleSetAutoPlay}
+            />
+          </LockedSettingRow>
+          {(isPremium || trialActive) && autoPlay && (
+            <>
+              <View style={[styles.separator, { backgroundColor: glass.border }]} />
               <View style={styles.settingBlock}>
                 <View style={styles.sliderHeader}>
                   <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                    Size
+                    Auto-Play Speed
                   </Text>
                   <Text style={[styles.sliderValue, { color: colors.muted }]}>
-                    {wordSize}px
+                    {autoPlayWPM} WPM
                   </Text>
                 </View>
                 <GlassSlider
-                  value={wordSize}
-                  minimumValue={WordSizeRange.min}
-                  maximumValue={WordSizeRange.max}
-                  step={1}
-                  onValueChange={handleSetWordSize}
-                  leftLabel="Small"
-                  rightLabel="Large"
+                  value={autoPlayWPM}
+                  minimumValue={150}
+                  maximumValue={400}
+                  step={10}
+                  onValueChange={setAutoPlayWPM}
+                  leftLabel="150"
+                  rightLabel="400"
                 />
               </View>
-            ) : (
-              <LockedSettingRow label="Size" isPremium={false} onLockedPress={() => {
-                const origSize = wordSize;
-                peekAndShowPaywall(
-                  'locked_size',
-                  () => setWordSize(56),
-                  () => setWordSize(origSize),
-                );
-              }}>
-                <View />
-              </LockedSettingRow>
-            )}
-
-            <View style={[styles.separator, { backgroundColor: glass.border }]} />
-
-            {/* Bold toggle - Pro only */}
-            <LockedSettingRow label="Bold" isPremium={isPremium || trialActive} onLockedPress={() => {
-              const origBold = wordBold;
-              peekAndShowPaywall(
-                'locked_bold',
-                () => setWordBold(true),
-                () => setWordBold(origBold),
-              );
-            }}>
-              <GlassToggle
-                value={wordBold}
-                onValueChange={handleSetWordBold}
-              />
-            </LockedSettingRow>
-
-            {/* Color picker - Pro only (with reward colors visible to all) */}
-            {isPremium || trialActive ? (
-              <View style={styles.settingBlock}>
-                <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                  Color
-                </Text>
-                <View style={styles.colorRowBlock}>
-                  {WordColors.map((wc) => {
-                    const circleColor = wc.color ?? colors.primary;
-                    const isSelected = wordColor === wc.key;
-                    const isRewardColor = 'rewardId' in wc && !!wc.rewardId;
-                    const isRewardUnlocked = isRewardColor ? unlockedRewards.includes((wc as { rewardId: string }).rewardId) : true;
-                    return (
-                      <Pressable
-                        key={wc.key}
-                        onPress={() => {
-                          if (isRewardColor && !isRewardUnlocked) {
-                            const rewardBadge = ALL_BADGES.find((b) => b.reward?.id === (wc as { rewardId: string }).rewardId);
-                            const badgeName = rewardBadge?.name ?? 'a special';
-                            Alert.alert(
-                              `${wc.label} Color`,
-                              `Unlock this color by earning the ${badgeName} badge!`,
-                              [{ text: 'OK' }]
-                            );
-                          } else {
-                            handleSetWordColor(wc.key as WordColorKey);
-                          }
-                        }}
-                        style={[
-                          styles.colorCircle,
-                          {
-                            backgroundColor: circleColor,
-                            borderColor: isSelected
-                              ? colors.primary
-                              : 'transparent',
-                            borderWidth: isSelected ? 2 : 0,
-                            opacity: isRewardColor && !isRewardUnlocked ? 0.4 : 1,
-                          },
-                        ]}
-                      >
-                        {isSelected && (
-                          <View
-                            style={[
-                              styles.colorInner,
-                              { borderColor: colors.bg },
-                            ]}
-                          />
-                        )}
-                        {isRewardColor && !isRewardUnlocked && (
-                          <View style={[styles.swatchLockOverlay, styles.swatchRewardLock, { bottom: -4, right: -4 }]}>
-                            <Feather name="award" size={8} color="#FFFFFF" />
-                          </View>
-                        )}
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            ) : (
-              <LockedSettingRow label="Color" isPremium={false} noBorder onLockedPress={() => {
-                const origColor = wordColor;
-                peekAndShowPaywall(
-                  'locked_color',
-                  () => setWordColor('ocean'),
-                  () => setWordColor(origColor),
-                );
-              }}>
-                <View />
-              </LockedSettingRow>
-            )}
-            <View style={[styles.separator, { backgroundColor: glass.border }]} />
-
-            {/* Background swatches — visible to all users */}
-            <View style={styles.settingRowNoBorder}>
-              <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                Background
-              </Text>
-              <View style={styles.swatchRow}>
-                {BackgroundThemes.map((theme) => {
-                  // Always show light variant for preview (darkOnly themes only have one color anyway)
-                  const bgColor = theme.light;
-                  const isSelected = backgroundTheme === theme.key;
-                  const isDefault = theme.key === 'default';
-                  // Check if this is a reward theme
-                  const isRewardTheme = !!theme.rewardId;
-                  const isRewardUnlocked = theme.rewardId ? unlockedRewards.includes(theme.rewardId) : false;
-                  // Hybrid model: Pro users can access proAccessible reward themes
-                  const canProAccess = isRewardTheme && theme.proAccessible && (isPremium || trialActive);
-                  // Premium themes (paper/stone/sepia) use explicit flag
-                  const isPremiumLocked = theme.premium === true && !isPremium && !trialActive;
-                  const isRewardLocked = isRewardTheme && !isRewardUnlocked && !canProAccess;
-                  const isLocked = isPremiumLocked || isRewardLocked;
-                  return (
-                    <Pressable
-                      key={theme.key}
-                      onPress={() => {
-                        if (isRewardLocked) {
-                          // Show hint about how to unlock via badge name lookup
-                          const rewardBadge = ALL_BADGES.find((b) => b.reward?.id === theme.rewardId);
-                          const badgeName = rewardBadge?.name ?? 'a special';
-                          Alert.alert(
-                            `${theme.label} Theme`,
-                            `Unlock this theme by earning the ${badgeName} badge!`,
-                            [{ text: 'OK' }]
-                          );
-                        } else if (isPremiumLocked) {
-                          const origBg = backgroundTheme;
-                          peekAndShowPaywall(
-                            'locked_background',
-                            () => setBackgroundTheme(theme.key),
-                            () => setBackgroundTheme(origBg),
-                          );
-                        } else {
-                          handleSetBackgroundTheme(theme.key);
-                        }
-                      }}
-                    >
-                      <View style={styles.swatchContainer}>
-                        <View
-                          style={[
-                            styles.swatch,
-                            {
-                              backgroundColor: bgColor,
-                              borderColor: isSelected
-                                ? colors.primary
-                                : glass.border,
-                              borderWidth: isSelected ? 2 : 0.5,
-                            },
-                          ]}
-                        />
-                        {isLocked && (
-                          <View style={[styles.swatchLockOverlay, isRewardLocked && styles.swatchRewardLock]}>
-                            <Feather name={isRewardLocked ? 'award' : 'lock'} size={10} color="#FFFFFF" />
-                          </View>
-                        )}
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          </GlassCard>
-
-          {/* Section 2: Reading */}
-          <SectionHeader title="Reading" icon="book" />
-          <GlassCard>
-            <View style={styles.settingBlock}>
-              <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                Words at a Time
-              </Text>
-              <View style={styles.segmentedControlWrapper}>
-                <GlassSegmentedControl
-                  options={['1', '2', '3']}
-                  selectedIndex={chunkSize - 1}
-                  onSelect={(i) => {
-                    const size = (i + 1) as 1 | 2 | 3;
-                    if (size > 1 && !isPremium && !trialActive) {
-                      setPaywallContext('locked_chunk');
-                      return;
-                    }
-                    handleSetChunkSize(size);
-                  }}
-                />
-              </View>
-            </View>
-            <View style={[styles.separator, { backgroundColor: glass.border }]} />
-            <SettingRow label="Sentence Recap">
-              <GlassToggle
-                value={sentenceRecap}
-                onValueChange={setSentenceRecap}
-              />
-            </SettingRow>
-            <SettingRow label="Haptic Feedback" noBorder>
-              <GlassToggle
-                value={hapticFeedback}
-                onValueChange={setHapticFeedback}
-              />
-            </SettingRow>
-          </GlassCard>
-
-          {/* Section 3: Audio */}
-          <SectionHeader title="Audio" icon="volume-2" />
-          <GlassCard>
-            {/* Voice Gender - available to all users */}
-            <View style={styles.settingBlock}>
-              <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                Voice
-              </Text>
-              <View style={styles.segmentedControlWrapper}>
-                <GlassSegmentedControl
-                  options={voiceLabels}
-                  selectedIndex={voiceIndex}
-                  onSelect={(i) => setVoiceGender(voiceGenders[i])}
-                />
-              </View>
-            </View>
-            <View style={[styles.separator, { backgroundColor: glass.border }]} />
-            {isPremium || trialActive ? (
-              <View style={styles.settingBlock}>
-                <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                  TTS Speed
-                </Text>
-                <View style={styles.segmentedControlWrapper}>
-                  <GlassSegmentedControl
-                    options={ttsLabels}
-                    selectedIndex={ttsIndex}
-                    onSelect={(i) => setTtsSpeed(ttsSpeeds[i])}
-                  />
-                </View>
-              </View>
-            ) : (
-              <LockedSettingRow label="TTS Speed" isPremium={false} onLockedPress={() => handleLockedPress('locked_tts')}>
-                <View />
-              </LockedSettingRow>
-            )}
-            <View style={[styles.separator, { backgroundColor: glass.border }]} />
-            <LockedSettingRow label="Auto-Play" isPremium={isPremium || trialActive} noBorder={(!isPremium && !trialActive) || !autoPlay} onLockedPress={() => handleLockedPress('locked_autoplay')}>
-              <GlassToggle
-                value={autoPlay}
-                onValueChange={handleSetAutoPlay}
-              />
-            </LockedSettingRow>
-            {(isPremium || trialActive) && autoPlay && (
-              <>
-                <View style={[styles.separator, { backgroundColor: glass.border }]} />
-                <View style={styles.settingBlock}>
-                  <View style={styles.sliderHeader}>
-                    <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                      Auto-Play Speed
-                    </Text>
-                    <Text style={[styles.sliderValue, { color: colors.muted }]}>
-                      {autoPlayWPM} WPM
-                    </Text>
-                  </View>
-                  <GlassSlider
-                    value={autoPlayWPM}
-                    minimumValue={150}
-                    maximumValue={400}
-                    step={10}
-                    onValueChange={setAutoPlayWPM}
-                    leftLabel="150"
-                    rightLabel="400"
-                  />
-                </View>
-              </>
-            )}
-          </GlassCard>
-
-          {/* Section 4: Advanced */}
-          <SectionHeader title="Advanced" icon="sliders" />
-          <GlassCard>
-            <LockedSettingRow label="Breathing Animation" isPremium={isPremium || trialActive} onLockedPress={() => handleLockedPress('locked_breathing')}>
-              <GlassToggle
-                value={breathingAnimation}
-                onValueChange={handleSetBreathingAnimation}
-              />
-            </LockedSettingRow>
-            <SettingRow label="Reduce Motion" noBorder>
-              <GlassToggle
-                value={reduceMotion}
-                onValueChange={setReduceMotion}
-              />
-            </SettingRow>
-          </GlassCard>
-
-          {/* Section 5: Notifications */}
-          <SectionHeader title="Notifications" icon="bell" />
-          <GlassCard>
-            <SettingRow label="Daily Reminder" noBorder={!notificationsEnabled}>
-              <GlassToggle
-                value={notificationsEnabled}
-                onValueChange={handleToggleNotifications}
-              />
-            </SettingRow>
-            {notificationsEnabled && (
-              <SettingRow label="Reminder Time" noBorder>
-                <DateTimePicker
-                  value={(() => {
-                    const d = new Date();
-                    d.setHours(reminderHour, reminderMinute, 0, 0);
-                    return d;
-                  })()}
-                  mode="time"
-                  display="default"
-                  onChange={(_, selectedDate) => {
-                    if (selectedDate) {
-                      handleSetReminderTime(selectedDate.getHours(), selectedDate.getMinutes());
-                    }
-                  }}
-                />
-              </SettingRow>
-            )}
-          </GlassCard>
-
-          {/* Section 6: Daily Goal */}
-          <SectionHeader title="Daily Goal" icon="crosshair" />
-          <GlassCard>
-            <View style={styles.settingBlock}>
-              <View style={styles.sliderHeader}>
-                <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                  Words per Day
-                </Text>
-                <Text style={[styles.sliderValue, { color: colors.muted }]}>
-                  {dailyWordGoal}
-                </Text>
-              </View>
-              <GlassSlider
-                value={dailyWordGoal}
-                minimumValue={50}
-                maximumValue={500}
-                step={50}
-                onValueChange={setDailyWordGoal}
-                leftLabel="50"
-                rightLabel="500"
-              />
-            </View>
-          </GlassCard>
-
-          {/* Section 7: About */}
-          <SectionHeader title="About" icon="info" />
-          <GlassCard>
-            <Pressable
-              onPress={() => router.push('/privacy')}
-              style={styles.settingRow}
-            >
-              <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                Privacy Policy
-              </Text>
-              <Feather name="chevron-right" size={18} color={colors.muted} />
-            </Pressable>
-            <Pressable
-              onPress={() => router.push('/tos')}
-              style={styles.settingRow}
-            >
-              <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                Terms of Service
-              </Text>
-              <Feather name="chevron-right" size={18} color={colors.muted} />
-            </Pressable>
-            {isPremium && (
-              <Pressable
-                onPress={() => Linking.openURL('https://apps.apple.com/account/subscriptions')}
-                style={styles.settingRow}
-              >
-                <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                  Manage Subscription
-                </Text>
-                <Feather name="chevron-right" size={18} color={colors.muted} />
-              </Pressable>
-            )}
-            <Pressable
-              onPress={async () => {
-                const success = await restorePurchases();
-                if (success) {
-                  Alert.alert('Restored', 'Your purchases have been restored.');
-                } else {
-                  Alert.alert('No Purchases Found', 'No previous purchases were found.');
-                }
-              }}
-              style={styles.settingRowNoBorder}
-            >
-              <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                Restore Purchases
-              </Text>
-              <Feather name="chevron-right" size={18} color={colors.muted} />
-            </Pressable>
-          </GlassCard>
-
-          {/* Section 8: Help */}
-          <SectionHeader title="Help" icon="help-circle" />
-          <GlassCard>
-            <Pressable
-              onPress={async () => {
-                try {
-                  const isAvailable = await StoreReview.isAvailableAsync();
-                  if (isAvailable) {
-                    await StoreReview.requestReview();
-                  }
-                } catch {
-                  // StoreReview may not be available on all devices
-                }
-              }}
-              style={styles.settingRow}
-            >
-              <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                Rate Articulate
-              </Text>
-              <Feather name="star" size={18} color={colors.muted} />
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                Linking.openURL('mailto:support@articulate.app?subject=Articulate%20Support');
-              }}
-              style={styles.settingRowNoBorder}
-            >
-              <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                Contact Support
-              </Text>
-              <Feather name="mail" size={18} color={colors.muted} />
-            </Pressable>
-          </GlassCard>
-
-          {/* DEV ONLY: Streak Celebration Testing */}
-          {__DEV__ && (
-            <>
-              <SectionHeader title="Dev Testing" icon="code" />
-              <GlassCard>
-                <View style={styles.devTestRow}>
-                  <Text style={[styles.settingLabel, { color: colors.primary }]}>
-                    Test Streak Celebration
-                  </Text>
-                </View>
-                <View style={styles.devTestButtons}>
-                  {[3, 7, 14, 30, 50, 100, 365].map((milestone) => (
-                    <Pressable
-                      key={milestone}
-                      onPress={() => {
-                        useSettingsStore.setState({
-                          currentStreak: milestone,
-                          shownStreakCelebrations: [],
-                        });
-                        Alert.alert(
-                          'Streak Set',
-                          `Streak set to ${milestone}. Complete a reading to see the celebration.`
-                        );
-                      }}
-                      style={({ pressed }) => [
-                        styles.devTestButton,
-                        { backgroundColor: pressed ? glass.border : glass.fill, borderColor: glass.border },
-                      ]}
-                    >
-                      <Text style={[styles.devTestButtonText, { color: colors.primary }]}>
-                        {milestone}d
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-                <Pressable
-                  onPress={() => {
-                    useSettingsStore.setState({ shownStreakCelebrations: [] });
-                    Alert.alert('Reset', 'Celebration history cleared.');
-                  }}
-                  style={styles.settingRowNoBorder}
-                >
-                  <Text style={[styles.settingLabel, { color: colors.secondary }]}>
-                    Clear Celebration History
-                  </Text>
-                  <Feather name="refresh-cw" size={16} color={colors.secondary} />
-                </Pressable>
-              </GlassCard>
             </>
           )}
+        </GlassCard>
 
-          {/* Section 9: Data */}
-          <SectionHeader title="Data" icon="trash-2" />
-          <GlassCard>
-            <Pressable
-              onPress={() => {
-                Alert.alert(
-                  'Reset All Data',
-                  'This will erase all your reading progress, preferences, and settings. This cannot be undone.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Reset Everything',
-                      style: 'destructive',
-                      onPress: () => {
-                        resetAll();
-                        if (hapticFeedback) {
-                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        }
-                      },
-                    },
-                  ]
-                );
-              }}
-              style={styles.settingRowNoBorder}
-            >
-              <Text style={[styles.settingLabel, { color: '#FF3B30' }]}>
-                Reset All Data
+        {/* Advanced */}
+        <SectionHeader title="Advanced" icon="sliders" />
+        <GlassCard>
+          <LockedSettingRow label="Breathing Animation" isPremium={isPremium || trialActive} onLockedPress={() => handleLockedPress('locked_breathing')}>
+            <GlassToggle
+              value={breathingAnimation}
+              onValueChange={handleSetBreathingAnimation}
+            />
+          </LockedSettingRow>
+          <SettingRow label="Reduce Motion" noBorder>
+            <GlassToggle
+              value={reduceMotion}
+              onValueChange={setReduceMotion}
+            />
+          </SettingRow>
+        </GlassCard>
+
+        {/* Notifications */}
+        <SectionHeader title="Notifications" icon="bell" />
+        <GlassCard>
+          <SettingRow label="Daily Reminder" noBorder={!notificationsEnabled}>
+            <GlassToggle
+              value={notificationsEnabled}
+              onValueChange={handleToggleNotifications}
+            />
+          </SettingRow>
+          {notificationsEnabled && (
+            <SettingRow label="Reminder Time" noBorder>
+              <DateTimePicker
+                value={(() => {
+                  const d = new Date();
+                  d.setHours(reminderHour, reminderMinute, 0, 0);
+                  return d;
+                })()}
+                mode="time"
+                display="default"
+                onChange={(_, selectedDate) => {
+                  if (selectedDate) {
+                    handleSetReminderTime(selectedDate.getHours(), selectedDate.getMinutes());
+                  }
+                }}
+              />
+            </SettingRow>
+          )}
+        </GlassCard>
+
+        {/* Daily Goal */}
+        <SectionHeader title="Daily Goal" icon="crosshair" />
+        <GlassCard>
+          <View style={styles.settingBlock}>
+            <View style={styles.sliderHeader}>
+              <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                Words per Day
               </Text>
-              <Feather name="trash-2" size={18} color="#FF3B30" />
-            </Pressable>
-          </GlassCard>
+              <Text style={[styles.sliderValue, { color: colors.muted }]}>
+                {dailyWordGoal}
+              </Text>
+            </View>
+            <GlassSlider
+              value={dailyWordGoal}
+              minimumValue={50}
+              maximumValue={500}
+              step={50}
+              onValueChange={setDailyWordGoal}
+              leftLabel="50"
+              rightLabel="500"
+            />
+          </View>
+        </GlassCard>
 
-          <View style={{ height: 40 }} />
-        </ScrollView>
+        {/* About */}
+        <SectionHeader title="About" icon="info" />
+        <GlassCard>
+          <Pressable onPress={() => router.push('/privacy')} style={styles.settingRow}>
+            <Text style={[styles.settingLabel, { color: colors.primary }]}>Privacy Policy</Text>
+            <Feather name="chevron-right" size={18} color={colors.muted} />
+          </Pressable>
+          <Pressable onPress={() => router.push('/tos')} style={styles.settingRow}>
+            <Text style={[styles.settingLabel, { color: colors.primary }]}>Terms of Service</Text>
+            <Feather name="chevron-right" size={18} color={colors.muted} />
+          </Pressable>
+          {isPremium && (
+            <Pressable
+              onPress={() => Linking.openURL('https://apps.apple.com/account/subscriptions')}
+              style={styles.settingRow}
+            >
+              <Text style={[styles.settingLabel, { color: colors.primary }]}>Manage Subscription</Text>
+              <Feather name="chevron-right" size={18} color={colors.muted} />
+            </Pressable>
+          )}
+          <Pressable
+            onPress={async () => {
+              const success = await restorePurchases();
+              if (success) {
+                Alert.alert('Restored', 'Your purchases have been restored.');
+              } else {
+                Alert.alert('No Purchases Found', 'No previous purchases were found.');
+              }
+            }}
+            style={styles.settingRowNoBorder}
+          >
+            <Text style={[styles.settingLabel, { color: colors.primary }]}>Restore Purchases</Text>
+            <Feather name="chevron-right" size={18} color={colors.muted} />
+          </Pressable>
+        </GlassCard>
+
+        {/* Help */}
+        <SectionHeader title="Help" icon="help-circle" />
+        <GlassCard>
+          <Pressable
+            onPress={async () => {
+              try {
+                const isAvailable = await StoreReview.isAvailableAsync();
+                if (isAvailable) {
+                  await StoreReview.requestReview();
+                }
+              } catch {
+                // StoreReview may not be available on all devices
+              }
+            }}
+            style={styles.settingRow}
+          >
+            <Text style={[styles.settingLabel, { color: colors.primary }]}>Rate Articulate</Text>
+            <Feather name="star" size={18} color={colors.muted} />
+          </Pressable>
+          <Pressable
+            onPress={() => Linking.openURL('mailto:support@articulate.app?subject=Articulate%20Support')}
+            style={styles.settingRowNoBorder}
+          >
+            <Text style={[styles.settingLabel, { color: colors.primary }]}>Contact Support</Text>
+            <Feather name="mail" size={18} color={colors.muted} />
+          </Pressable>
+        </GlassCard>
+
+        {/* DEV ONLY: Streak Celebration Testing */}
+        {__DEV__ && (
+          <>
+            <SectionHeader title="Dev Testing" icon="code" />
+            <GlassCard>
+              <View style={styles.devTestRow}>
+                <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                  Test Streak Celebration
+                </Text>
+              </View>
+              <View style={styles.devTestButtons}>
+                {[3, 7, 14, 30, 50, 100, 365].map((milestone) => (
+                  <Pressable
+                    key={milestone}
+                    onPress={() => {
+                      useSettingsStore.setState({
+                        currentStreak: milestone,
+                        shownStreakCelebrations: [],
+                      });
+                      Alert.alert('Streak Set', `Streak set to ${milestone}. Complete a reading to see the celebration.`);
+                    }}
+                    style={({ pressed }) => [
+                      styles.devTestButton,
+                      { backgroundColor: pressed ? glass.border : glass.fill, borderColor: glass.border },
+                    ]}
+                  >
+                    <Text style={[styles.devTestButtonText, { color: colors.primary }]}>
+                      {milestone}d
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Pressable
+                onPress={() => {
+                  useSettingsStore.setState({ shownStreakCelebrations: [] });
+                  Alert.alert('Reset', 'Celebration history cleared.');
+                }}
+                style={styles.settingRowNoBorder}
+              >
+                <Text style={[styles.settingLabel, { color: colors.secondary }]}>
+                  Clear Celebration History
+                </Text>
+                <Feather name="refresh-cw" size={16} color={colors.secondary} />
+              </Pressable>
+            </GlassCard>
+          </>
+        )}
+
+        {/* Data */}
+        <SectionHeader title="Data" icon="trash-2" />
+        <GlassCard>
+          <Pressable
+            onPress={() => {
+              Alert.alert(
+                'Reset All Data',
+                'This will erase all your reading progress, preferences, and settings. This cannot be undone.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Reset Everything',
+                    style: 'destructive',
+                    onPress: () => {
+                      resetAll();
+                      if (hapticFeedback) {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      }
+                    },
+                  },
+                ]
+              );
+            }}
+            style={styles.settingRowNoBorder}
+          >
+            <Text style={[styles.settingLabel, { color: '#FF3B30' }]}>
+              Reset All Data
+            </Text>
+            <Feather name="trash-2" size={18} color="#FF3B30" />
+          </Pressable>
+        </GlassCard>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
 
       {/* Paywall */}
       <Paywall
@@ -1305,78 +756,6 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
-  },
-  profileSection: {
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  orbContainer: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    position: 'relative',
-  },
-  orb: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    borderCurve: 'continuous',
-    overflow: 'hidden',
-    borderWidth: 1,
-    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
-  },
-  editBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-  },
-  identityTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    letterSpacing: -0.2,
-    marginTop: Spacing.md,
-  },
-  identitySubtitle: {
-    fontSize: 13,
-    fontWeight: '400',
-    letterSpacing: 0.2,
-  },
-  membershipBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  upgradeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    marginTop: Spacing.xs,
-  },
-  proBadgeTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: Radius.full,
-    marginTop: Spacing.xs,
-  },
-  proBadgeTopText: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
   },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
@@ -1420,40 +799,8 @@ const styles = StyleSheet.create({
   separator: {
     height: 0.5,
   },
-  swatchRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  swatchContainer: {
-    position: 'relative',
-  },
-  swatch: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderCurve: 'continuous',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-  },
-  swatchLockOverlay: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  swatchRewardLock: {
-    backgroundColor: 'rgba(255, 215, 0, 0.8)',
-  },
-  fontPickerContainer: {
-    marginTop: 10,
-    marginHorizontal: -16,
+  segmentedControlWrapper: {
+    marginTop: 8,
   },
   sliderHeader: {
     flexDirection: 'row',
@@ -1462,38 +809,6 @@ const styles = StyleSheet.create({
   },
   sliderValue: {
     fontSize: 13,
-  },
-  colorRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 10,
-  },
-  colorRowBlock: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 12,
-  },
-  wordPreviewContainer: {
-    paddingVertical: 8,
-  },
-  colorCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderCurve: 'continuous',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  colorInner: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderCurve: 'continuous',
-    borderWidth: 2,
-  },
-  segmentedControlWrapper: {
-    marginTop: 8,
   },
   lockedLabelRow: {
     flexDirection: 'row',
@@ -1510,21 +825,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  reminderTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  timeButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  timeButtonText: {
-    fontSize: 15,
-    fontWeight: '500',
-    fontVariant: ['tabular-nums'],
-  },
-  // Upgrade CTA card
+  // Upgrade CTA
   upgradeCTACard: {
     borderRadius: 16,
     borderCurve: 'continuous',
@@ -1550,111 +851,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '400',
     textAlign: 'center',
-  },
-  // Achievements card
-  achievementsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  achievementsLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  achievementsText: {
-    gap: 2,
-  },
-  achievementsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  achievementsSubtitle: {
-    fontSize: 13,
-    fontWeight: '400',
-  },
-  // Reading history
-  historyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  historyInfo: {
-    flex: 1,
-    gap: 2,
-    marginRight: 12,
-  },
-  historyTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  historyMeta: {
-    fontSize: 12,
-    fontWeight: '400',
-  },
-  historyMore: {
-    fontSize: 13,
-    fontWeight: '500',
-    textAlign: 'center',
-    paddingTop: 8,
-  },
-  // Referral card
-  referralContent: {
-    gap: 16,
-  },
-  referralHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  referralIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  referralText: {
-    flex: 1,
-    gap: 2,
-  },
-  referralTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  referralSubtitle: {
-    fontSize: 13,
-    fontWeight: '400',
-  },
-  referralActions: {
-    gap: 10,
-  },
-  referralLinkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 0.5,
-  },
-  referralLinkText: {
-    fontSize: 13,
-    flex: 1,
-    marginRight: 8,
-  },
-  shareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  shareButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
   },
   // Dev testing
   devTestRow: {

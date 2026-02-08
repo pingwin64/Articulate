@@ -160,6 +160,8 @@ export interface SettingsState {
   checkTrialExpired: () => boolean;
 
   // Profile Customization
+  displayName: string | null;
+  setDisplayName: (v: string | null) => void;
   profileImage: string | null;
   setProfileImage: (v: string | null) => void;
   profileColor: string;
@@ -452,6 +454,8 @@ export const useSettingsStore = create<SettingsState>()(
       },
 
       // Profile Customization
+      displayName: null,
+      setDisplayName: (v) => set({ displayName: v }),
       profileImage: null,
       setProfileImage: (v) => set({ profileImage: v }),
       profileColor: '#A78BFA', // Default purple
@@ -1202,6 +1206,7 @@ export const useSettingsStore = create<SettingsState>()(
         hasOnboarded: false,
         isFirstReading: false,
         isPremium: false,
+        displayName: null,
         profileImage: null,
         profileColor: '#A78BFA',
         themeMode: 'light',
@@ -1285,7 +1290,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'articulate-settings',
-      version: 18,
+      version: 19,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -1515,6 +1520,7 @@ export const useSettingsStore = create<SettingsState>()(
           });
 
           // Auto-unlock badges from lowered thresholds
+          // (Note: v19 migration below adds displayName)
           const updatedBadges = persisted.unlockedBadges;
           const unlockIfEarned = (id: string) => {
             if (!updatedBadges.includes(id)) updatedBadges.push(id);
@@ -1533,6 +1539,10 @@ export const useSettingsStore = create<SettingsState>()(
             const count = persisted.categoryReadCounts[key] ?? 0;
             if (count >= 15) unlockIfEarned(`category-${key}-gold`);
           }
+        }
+        if (version < 19) {
+          // v19: Display name for profile
+          persisted.displayName = persisted.displayName ?? null;
         }
         return persisted;
       },
