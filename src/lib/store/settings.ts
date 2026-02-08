@@ -73,6 +73,7 @@ export type PaywallContext =
   | 'trial_expired' | 'settings_upgrade' | 'locked_insights'
   | 'locked_level_up' | 'locked_definition' | 'locked_word_bank'
   | 'locked_library' | 'locked_library_words' | 'locked_library_faves' | 'locked_library_texts'
+  | 'locked_pronunciation'
   | 'generic';
 
 export interface SavedWord {
@@ -252,6 +253,8 @@ export interface SettingsState {
   unlockReward: (id: string) => void;
   hasUsedTTS: boolean;
   setHasUsedTTS: (v: boolean) => void;
+  hasUsedPronunciation: boolean;
+  setHasUsedPronunciation: (v: boolean) => void;
 
   // Notifications
   notificationsEnabled: boolean;
@@ -758,6 +761,8 @@ export const useSettingsStore = create<SettingsState>()(
         })),
       hasUsedTTS: false,
       setHasUsedTTS: (v) => set({ hasUsedTTS: v }),
+      hasUsedPronunciation: false,
+      setHasUsedPronunciation: (v) => set({ hasUsedPronunciation: v }),
 
       // Notifications
       notificationsEnabled: false,
@@ -1209,6 +1214,7 @@ export const useSettingsStore = create<SettingsState>()(
         unlockedBadges: [],
         unlockedRewards: [],
         hasUsedTTS: false,
+        hasUsedPronunciation: false,
         notificationsEnabled: false,
         reminderHour: 20,
         reminderMinute: 0,
@@ -1257,7 +1263,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'articulate-settings',
-      version: 16,
+      version: 17,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -1396,6 +1402,10 @@ export const useSettingsStore = create<SettingsState>()(
         if (version < 16) {
           // v16: Streak celebration tracking
           persisted.shownStreakCelebrations = persisted.shownStreakCelebrations ?? [];
+        }
+        if (version < 17) {
+          // v17: Pronunciation practice
+          persisted.hasUsedPronunciation = persisted.hasUsedPronunciation ?? false;
         }
         return persisted;
       },

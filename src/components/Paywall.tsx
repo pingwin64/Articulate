@@ -210,6 +210,12 @@ function getContextualCopy(context: PaywallContext | null, currentStreak?: numbe
         subheadline: 'Upload anything. Read it your way, anytime.',
         featureOrder: [0, 1, 2, 3],
       };
+    case 'locked_pronunciation':
+      return {
+        headline: 'Practice saying it',
+        subheadline: 'Record yourself and get instant pronunciation feedback.',
+        featureOrder: DEFAULT_ORDER,
+      };
     case 'generic':
     default:
       return {
@@ -445,6 +451,8 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
         return 'Save Your Favorites';
       case 'locked_library_texts':
         return 'Upload Your Texts';
+      case 'locked_pronunciation':
+        return 'Practice Pronunciation';
       case 'settings_upgrade':
         return 'Unlock All Settings';
       case 'trial_expired':

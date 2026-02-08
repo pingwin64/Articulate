@@ -32,6 +32,15 @@ import { SentenceTrail } from '../components/SentenceTrail';
 import { Paywall } from '../components/Paywall';
 import { speakWord, stopSpeaking } from '../lib/tts';
 import { fetchDefinition, type WordDefinition } from '../lib/definitions';
+import {
+  requestMicrophonePermission,
+  startRecording,
+  stopRecording,
+  cancelRecording,
+  transcribeAudio,
+  scoreWord,
+  type PronunciationFeedback,
+} from '../lib/pronunciation-service';
 
 export default function ReadingScreen() {
   const { colors, glass, isDark } = useTheme();
@@ -65,6 +74,33 @@ export default function ReadingScreen() {
   const addSavedWord = useSettingsStore((s) => s.addSavedWord);
   const removeSavedWord = useSettingsStore((s) => s.removeSavedWord);
   const [ttsEnabled, setTtsEnabled] = useState(false);
+
+  // Pronunciation state
+  const [pronunciationState, setPronunciationState] = useState<'idle' | 'recording' | 'processing' | 'result'>('idle');
+  const [pronunciationFeedback, setPronunciationFeedback] = useState<PronunciationFeedback | null>(null);
+  const [pronunciationError, setPronunciationError] = useState<string | null>(null);
+  const pronunciationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const setHasUsedPronunciation = useSettingsStore((s) => s.setHasUsedPronunciation);
+
+  // Pronunciation feedback animation
+  const feedbackOpacity = useSharedValue(0);
+  const feedbackScale = useSharedValue(0.8);
+
+  const feedbackAnimStyle = useAnimatedStyle(() => ({
+    opacity: feedbackOpacity.value,
+    transform: [{ scale: feedbackScale.value }],
+  }));
+
+  const showFeedbackAnim = useCallback(() => {
+    feedbackOpacity.value = withTiming(1, { duration: 200 });
+    feedbackScale.value = withSpring(1, { damping: 15, stiffness: 200 });
+  }, [feedbackOpacity, feedbackScale]);
+
+  const hideFeedbackAnim = useCallback(() => {
+    feedbackOpacity.value = withTiming(0, { duration: 200 });
+    feedbackScale.value = withTiming(0.8, { duration: 200 });
+  }, [feedbackOpacity, feedbackScale]);
 
   // Definition state
   const [showDefinition, setShowDefinition] = useState(false);
@@ -349,8 +385,151 @@ export default function ReadingScreen() {
     }
   };
 
+  // ─── Pronunciation ──────────────────────────────────────────
+  const dismissPronunciationFeedback = useCallback(() => {
+    hideFeedbackAnim();
+    if (pronunciationTimerRef.current) clearTimeout(pronunciationTimerRef.current);
+    setTimeout(() => {
+      setPronunciationState('idle');
+      setPronunciationFeedback(null);
+      setPronunciationError(null);
+    }, 250);
+  }, [hideFeedbackAnim]);
+
+  const handleStopRecording = useCallback(async () => {
+    if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
+    try {
+      const base64 = await stopRecording();
+
+      // Guard: too short
+      if (base64.length < 1400) {
+        setPronunciationError('Recording too short. Try holding a bit longer.');
+        setPronunciationState('result');
+        showFeedbackAnim();
+        pronunciationTimerRef.current = setTimeout(dismissPronunciationFeedback, 3000);
+        return;
+      }
+
+      setPronunciationState('processing');
+
+      const transcribed = await transcribeAudio(base64);
+
+      if (!transcribed) {
+        setPronunciationError('Could not hear anything. Try again.');
+        setPronunciationState('result');
+        showFeedbackAnim();
+        pronunciationTimerRef.current = setTimeout(dismissPronunciationFeedback, 3000);
+        return;
+      }
+
+      const feedback = scoreWord(transcribed, singleWord);
+      setPronunciationFeedback(feedback);
+      setPronunciationState('result');
+      showFeedbackAnim();
+
+      // Haptics
+      if (hapticFeedback) {
+        if (feedback.result === 'perfect') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } else if (feedback.result === 'close') {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+      }
+
+      pronunciationTimerRef.current = setTimeout(dismissPronunciationFeedback, 2500);
+    } catch (err: any) {
+      setPronunciationError(err.message ?? 'Something went wrong.');
+      setPronunciationState('result');
+      showFeedbackAnim();
+      pronunciationTimerRef.current = setTimeout(dismissPronunciationFeedback, 3000);
+    }
+  }, [singleWord, hapticFeedback, showFeedbackAnim, dismissPronunciationFeedback]);
+
+  const handlePronunciationTap = useCallback(async () => {
+    // Premium check
+    if (!isPremium) {
+      setPaywallContext('locked_pronunciation');
+      return;
+    }
+
+    // If already recording, stop
+    if (pronunciationState === 'recording') {
+      handleStopRecording();
+      return;
+    }
+
+    // If showing result, dismiss and return
+    if (pronunciationState === 'result') {
+      dismissPronunciationFeedback();
+      return;
+    }
+
+    // Request mic permission
+    const granted = await requestMicrophonePermission();
+    if (!granted) {
+      setPronunciationError('Microphone permission denied.');
+      setPronunciationState('result');
+      showFeedbackAnim();
+      pronunciationTimerRef.current = setTimeout(dismissPronunciationFeedback, 3000);
+      return;
+    }
+
+    // Stop TTS if active
+    if (ttsEnabled) {
+      stopSpeaking();
+    }
+
+    // Pause auto-play
+    if (autoPlayTimerRef.current) {
+      clearTimeout(autoPlayTimerRef.current);
+    }
+
+    // Start recording
+    try {
+      await startRecording();
+      setHasUsedPronunciation(true);
+      setPronunciationState('recording');
+      setPronunciationError(null);
+      setPronunciationFeedback(null);
+
+      // Auto-stop after 4 seconds
+      recordingTimerRef.current = setTimeout(() => {
+        handleStopRecording();
+      }, 4000);
+    } catch (err: any) {
+      setPronunciationError(err.message ?? 'Could not start recording.');
+      setPronunciationState('result');
+      showFeedbackAnim();
+      pronunciationTimerRef.current = setTimeout(dismissPronunciationFeedback, 3000);
+    }
+  }, [isPremium, pronunciationState, ttsEnabled, setPaywallContext, handleStopRecording, dismissPronunciationFeedback, showFeedbackAnim, setHasUsedPronunciation]);
+
+  // Cancel recording + dismiss feedback on word change
+  useEffect(() => {
+    if (pronunciationState === 'recording') {
+      cancelRecording();
+    }
+    if (pronunciationTimerRef.current) clearTimeout(pronunciationTimerRef.current);
+    if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
+    setPronunciationState('idle');
+    setPronunciationFeedback(null);
+    setPronunciationError(null);
+    feedbackOpacity.value = 0;
+    feedbackScale.value = 0.8;
+  }, [currentIndex]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cancelRecording();
+      if (pronunciationTimerRef.current) clearTimeout(pronunciationTimerRef.current);
+      if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
+    };
+  }, []);
+
   const handleClose = () => {
     if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current);
+    cancelRecording();
     stopSpeaking();
     if (router.canGoBack()) {
       router.back();
@@ -434,16 +613,59 @@ export default function ReadingScreen() {
             </View>
 
             {/* Below-word content: absolutely positioned to prevent layout shift */}
-            <View style={styles.belowWord}>
-              <SentenceTrail words={completedWords} visible={hasOnboarded && sentenceRecap} />
-              {showHint && (
-                <Animated.Text
-                  entering={FadeIn.duration(300)}
-                  exiting={FadeOut.duration(300)}
-                  style={[styles.hint, { color: colors.muted }]}
-                >
-                  Tap to continue
-                </Animated.Text>
+            <View style={styles.belowWord} pointerEvents="box-none">
+              {/* Pronunciation feedback */}
+              {pronunciationState === 'recording' && (
+                <Animated.View entering={FadeIn.duration(200)} style={styles.pronunciationRow}>
+                  <View style={[styles.recordingDot, { backgroundColor: colors.error }]} />
+                  <Text style={[styles.pronunciationText, { color: colors.error }]}>Listening...</Text>
+                </Animated.View>
+              )}
+              {pronunciationState === 'processing' && (
+                <Animated.View entering={FadeIn.duration(200)} style={styles.pronunciationRow}>
+                  <ActivityIndicator size="small" color={colors.muted} />
+                  <Text style={[styles.pronunciationText, { color: colors.muted }]}>Checking...</Text>
+                </Animated.View>
+              )}
+              {pronunciationState === 'result' && pronunciationError && (
+                <Animated.View style={[styles.pronunciationRow, feedbackAnimStyle]}>
+                  <Text style={[styles.pronunciationText, { color: colors.secondary }]}>{pronunciationError}</Text>
+                </Animated.View>
+              )}
+              {pronunciationState === 'result' && pronunciationFeedback && (
+                <Animated.View style={[styles.pronunciationResult, feedbackAnimStyle]}>
+                  <Text style={[
+                    styles.pronunciationResultText,
+                    {
+                      color: pronunciationFeedback.result === 'perfect'
+                        ? (colors.success ?? '#22C55E')
+                        : pronunciationFeedback.result === 'close'
+                          ? '#EAB308'
+                          : colors.secondary,
+                    },
+                  ]}>
+                    {pronunciationFeedback.result === 'perfect' ? 'Perfect!' : pronunciationFeedback.result === 'close' ? 'Close!' : 'Try again'}
+                  </Text>
+                  {pronunciationFeedback.result !== 'perfect' && (
+                    <Text style={[styles.pronunciationHeard, { color: colors.muted }]}>
+                      Heard: "{pronunciationFeedback.transcribed}"
+                    </Text>
+                  )}
+                </Animated.View>
+              )}
+              {pronunciationState === 'idle' && (
+                <>
+                  <SentenceTrail words={completedWords} visible={hasOnboarded && sentenceRecap} />
+                  {showHint && (
+                    <Animated.Text
+                      entering={FadeIn.duration(300)}
+                      exiting={FadeOut.duration(300)}
+                      style={[styles.hint, { color: colors.muted }]}
+                    >
+                      Tap to continue
+                    </Animated.Text>
+                  )}
+                </>
               )}
             </View>
           </Pressable>
@@ -574,6 +796,11 @@ export default function ReadingScreen() {
         <Stack.Toolbar.Button
           icon="questionmark.circle"
           onPress={handleDefinitionTap}
+        />
+        <Stack.Toolbar.Button
+          icon={pronunciationState === 'recording' ? 'mic.fill' : 'mic'}
+          tintColor={pronunciationState === 'recording' ? colors.error : undefined}
+          onPress={handlePronunciationTap}
         />
         <Stack.Toolbar.Button
           icon={isWordSaved ? 'heart.fill' : 'heart'}
@@ -799,5 +1026,35 @@ const styles = StyleSheet.create({
   definitionSaveText: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  // Pronunciation
+  pronunciationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingTop: 16,
+  },
+  recordingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  pronunciationText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  pronunciationResult: {
+    alignItems: 'center',
+    paddingTop: 16,
+    gap: 4,
+  },
+  pronunciationResultText: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  pronunciationHeard: {
+    fontSize: 13,
+    fontWeight: '400',
   },
 });

@@ -66,6 +66,10 @@ Deno.serve(async (req: Request) => {
       return await handleGenerateText(body.level, body.category, body.wordCount);
     }
 
+    if (action === "transcribe-audio") {
+      return await handleTranscribeAudio(body.audioData);
+    }
+
     return json({ error: "Unknown action" }, 400);
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : "Internal error" }, 500);
@@ -309,6 +313,51 @@ The text should be engaging, coherent, and educational. Return a JSON object wit
   } catch {
     return json({ title: category, text: content });
   }
+}
+
+async function handleTranscribeAudio(audioData: string) {
+  if (!audioData) {
+    return json({ error: "No audio data provided" }, 400);
+  }
+
+  // Decode base64 to binary
+  const binaryString = atob(audioData);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  const formData = new FormData();
+  formData.append(
+    "file",
+    new Blob([bytes], { type: "audio/m4a" }),
+    "recording.m4a"
+  );
+  formData.append("model", "whisper-1");
+  formData.append("language", "en");
+  formData.append("prompt", "Single word pronunciation.");
+
+  const response = await fetch(
+    "https://api.openai.com/v1/audio/transcriptions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    return json(
+      { error: err?.error?.message ?? `OpenAI error: ${response.status}` },
+      response.status === 429 ? 429 : 502
+    );
+  }
+
+  const data = await response.json();
+  return json({ text: data.text ?? "" });
 }
 
 function json(data: unknown, status = 200) {
