@@ -1,10 +1,11 @@
 import { categories, FREE_CATEGORY_KEYS, type TextEntry, type Category } from './data/categories';
-import { useSettingsStore } from './store/settings';
+import { useSettingsStore, getCurrentLevel } from './store/settings';
+import { computeDifficulty } from './data/difficulty';
 
 export interface QueueItem {
   category: Category;
   text: TextEntry;
-  reason: 'continue' | 'explore' | 'new_unlock';
+  reason: 'continue' | 'explore' | 'new_unlock' | 'level_match';
 }
 
 export function getReadingQueue(limit = 5): QueueItem[] {
@@ -13,6 +14,7 @@ export function getReadingQueue(limit = 5): QueueItem[] {
     readingHistory,
     categoryReadCounts,
     isPremium,
+    levelProgress,
   } = state;
 
   const queue: QueueItem[] = [];
@@ -29,6 +31,9 @@ export function getReadingQueue(limit = 5): QueueItem[] {
       .filter((h) => h.textId)
       .map((h) => h.textId!)
   );
+
+  // User's current level (1-5)
+  const userLevel = getCurrentLevel(levelProgress);
 
   // Helper: get next unread text in a category
   const getNextUnread = (cat: Category): TextEntry | undefined => {
@@ -57,7 +62,31 @@ export function getReadingQueue(limit = 5): QueueItem[] {
     }
   }
 
-  // 2. Least-read categories — variety from underexplored
+  // 2. Level-matched texts — suggest texts near user's difficulty level
+  // Map user level (1-5) to target difficulty score (1-10)
+  const targetScore = userLevel * 2; // Level 1→2, Level 2→4, Level 3→6, etc.
+
+  const scoredTexts: { cat: Category; text: TextEntry; scoreDiff: number }[] = [];
+  for (const cat of availableCategories) {
+    const readCount = categoryReadCounts[cat.key] ?? 0;
+    for (const t of cat.texts) {
+      if (completedTextIds.has(t.id) || usedTextIds.has(t.id)) continue;
+      if (t.requiredReads && readCount < t.requiredReads) continue;
+      const score = computeDifficulty(t.words);
+      scoredTexts.push({ cat, text: t, scoreDiff: Math.abs(score - targetScore) });
+    }
+  }
+  // Sort by closest to user level
+  scoredTexts.sort((a, b) => a.scoreDiff - b.scoreDiff);
+
+  for (const { cat, text } of scoredTexts) {
+    if (queue.length >= limit - 1) break; // Leave room for new_unlock
+    if (usedTextIds.has(text.id)) continue;
+    queue.push({ category: cat, text, reason: 'level_match' });
+    usedTextIds.add(text.id);
+  }
+
+  // 3. Least-read categories — variety from underexplored
   const sortedByReads = [...availableCategories].sort(
     (a, b) => (categoryReadCounts[a.key] ?? 0) - (categoryReadCounts[b.key] ?? 0)
   );
@@ -65,13 +94,13 @@ export function getReadingQueue(limit = 5): QueueItem[] {
   for (const cat of sortedByReads) {
     if (queue.length >= limit) break;
     const next = getNextUnread(cat);
-    if (next) {
+    if (next && !usedTextIds.has(next.id)) {
       queue.push({ category: cat, text: next, reason: 'explore' });
       usedTextIds.add(next.id);
     }
   }
 
-  // 3. New unlocks — texts that just became available
+  // 4. New unlocks — texts that just became available
   for (const cat of availableCategories) {
     if (queue.length >= limit) break;
     const readCount = categoryReadCounts[cat.key] ?? 0;

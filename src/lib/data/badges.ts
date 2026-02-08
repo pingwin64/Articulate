@@ -100,6 +100,17 @@ function generateCategoryBadges(): Badge[] {
       categoryKey: key,
       threshold: 15,
     });
+
+    // Completionist - all texts in category (20 per category)
+    badges.push({
+      id: `category-${key}-complete`,
+      name: `${name} Completionist`,
+      description: `Read every text in ${name}`,
+      category: 'category',
+      icon,
+      categoryKey: key,
+      threshold: 20,
+    });
   }
 
   return badges;

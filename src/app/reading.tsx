@@ -75,6 +75,11 @@ export default function ReadingScreen() {
   const removeSavedWord = useSettingsStore((s) => s.removeSavedWord);
   const [ttsEnabled, setTtsEnabled] = useState(false);
 
+  // Listen & Repeat mode
+  const [listenRepeatActive, setListenRepeatActive] = useState(false);
+  const [listenRepeatPhase, setListenRepeatPhase] = useState<'idle' | 'listening' | 'recording' | 'processing' | 'result'>('idle');
+  const listenRepeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Pronunciation state
   const [pronunciationState, setPronunciationState] = useState<'idle' | 'recording' | 'processing' | 'result'>('idle');
   const [pronunciationFeedback, setPronunciationFeedback] = useState<PronunciationFeedback | null>(null);
@@ -247,6 +252,83 @@ export default function ReadingScreen() {
   useEffect(() => {
     return () => stopSpeaking();
   }, []);
+
+  // Listen & Repeat: auto-trigger flow on word change
+  useEffect(() => {
+    if (!listenRepeatActive || !currentWord) return;
+
+    const rawWord = words[currentIndex]?.replace(/[^\w'-]/g, '') ?? '';
+    // Skip short words in Listen & Repeat
+    if (rawWord.length < 3) {
+      setListenRepeatPhase('idle');
+      return;
+    }
+
+    // Phase 1: TTS speaks the word
+    setListenRepeatPhase('listening');
+    speakWord(currentWord, ttsSpeed, voiceGender);
+
+    // Phase 2: After TTS + delay, auto-start recording
+    listenRepeatTimerRef.current = setTimeout(async () => {
+      const granted = await requestMicrophonePermission();
+      if (!granted) {
+        setListenRepeatPhase('idle');
+        return;
+      }
+
+      try {
+        await startRecording();
+        setListenRepeatPhase('recording');
+        setPronunciationError(null);
+        setPronunciationFeedback(null);
+
+        // Auto-stop after 3 seconds
+        recordingTimerRef.current = setTimeout(() => {
+          handleStopRecording();
+          setListenRepeatPhase('result');
+        }, 3000);
+      } catch {
+        setListenRepeatPhase('idle');
+      }
+    }, 1500); // 1.5s delay after TTS starts
+
+    return () => {
+      if (listenRepeatTimerRef.current) clearTimeout(listenRepeatTimerRef.current);
+    };
+  }, [listenRepeatActive, currentIndex]);
+
+  const handleListenRepeatToggle = useCallback(() => {
+    if (listenRepeatActive) {
+      // Turn off
+      setListenRepeatActive(false);
+      setListenRepeatPhase('idle');
+      cancelRecording();
+      stopSpeaking();
+      if (listenRepeatTimerRef.current) clearTimeout(listenRepeatTimerRef.current);
+      return;
+    }
+
+    // Check free/premium access
+    if (!isPremium) {
+      const store = useSettingsStore.getState();
+      if (!store.canUseFreeListenRepeat()) {
+        setPaywallContext('locked_pronunciation');
+        return;
+      }
+      store.useFreeListenRepeat();
+    }
+
+    // Enable TTS if not already
+    if (!ttsEnabled) {
+      setTtsEnabled(true);
+      setHasUsedTTS(true);
+    }
+    setListenRepeatActive(true);
+
+    // Track session
+    useSettingsStore.getState().incrementListenRepeatSessions();
+    useSettingsStore.getState().incrementWeeklyChallengeProgress('listen_repeat', 1);
+  }, [listenRepeatActive, isPremium, ttsEnabled, setPaywallContext]);
 
   const setHasUsedTTS = useSettingsStore((s) => s.setHasUsedTTS);
 
@@ -566,6 +648,8 @@ export default function ReadingScreen() {
 
   const handleClose = () => {
     if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current);
+    if (listenRepeatTimerRef.current) clearTimeout(listenRepeatTimerRef.current);
+    setListenRepeatActive(false);
     cancelRecording();
     stopSpeaking();
     if (router.canGoBack()) {
@@ -651,6 +735,13 @@ export default function ReadingScreen() {
 
             {/* Below-word content: absolutely positioned to prevent layout shift */}
             <View style={styles.belowWord} pointerEvents="box-none">
+              {/* Listen & Repeat phase */}
+              {listenRepeatActive && listenRepeatPhase === 'listening' && pronunciationState === 'idle' && (
+                <Animated.View entering={FadeIn.duration(200)} style={styles.pronunciationRow}>
+                  <Feather name="volume-2" size={16} color={colors.primary} />
+                  <Text style={[styles.pronunciationText, { color: colors.primary }]}>Listen...</Text>
+                </Animated.View>
+              )}
               {/* Pronunciation feedback */}
               {pronunciationState === 'recording' && (
                 <Animated.View entering={FadeIn.duration(200)} style={styles.pronunciationRow}>
@@ -838,6 +929,12 @@ export default function ReadingScreen() {
           icon={pronunciationState === 'recording' ? 'mic.fill' : 'mic'}
           tintColor={pronunciationState === 'recording' ? colors.error : undefined}
           onPress={handlePronunciationTap}
+        />
+        <Stack.Toolbar.Button
+          icon={listenRepeatActive ? 'repeat.1' : 'repeat'}
+          selected={listenRepeatActive}
+          tintColor={listenRepeatActive ? colors.primary : undefined}
+          onPress={handleListenRepeatToggle}
         />
         <Stack.Toolbar.Button
           icon={isWordSaved ? 'heart.fill' : 'heart'}

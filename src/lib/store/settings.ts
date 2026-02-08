@@ -872,18 +872,18 @@ export const useSettingsStore = create<SettingsState>()(
       selectedCategoryKey: null,
       setSelectedCategoryKey: (v) => set({ selectedCategoryKey: v }),
 
-      // Free user text limit (1 text, expires after 24h)
+      // Free user text limit (1 text, expires after 48h)
       cleanupExpiredFreeTexts: () => {
         const state = get();
         if (state.isPremium) return; // Premium users keep everything
 
         const now = Date.now();
-        const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+        const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
 
         const expiredIds = state.customTexts
           .filter((t) => {
             const createdTime = new Date(t.createdAt).getTime();
-            return now - createdTime > TWENTY_FOUR_HOURS;
+            return now - createdTime > FORTY_EIGHT_HOURS;
           })
           .map((t) => t.id);
 
@@ -901,11 +901,11 @@ export const useSettingsStore = create<SettingsState>()(
         // Free users can only have 1 text at a time
         // Check if they have any non-expired texts
         const now = Date.now();
-        const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+        const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
 
         const activeTexts = state.customTexts.filter((t) => {
           const createdTime = new Date(t.createdAt).getTime();
-          return now - createdTime < TWENTY_FOUR_HOURS;
+          return now - createdTime < FORTY_EIGHT_HOURS;
         });
 
         return activeTexts.length === 0;
@@ -916,14 +916,14 @@ export const useSettingsStore = create<SettingsState>()(
         if (state.isPremium) return null;
         if (state.customTexts.length === 0) return null;
 
-        const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+        const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
         // Get the most recent text
         const sortedTexts = [...state.customTexts].sort(
           (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
         const activeText = sortedTexts[0];
         const createdTime = new Date(activeText.createdAt).getTime();
-        const expiryTime = createdTime + TWENTY_FOUR_HOURS;
+        const expiryTime = createdTime + FORTY_EIGHT_HOURS;
         const now = Date.now();
 
         if (now >= expiryTime) return 0; // Already expired
@@ -936,12 +936,12 @@ export const useSettingsStore = create<SettingsState>()(
         if (state.customTexts.length === 0) return null;
 
         const now = Date.now();
-        const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+        const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
 
         // Find the active (non-expired) text
         const activeTexts = state.customTexts.filter((t) => {
           const createdTime = new Date(t.createdAt).getTime();
-          return now - createdTime < TWENTY_FOUR_HOURS;
+          return now - createdTime < FORTY_EIGHT_HOURS;
         });
 
         return activeTexts.length > 0 ? activeTexts[0] : null;
