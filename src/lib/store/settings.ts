@@ -46,9 +46,17 @@ export function getLevelName(levelProgress: number): LevelName {
 }
 
 // Get progress toward next level (0-100)
+// After Level 5, shows progress toward next 10K milestone
 export function getProgressToNextLevel(levelProgress: number): number {
   const level = getCurrentLevel(levelProgress);
-  if (level >= 5) return 100; // Mastery achieved
+  if (level >= 5) {
+    // Endgame: show progress toward next 10K milestone (10K, 20K, 30K...)
+    const milestone = Math.ceil(levelProgress / 10000) * 10000;
+    if (milestone === levelProgress) return 100;
+    const prevMilestone = milestone - 10000;
+    const progressInMilestone = levelProgress - prevMilestone;
+    return Math.min(100, Math.round((progressInMilestone / 10000) * 100));
+  }
   const currentThreshold = LEVEL_THRESHOLDS[level - 1];
   const nextThreshold = LEVEL_THRESHOLDS[level];
   const progressInLevel = levelProgress - currentThreshold;
@@ -56,12 +64,22 @@ export function getProgressToNextLevel(levelProgress: number): number {
   return Math.min(100, Math.round((progressInLevel / levelRange) * 100));
 }
 
-// Get words needed for next level
+// Get words needed for next level (or next 10K milestone after Level 5)
 export function getWordsToNextLevel(levelProgress: number): number {
   const level = getCurrentLevel(levelProgress);
-  if (level >= 5) return 0; // Mastery achieved
+  if (level >= 5) {
+    // Endgame: words to next 10K milestone
+    const milestone = Math.ceil(levelProgress / 10000) * 10000;
+    if (milestone === levelProgress) return 10000; // Exactly at milestone, next is +10K
+    return milestone - levelProgress;
+  }
   const nextThreshold = LEVEL_THRESHOLDS[level];
   return nextThreshold - levelProgress;
+}
+
+// Get total words label for endgame display
+export function getTotalWordsLabel(levelProgress: number): string {
+  return `${levelProgress.toLocaleString()} words mastered`;
 }
 
 export type PaywallContext =
@@ -86,6 +104,7 @@ export interface SavedWord {
   savedAt: string;
   sourceText?: string;
   sourceCategory?: string;
+  lastReviewedDate?: string;
 }
 
 export interface FavoriteText {
@@ -413,6 +432,18 @@ export interface SettingsState {
   // Streak Celebrations
   shownStreakCelebrations: number[];
   markStreakCelebrationShown: (milestone: number) => void;
+
+  // Store Review
+  hasRequestedReview: boolean;
+  setHasRequestedReview: (v: boolean) => void;
+
+  // Feature Discovery (one-time tooltips)
+  discoveredFeatures: { definition: boolean; pronunciation: boolean; wordSave: boolean; tts: boolean };
+  setFeatureDiscovered: (feature: keyof SettingsState['discoveredFeatures']) => void;
+
+  // Word Bank Review Tracking
+  lastWordReviewDate: string | null;
+  setLastWordReviewDate: (v: string | null) => void;
 
   // Computed helper
   trialDaysRemaining: () => number;
@@ -1002,6 +1033,9 @@ export const useSettingsStore = create<SettingsState>()(
           if (state.isPremium) {
             updates.streakFreezes = 2;
             updates.streakRestores = 3;
+          } else {
+            // Free users: 1 restore per month (no freezes)
+            updates.streakRestores = 1;
           }
           set(updates);
         }
@@ -1361,6 +1395,21 @@ export const useSettingsStore = create<SettingsState>()(
             : [...s.shownStreakCelebrations, milestone],
         })),
 
+      // Store Review
+      hasRequestedReview: false,
+      setHasRequestedReview: (v) => set({ hasRequestedReview: v }),
+
+      // Feature Discovery
+      discoveredFeatures: { definition: false, pronunciation: false, wordSave: false, tts: false },
+      setFeatureDiscovered: (feature) =>
+        set((s) => ({
+          discoveredFeatures: { ...s.discoveredFeatures, [feature]: true },
+        })),
+
+      // Word Bank Review Tracking
+      lastWordReviewDate: null,
+      setLastWordReviewDate: (v) => set({ lastWordReviewDate: v }),
+
       // Computed helper
       trialDaysRemaining: () => {
         const state = get();
@@ -1471,11 +1520,14 @@ export const useSettingsStore = create<SettingsState>()(
         dailyGoalStreak: 0,
         lastDailyGoalMetDate: null,
         shownStreakCelebrations: [],
+        hasRequestedReview: false,
+        discoveredFeatures: { definition: false, pronunciation: false, wordSave: false, tts: false },
+        lastWordReviewDate: null,
       }),
     }),
     {
       name: 'articulate-settings',
-      version: 25,
+      version: 26,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -1758,6 +1810,17 @@ export const useSettingsStore = create<SettingsState>()(
           // v25: Daily goal streak, level-gated rewards
           persisted.dailyGoalStreak = persisted.dailyGoalStreak ?? 0;
           persisted.lastDailyGoalMetDate = persisted.lastDailyGoalMetDate ?? null;
+        }
+        if (version < 26) {
+          // v26: Store review, feature discovery tooltips, word bank review tracking
+          persisted.hasRequestedReview = persisted.hasRequestedReview ?? false;
+          persisted.discoveredFeatures = persisted.discoveredFeatures ?? {
+            definition: false,
+            pronunciation: false,
+            wordSave: false,
+            tts: false,
+          };
+          persisted.lastWordReviewDate = persisted.lastWordReviewDate ?? null;
         }
         return persisted;
       },

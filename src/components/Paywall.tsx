@@ -37,7 +37,7 @@ interface ContextualCopy {
 
 const FEATURES = [
   { icon: 'check' as const, text: 'Your library — upload anything, save words, bookmark favorites' },
-  { icon: 'check' as const, text: 'All 12 categories: Philosophy, Poetry, Science & more' },
+  { icon: 'check' as const, text: 'All 9 categories: Philosophy, Science, History & more' },
   { icon: 'check' as const, text: 'Customize fonts, colors & backgrounds to match your style' },
   { icon: 'check' as const, text: 'Unlimited quizzes to lock in what you learn' },
 ];
@@ -215,6 +215,12 @@ function getContextualCopy(context: PaywallContext | null, currentStreak?: numbe
         headline: 'Practice saying it',
         subheadline: 'Record yourself and get instant pronunciation feedback.',
         featureOrder: DEFAULT_ORDER,
+      };
+    case 'locked_ai_practice':
+      return {
+        headline: 'Your daily practice awaits',
+        subheadline: 'Get a personalized text every day, matched to your reading level.',
+        featureOrder: [1, 0, 2, 3],
       };
     case 'generic':
     default:
@@ -453,6 +459,8 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
         return 'Upload Your Texts';
       case 'locked_pronunciation':
         return 'Practice Pronunciation';
+      case 'locked_ai_practice':
+        return 'Unlock Daily Practice';
       case 'settings_upgrade':
         return 'Unlock All Settings';
       case 'trial_expired':

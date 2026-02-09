@@ -71,6 +71,10 @@ export async function generateDailyText(): Promise<CustomText> {
 
   const data = await response.json();
 
+  if (!data.text || data.text.trim().split(/\s+/).length < 10) {
+    throw new Error('Generated text was too short');
+  }
+
   const aiText: CustomText = {
     id: `ai-${Date.now().toString(36)}`,
     title: data.title || 'Today\'s Practice',

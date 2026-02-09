@@ -54,7 +54,7 @@ import {
   Radius,
 } from '../design/theme';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
-import { scheduleStreakAtRiskReminder, cleanupOrphanedNotifications } from '../lib/notifications';
+import { scheduleStreakAtRiskReminder, cleanupOrphanedNotifications, requestNotificationPermissions, scheduleStreakReminder } from '../lib/notifications';
 import { StreakRestoreSheet } from '../components/StreakRestoreSheet';
 
 // ─── Onboarding Constants ────────────────────────────────────
@@ -712,6 +712,8 @@ const ITEM_HEIGHT = 56;
 function OnboardingDailyGoal({ onNext }: { onNext: (goal: number) => void }) {
   const { colors, glass, isDark } = useTheme();
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
+  const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled);
+  const [notifyEnabled, setNotifyEnabled] = useState(true); // default ON
 
   // Default to 100 (index 1)
   const [selectedIndex, setSelectedIndex] = useState(1);
@@ -832,7 +834,39 @@ function OnboardingDailyGoal({ onNext }: { onNext: (goal: number) => void }) {
         </Animated.Text>
       </View>
       <View style={styles.onboardingBottom}>
-        <GlassButton title="Continue" onPress={() => onNext(selectedGoal)} />
+        {/* Notification opt-in toggle */}
+        <Pressable
+          onPress={() => setNotifyEnabled((v) => !v)}
+          style={[styles.notifyToggleRow, { borderColor: glass.border }]}
+        >
+          <View style={styles.notifyToggleLeft}>
+            <Feather name="bell" size={16} color={colors.secondary} />
+            <Text style={[styles.notifyToggleText, { color: colors.secondary }]}>
+              Daily reminder
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.notifyToggleDot,
+              { backgroundColor: notifyEnabled ? colors.primary : glass.fill, borderColor: glass.border },
+            ]}
+          >
+            {notifyEnabled && <Feather name="check" size={10} color={colors.bg} />}
+          </View>
+        </Pressable>
+        <GlassButton
+          title="Continue"
+          onPress={async () => {
+            if (notifyEnabled) {
+              const granted = await requestNotificationPermissions();
+              if (granted) {
+                setNotificationsEnabled(true);
+                await scheduleStreakReminder(20, 0, 0);
+              }
+            }
+            onNext(selectedGoal);
+          }}
+        />
       </View>
     </View>
   );
@@ -1499,6 +1533,7 @@ function Home() {
   })));
   const dailyAIText = useSettingsStore((s) => s.dailyAIText);
   const dailyAITextDate = useSettingsStore((s) => s.dailyAITextDate);
+  const lastWordReviewDate = useSettingsStore((s) => s.lastWordReviewDate);
 
   // Stable action references — these don't trigger re-renders
   const checkTrialExpired = useSettingsStore((s) => s.checkTrialExpired);
@@ -1958,6 +1993,30 @@ function Home() {
             </View>
           </Pressable>
         </Animated.View>
+
+        {/* Word bank review nudge — only when no resume card, 5+ saved words, 3+ days since review */}
+        {!resumeData && savedWords.length >= 5 && (() => {
+          const daysSinceReview = lastWordReviewDate
+            ? Math.floor((Date.now() - new Date(lastWordReviewDate).getTime()) / (1000 * 60 * 60 * 24))
+            : 999;
+          return daysSinceReview >= 3;
+        })() && (
+          <Animated.View entering={FadeIn.delay(160).duration(400)}>
+            <Pressable
+              onPress={() => router.push('/word-bank')}
+              style={({ pressed }) => [
+                styles.reviewNudge,
+                { borderColor: glass.border, opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              <Feather name="book-open" size={16} color={colors.secondary} />
+              <Text style={[styles.reviewNudgeText, { color: colors.secondary }]}>
+                You have {savedWords.length} saved words. Review them?
+              </Text>
+              <Feather name="chevron-right" size={14} color={colors.muted} />
+            </Pressable>
+          </Animated.View>
+        )}
 
         {/* Categories Grid */}
         <Animated.View entering={FadeIn.delay(140).duration(400)} style={styles.categoriesGrid}>
@@ -2951,5 +3010,49 @@ const styles = StyleSheet.create({
   },
   shuffleSubtitle: {
     fontSize: 12,
+  },
+  // Review nudge
+  reviewNudge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 0.5,
+    marginBottom: 4,
+  },
+  reviewNudgeText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '400',
+  },
+  // Notification toggle in onboarding
+  notifyToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 0.5,
+    marginBottom: 12,
+  },
+  notifyToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  notifyToggleText: {
+    fontSize: 14,
+    fontWeight: '400',
+  },
+  notifyToggleDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 0.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

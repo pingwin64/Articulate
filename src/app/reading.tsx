@@ -25,6 +25,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 import type { SavedWord } from '../lib/store/settings';
+import { useToastStore } from '../lib/store/toast';
 import { categories } from '../lib/data/categories';
 import { WordDisplay } from '../components/WordDisplay';
 import { ArticulateProgress } from '../components/ArticulateProgress';
@@ -73,6 +74,10 @@ export default function ReadingScreen() {
   const savedWords = useSettingsStore((s) => s.savedWords);
   const addSavedWord = useSettingsStore((s) => s.addSavedWord);
   const removeSavedWord = useSettingsStore((s) => s.removeSavedWord);
+  const textsCompleted = useSettingsStore((s) => s.textsCompleted);
+  const discoveredFeatures = useSettingsStore((s) => s.discoveredFeatures);
+  const setFeatureDiscovered = useSettingsStore((s) => s.setFeatureDiscovered);
+  const showToast = useToastStore((s) => s.showToast);
   const [ttsEnabled, setTtsEnabled] = useState(false);
 
   // Listen & Repeat mode
@@ -181,6 +186,40 @@ export default function ReadingScreen() {
 
   // Derived state: showHint from currentIndex (show for first 3 taps)
   const showHint = currentIndex < 3;
+
+  // Feature discovery tooltip (one-time, staggered by textsCompleted)
+  const [featureTooltip, setFeatureTooltip] = useState<string | null>(null);
+  const tooltipDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    // Only show tooltips at the start of a reading (index 0-5 range)
+    if (currentIndex !== 3) return;
+    let tooltip: string | null = null;
+    let featureKey: keyof typeof discoveredFeatures | null = null;
+    if (textsCompleted >= 3 && !discoveredFeatures.definition) {
+      tooltip = 'Tap ? to look up any word';
+      featureKey = 'definition';
+    } else if (textsCompleted >= 5 && !discoveredFeatures.pronunciation) {
+      tooltip = 'Tap the mic to practice pronunciation';
+      featureKey = 'pronunciation';
+    } else if (textsCompleted >= 7 && !discoveredFeatures.wordSave) {
+      tooltip = 'Tap the heart to save words you want to remember';
+      featureKey = 'wordSave';
+    } else if (textsCompleted >= 10 && !discoveredFeatures.tts) {
+      tooltip = 'Tap the speaker to hear any word spoken';
+      featureKey = 'tts';
+    }
+    if (tooltip && featureKey) {
+      setFeatureTooltip(tooltip);
+      const key = featureKey;
+      tooltipDismissRef.current = setTimeout(() => {
+        setFeatureTooltip(null);
+        setFeatureDiscovered(key);
+      }, 5000);
+    }
+    return () => {
+      if (tooltipDismissRef.current) clearTimeout(tooltipDismissRef.current);
+    };
+  }, [currentIndex, textsCompleted, discoveredFeatures, setFeatureDiscovered]);
 
   // Save resume state
   useEffect(() => {
@@ -377,6 +416,7 @@ export default function ReadingScreen() {
         sourceCategory: category?.name,
       };
       addSavedWord(newWord);
+      showToast(`Saved! ${savedWords.length + 1} in your bank`, 'heart');
     }
   };
 
@@ -784,7 +824,15 @@ export default function ReadingScreen() {
               {pronunciationState === 'idle' && (
                 <>
                   <SentenceTrail words={completedWords} visible={hasOnboarded && sentenceRecap} />
-                  {showHint && (
+                  {featureTooltip ? (
+                    <Animated.Text
+                      entering={FadeIn.duration(300)}
+                      exiting={FadeOut.duration(300)}
+                      style={[styles.hint, { color: colors.secondary }]}
+                    >
+                      {featureTooltip}
+                    </Animated.Text>
+                  ) : showHint ? (
                     <Animated.Text
                       entering={FadeIn.duration(300)}
                       exiting={FadeOut.duration(300)}
@@ -792,7 +840,7 @@ export default function ReadingScreen() {
                     >
                       Tap to continue
                     </Animated.Text>
-                  )}
+                  ) : null}
                 </>
               )}
             </View>

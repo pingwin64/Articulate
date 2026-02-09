@@ -662,3 +662,84 @@ When adding new icon references:
 - Use `FeatherIconName` for type annotations
 - Use `'iconname' as const` for literal values that TypeScript can't infer
 - For fallback values with `??`, annotate the variable: `const icon: FeatherIconName = lookup ?? 'award'`
+
+### 39. Store Version & Migration Pattern (v26+)
+
+Current store version: **26**. When adding new persisted fields:
+1. Add to `SettingsState` interface
+2. Add default value in the `set`/`get` creation block
+3. Add to `resetAll` defaults
+4. Bump `version` number
+5. Add migration block: `if (version < N) { persisted.newField = persisted.newField ?? defaultValue; }`
+
+Key fields added in v26:
+- `hasRequestedReview: boolean` — one-time App Store review prompt tracking
+- `discoveredFeatures: { definition, pronunciation, wordSave, tts }` — one-time feature tooltip tracking
+- `lastWordReviewDate: string | null` — word bank review recency tracking
+- `SavedWord.lastReviewedDate?: string` — per-word review recency (E3 smart ordering)
+
+### 40. Level-Gated Cosmetics Pattern
+
+Themes and colors can have `minLevel?: number` field:
+- Free users must reach that level to unlock
+- Premium users bypass level gates (same as `proAccessible` pattern)
+- In `AppearanceSection.tsx`, check level lock BEFORE premium lock BEFORE reward lock
+- Use `trending-up` icon for level-locked swatches (not `lock` or `award`)
+
+### 41. "Replace, Don't Add" UI Principle
+
+When adding new features to existing screens, REPLACE existing elements rather than stacking:
+- **Completion screen:** "Words worth saving" chips REPLACE the nudge text, not in addition
+- **Word bank:** Pronunciation stats MERGE into word count line, not a new section
+- **Secondary actions:** "Practice Words" REPLACES "Read Again" (same footprint)
+- **Home screen:** Max ONE contextual card at a time (resume > streak > review nudge)
+- **Reading hints:** Feature tooltips use SAME hint slot as "Tap to continue"
+
+### 42. Weekly Challenge System
+
+12+ challenge types defined in `src/lib/data/challenges.ts`:
+- Types: `texts_read`, `categories_diverse`, `quiz_perfect`, `words_total`, `pronunciation_perfect`, `listen_repeat`, `daily_goal`, `advanced`
+- Challenges rotate deterministically by week number
+- Progress tracked via `incrementWeeklyChallengeProgress(type, amount)` in store
+- Advanced challenge: track in `complete.tsx` when `textDifficulty === 'advanced'`
+
+### 43. Notification Functions Signature
+
+`scheduleStreakReminder(hour, minute, currentStreak)` — takes 3 args, not 2.
+`requestNotificationPermissions()` — returns `Promise<boolean>`.
+
+### 44. Feature Discovery Tooltips Pattern
+
+One-time tooltips in `reading.tsx` staggered by `textsCompleted`:
+- 3rd text: definition (`?` button)
+- 5th text: pronunciation (mic)
+- 7th text: word save (heart)
+- 10th text: TTS (speaker)
+
+Uses same hint slot as "Tap to continue". Auto-dismiss after 5s. Track via `discoveredFeatures` in store.
+
+### 45. Smart Flashcard Ordering (Word Bank)
+
+Review order in `word-bank.tsx` is NOT insertion order. Priority:
+1. Never-reviewed words (`lastReviewedDate` undefined)
+2. Low pronunciation accuracy (`perfects/attempts < 0.5`)
+3. Least recently reviewed
+4. Everything else
+
+Updates `lastReviewedDate` on flip. Tracks `lastWordReviewDate` in store for nudge timing.
+
+### 46. Endgame Progression (Level 5+)
+
+After Level 5 (10,000 words), progression doesn't cap:
+- `getProgressToNextLevel()` shows progress toward next 10K milestone
+- `getWordsToNextLevel()` shows words remaining to next 10K milestone
+- `getTotalWordsLabel()` returns "X words mastered" for display
+- Home screen should show total word count instead of "Level 5 — 100%"
+
+### 47. expo-store-review Requires Native Rebuild
+
+`expo-store-review` has native code. After adding it:
+```bash
+npx expo prebuild --clean && npx expo run:ios
+```
+In code: always wrap in try-catch and check `StoreReview.hasAction()` before calling `requestReview()`.

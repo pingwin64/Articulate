@@ -28,6 +28,10 @@ export async function generateQuizFromText(
     correctIndex: number;
   }>;
 
+  if (!Array.isArray(questions) || questions.length === 0) {
+    throw new Error('Invalid quiz response');
+  }
+
   return questions.map((q, i) => ({
     id: `custom-q-${Date.now()}-${i}`,
     question: q.question,

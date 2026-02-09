@@ -57,19 +57,21 @@ export interface BackgroundTheme {
   rewardId?: string;
   // If true, Pro users can access this reward theme without earning the badge
   proAccessible?: boolean;
+  // If set, free users must reach this level (1-5) to unlock. Premium bypasses.
+  minLevel?: number;
 }
 
 export const BackgroundThemes: BackgroundTheme[] = [
   { key: 'default', label: 'Default', light: '#FFFFFF', dark: '#000000' },
   { key: 'black', label: 'Black', light: '#000000', dark: '#000000', darkOnly: true },
   { key: 'charcoal', label: 'Charcoal', light: '#1C1C1E', dark: '#1C1C1E', darkOnly: true },
-  { key: 'slate', label: 'Slate', light: '#2C3E50', dark: '#2C3E50', darkOnly: true },
+  { key: 'slate', label: 'Slate', light: '#2C3E50', dark: '#2C3E50', darkOnly: true, minLevel: 2 },
   { key: 'paper', label: 'Paper', light: '#FDFBF7', dark: '#1A1714', premium: true },
   { key: 'stone', label: 'Stone', light: '#F0EFED', dark: '#161618', premium: true },
   { key: 'sepia', label: 'Sepia', light: '#F5EDDC', dark: '#1D1508', premium: true },
   { key: 'cream', label: 'Cream', light: '#FFFDD0', dark: '#1A1914', premium: true },
   // Reward themes - unlocked via achievements
-  { key: 'midnight', label: 'Midnight', light: '#0A0A12', dark: '#0A0A12', darkOnly: true, rewardId: 'streak-30-theme', proAccessible: true },
+  { key: 'midnight', label: 'Midnight', light: '#0A0A12', dark: '#0A0A12', darkOnly: true, rewardId: 'streak-30-theme', proAccessible: true, minLevel: 4 },
   { key: 'aurora', label: 'Aurora', light: '#0D1B2A', dark: '#0D1B2A', darkOnly: true, rewardId: 'streak-100-theme' },
   { key: 'legendary', label: 'Legendary', light: '#1A0A2E', dark: '#1A0A2E', darkOnly: true, rewardId: 'streak-365-theme' },
   // Reward themes - unlocked via non-streak achievements
@@ -173,6 +175,8 @@ export const WordColors = [
   { key: 'slate', label: 'Slate', color: '#64748B' },
   { key: 'charcoal', label: 'Charcoal', color: '#36454F' },
   { key: 'graphite', label: 'Graphite', color: '#2C2C2C' },
+  // Level-gated colors - earned through progression
+  { key: 'rose', label: 'Rose', color: '#E11D48', minLevel: 3 },
   // Reward colors - unlocked via achievements
   { key: 'scholar-ink', label: 'Scholar Ink', color: '#1B4332', rewardId: 'quiz-scholar-color' },
   { key: 'depth', label: 'Depth', color: '#4A0E4E', rewardId: 'texts-100-color' },

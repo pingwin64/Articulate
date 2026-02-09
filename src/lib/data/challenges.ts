@@ -1,6 +1,6 @@
 export interface WeeklyChallenge {
   id: string;
-  type: 'texts_read' | 'categories_diverse' | 'quiz_perfect' | 'words_total' | 'pronunciation_perfect' | 'listen_repeat' | 'daily_goal';
+  type: 'texts_read' | 'categories_diverse' | 'quiz_perfect' | 'words_total' | 'pronunciation_perfect' | 'listen_repeat' | 'daily_goal' | 'advanced';
   description: string;
   target: number;
   icon: string; // Feather icon name
@@ -90,6 +90,13 @@ export const WEEKLY_CHALLENGES: WeeklyChallenge[] = [
     description: 'Read 10 texts',
     target: 10,
     icon: 'book-open',
+  },
+  {
+    id: 'advanced-3',
+    type: 'advanced',
+    description: 'Read 3 advanced texts',
+    target: 3,
+    icon: 'trending-up',
   },
 ];
 

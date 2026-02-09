@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, Pressable, Alert } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { useSettingsStore } from '../../lib/store/settings';
+import { useSettingsStore, getCurrentLevel } from '../../lib/store/settings';
 import { GlassCard } from '../GlassCard';
 import { GlassToggle } from '../GlassToggle';
 import { GlassSegmentedControl } from '../GlassSegmentedControl';
@@ -52,6 +52,8 @@ export function AppearanceSection({
   const setWordColor = useSettingsStore((s) => s.setWordColor);
   const unlockedRewards = useSettingsStore((s) => s.unlockedRewards);
   const addTrialFeatureUsed = useSettingsStore((s) => s.addTrialFeatureUsed);
+  const levelProgress = useSettingsStore((s) => s.levelProgress);
+  const currentLevel = getCurrentLevel(levelProgress);
 
   const canAccess = isPremium || trialActive;
 
@@ -212,11 +214,19 @@ export function AppearanceSection({
                 const isSelected = wordColor === wc.key;
                 const isRewardColor = 'rewardId' in wc && !!wc.rewardId;
                 const isRewardUnlocked = isRewardColor ? unlockedRewards.includes((wc as { rewardId: string }).rewardId) : true;
+                const isLevelLockedColor = 'minLevel' in wc && !!wc.minLevel && currentLevel < (wc as { minLevel: number }).minLevel && !canAccess;
+                const isColorLocked = (isRewardColor && !isRewardUnlocked) || isLevelLockedColor;
                 return (
                   <Pressable
                     key={wc.key}
                     onPress={() => {
-                      if (isRewardColor && !isRewardUnlocked) {
+                      if (isLevelLockedColor) {
+                        Alert.alert(
+                          `${wc.label} Color`,
+                          `Reach Level ${(wc as { minLevel: number }).minLevel} to unlock this color!`,
+                          [{ text: 'OK' }]
+                        );
+                      } else if (isRewardColor && !isRewardUnlocked) {
                         const rewardBadge = ALL_BADGES.find((b) => b.reward?.id === (wc as { rewardId: string }).rewardId);
                         const badgeName = rewardBadge?.name ?? 'a special';
                         Alert.alert(
@@ -234,7 +244,7 @@ export function AppearanceSection({
                         backgroundColor: circleColor,
                         borderColor: isSelected ? colors.primary : 'transparent',
                         borderWidth: isSelected ? 2 : 0,
-                        opacity: isRewardColor && !isRewardUnlocked ? 0.4 : 1,
+                        opacity: isColorLocked ? 0.4 : 1,
                       },
                     ]}
                   >
@@ -243,9 +253,9 @@ export function AppearanceSection({
                         style={[styles.colorInner, { borderColor: colors.bg }]}
                       />
                     )}
-                    {isRewardColor && !isRewardUnlocked && (
-                      <View style={[styles.swatchLockOverlay, styles.swatchRewardLock, { bottom: -4, right: -4 }]}>
-                        <Feather name="award" size={8} color="#FFFFFF" />
+                    {isColorLocked && (
+                      <View style={[styles.swatchLockOverlay, isRewardColor && !isRewardUnlocked && styles.swatchRewardLock, { bottom: -4, right: -4 }]}>
+                        <Feather name={isLevelLockedColor ? 'trending-up' : 'award'} size={8} color="#FFFFFF" />
                       </View>
                     )}
                   </Pressable>
@@ -279,12 +289,19 @@ export function AppearanceSection({
               const canProAccess = isRewardTheme && theme.proAccessible && canAccess;
               const isPremiumLocked = theme.premium === true && !canAccess;
               const isRewardLocked = isRewardTheme && !isRewardUnlocked && !canProAccess;
-              const isLocked = isPremiumLocked || isRewardLocked;
+              const isLevelLocked = !!theme.minLevel && currentLevel < theme.minLevel && !canAccess;
+              const isLocked = isPremiumLocked || isRewardLocked || isLevelLocked;
               return (
                 <Pressable
                   key={theme.key}
                   onPress={() => {
-                    if (isRewardLocked) {
+                    if (isLevelLocked) {
+                      Alert.alert(
+                        `${theme.label} Theme`,
+                        `Reach Level ${theme.minLevel} to unlock this theme!`,
+                        [{ text: 'OK' }]
+                      );
+                    } else if (isRewardLocked) {
                       const rewardBadge = ALL_BADGES.find((b) => b.reward?.id === theme.rewardId);
                       const badgeName = rewardBadge?.name ?? 'a special';
                       Alert.alert(
@@ -317,7 +334,7 @@ export function AppearanceSection({
                     />
                     {isLocked && (
                       <View style={[styles.swatchLockOverlay, isRewardLocked && styles.swatchRewardLock]}>
-                        <Feather name={isRewardLocked ? 'award' : 'lock'} size={10} color="#FFFFFF" />
+                        <Feather name={isRewardLocked ? 'award' : isLevelLocked ? 'trending-up' : 'lock'} size={10} color="#FFFFFF" />
                       </View>
                     )}
                   </View>

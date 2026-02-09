@@ -26,6 +26,7 @@ import { StreakCelebrationPopup } from '../components/StreakCelebrationPopup';
 import { Spacing } from '../design/theme';
 import { ALL_BADGES, getBadgeById, type Badge } from '../lib/data/badges';
 import { cancelStreakAtRiskReminder } from '../lib/notifications';
+import * as StoreReview from 'expo-store-review';
 
 // Difficulty multipliers for level progress — wider spread so difficulty choice matters
 const DIFFICULTY_MULTIPLIERS: Record<TextDifficulty, number> = {
@@ -91,6 +92,11 @@ export default function CompleteScreen() {
     intermediateTextsCompleted,
     advancedTextsCompleted,
     markStreakCelebrationShown,
+    savedWords,
+    hasRequestedReview,
+    setHasRequestedReview,
+    hasUsedPronunciation,
+    lastWordReviewDate,
   } = useSettingsStore();
 
   // First reading flow state: 'celebration' = normal completion, 'journey' = goal setup, 'paywall' = onboarding paywall
@@ -176,6 +182,45 @@ export default function CompleteScreen() {
   const [showBadgeUpsell, setShowBadgeUpsell] = React.useState(false);
   // Streak celebration popup
   const [showStreakCelebration, setShowStreakCelebration] = React.useState(false);
+
+  // Words worth saving — interesting words from the text for quick save
+  const [savedChipIds, setSavedChipIds] = React.useState<Set<string>>(new Set());
+  const wordsWorthSaving = React.useMemo(() => {
+    if (!textEntry) return [];
+    const savedWordSet = new Set(savedWords.map((w) => w.word.toLowerCase()));
+    const seen = new Set<string>();
+    return textEntry.words
+      .filter((w) => {
+        const lower = w.toLowerCase().replace(/[^a-z]/g, '');
+        if (lower.length < 6 || savedWordSet.has(lower) || seen.has(lower)) return false;
+        seen.add(lower);
+        return true;
+      })
+      .slice(0, 3);
+  }, [textEntry, savedWords]);
+
+  const handleSaveChip = (word: string) => {
+    if (savedChipIds.has(word)) return;
+    const { addSavedWord } = useSettingsStore.getState();
+    addSavedWord({
+      id: `${Date.now().toString(36)}-${word}`,
+      word,
+      savedAt: new Date().toISOString(),
+      sourceText: displayName,
+      sourceCategory: params.categoryKey,
+    });
+    setSavedChipIds((prev) => new Set(prev).add(word));
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  // Smart CTA: should we suggest practice?
+  const showPracticeInstead = savedWords.length >= 3;
+  const daysSinceReview = lastWordReviewDate
+    ? Math.floor((Date.now() - new Date(lastWordReviewDate).getTime()) / (1000 * 60 * 60 * 24))
+    : 999;
+  const suggestReview = showPracticeInstead && daysSinceReview >= 3;
 
   // Checkmark animation
   const checkScale = useSharedValue(0);
@@ -279,6 +324,25 @@ export default function CompleteScreen() {
     checkWeeklyChallenge();
     incrementWeeklyChallengeProgress('texts_read', 1);
     incrementWeeklyChallengeProgress('words_total', wordsRead);
+
+    // Track advanced challenge progress
+    const textDifficultyTier = textEntry?.textDifficulty;
+    if (textDifficultyTier === 'advanced') {
+      incrementWeeklyChallengeProgress('advanced', 1);
+    }
+
+    // Auto App Store review after 5th text (one-time, non-intrusive)
+    const reviewState = useSettingsStore.getState();
+    if (reviewState.textsCompleted === 5 && !reviewState.hasRequestedReview) {
+      setTimeout(async () => {
+        try {
+          if (await StoreReview.hasAction()) {
+            await StoreReview.requestReview();
+          }
+        } catch {}
+        useSettingsStore.getState().setHasRequestedReview(true);
+      }, 3000);
+    }
 
     // Track unique categories for diverse challenge
     if (params.categoryKey) {
@@ -843,8 +907,41 @@ export default function CompleteScreen() {
               );
             })()}
 
-            {/* Third-reading soft nudge */}
-            {!isPremium && textsCompleted >= 3 && !hasShownThirdReadingNudge && (
+            {/* Words worth saving chips — replaces nudge text when applicable */}
+            {wordsWorthSaving.length > 0 && (isPremium || savedWords.length > 0) ? (
+              <Animated.View entering={FadeIn.delay(1800).duration(300)} style={styles.wordChipsContainer}>
+                <Text style={[styles.wordChipsLabel, { color: colors.muted }]}>
+                  Words worth saving
+                </Text>
+                <View style={styles.wordChipsRow}>
+                  {wordsWorthSaving.map((word) => {
+                    const isSaved = savedChipIds.has(word);
+                    return (
+                      <Pressable
+                        key={word}
+                        onPress={() => handleSaveChip(word)}
+                        style={[
+                          styles.wordChip,
+                          {
+                            backgroundColor: isSaved ? colors.primary : glass.fill,
+                            borderColor: isSaved ? colors.primary : glass.border,
+                          },
+                        ]}
+                      >
+                        <Feather
+                          name={isSaved ? 'check' : 'plus'}
+                          size={12}
+                          color={isSaved ? colors.bg : colors.secondary}
+                        />
+                        <Text style={[styles.wordChipText, { color: isSaved ? colors.bg : colors.primary }]}>
+                          {word}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </Animated.View>
+            ) : !isPremium && textsCompleted >= 3 && !hasShownThirdReadingNudge ? (
               <Animated.View entering={FadeIn.delay(1800).duration(300)}>
                 <Pressable onPress={() => {
                   setHasShownThirdReadingNudge(true);
@@ -855,7 +952,7 @@ export default function CompleteScreen() {
                   </Text>
                 </Pressable>
               </Animated.View>
-            )}
+            ) : null}
 
           </View>
         </ScrollView>
@@ -890,18 +987,33 @@ export default function CompleteScreen() {
             />
           )}
           <View style={styles.secondaryActions}>
-            <Pressable
-              onPress={handleReadAgain}
-              style={({ pressed }) => [
-                styles.secondaryButton,
-                { opacity: pressed ? 0.6 : 1 },
-              ]}
-            >
-              <Feather name="refresh-cw" size={18} color={colors.primary} />
-              <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>
-                Read Again
-              </Text>
-            </Pressable>
+            {showPracticeInstead ? (
+              <Pressable
+                onPress={() => router.push('/word-bank')}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  { opacity: pressed ? 0.6 : 1 },
+                ]}
+              >
+                <Feather name="book-open" size={18} color={colors.primary} />
+                <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>
+                  {suggestReview ? 'Review Words' : 'Practice Words'}
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={handleReadAgain}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  { opacity: pressed ? 0.6 : 1 },
+                ]}
+              >
+                <Feather name="refresh-cw" size={18} color={colors.primary} />
+                <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>
+                  Read Again
+                </Text>
+              </Pressable>
+            )}
             <Pressable
               onPress={handleShareProgress}
               style={({ pressed }) => [
@@ -1265,5 +1377,33 @@ const styles = StyleSheet.create({
   upgradeBannerSubtitle: {
     fontSize: 13,
     fontWeight: '400',
+  },
+  // Words worth saving chips
+  wordChipsContainer: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  wordChipsLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  wordChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  wordChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 0.5,
+  },
+  wordChipText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
 });

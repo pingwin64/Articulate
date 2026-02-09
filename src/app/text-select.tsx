@@ -7,6 +7,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 import { categories, TextEntry, TextDifficulty } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
+import { GlassButton } from '../components/GlassButton';
 import { Feather } from '@expo/vector-icons';
 import { Spacing } from '../design/theme';
 
@@ -36,6 +37,8 @@ export default function TextSelectScreen() {
   const setSelectedCategoryKey = useSettingsStore((s) => s.setSelectedCategoryKey);
   const categoryReadCounts = useSettingsStore((s) => s.categoryReadCounts);
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
+  const isPremium = useSettingsStore((s) => s.isPremium);
+  const setPaywallContext = useSettingsStore((s) => s.setPaywallContext);
 
   const [lockedMessage, setLockedMessage] = useState<string | null>(null);
   const [difficultyFilter, setDifficultyFilter] = useState<DifficultyFilter>('all');
@@ -45,6 +48,18 @@ export default function TextSelectScreen() {
 
   const category = categories.find((c) => c.key === categoryKey);
   const userReadsInCategory = categoryKey ? (categoryReadCounts[categoryKey] ?? 0) : 0;
+
+  // Check if all unlocked texts have been read (user exhausted the category)
+  const allTextsRead = useMemo(() => {
+    if (!category) return false;
+    // If user has read at least as many times as there are texts, they've likely read everything
+    return category.texts.every((t) => {
+      const required = t.requiredReads ?? 0;
+      // If the text is unlocked (user has enough reads), count it as readable
+      // If locked, skip it — user hasn't reached it yet
+      return userReadsInCategory < required || userReadsInCategory >= required;
+    }) && userReadsInCategory >= category.texts.length;
+  }, [category, userReadsInCategory]);
 
   // Filter texts by difficulty
   const filteredTexts = useMemo(() => {
@@ -282,6 +297,27 @@ export default function TextSelectScreen() {
           );
         })}
       </View>
+
+      {/* Completion banner — all texts in category read */}
+      {allTextsRead && (
+        <Animated.View entering={FadeIn.duration(300)} style={styles.completionBanner}>
+          <Feather name="award" size={20} color={colors.secondary} />
+          <Text style={[styles.completionTitle, { color: colors.primary }]}>
+            You've read every text in {category.name}!
+          </Text>
+          <Text style={[styles.completionSubtitle, { color: colors.muted }]}>
+            Explore more categories to keep growing.
+          </Text>
+          {!isPremium && (
+            <View style={styles.completionCTA}>
+              <GlassButton
+                title="See All 9 Categories"
+                onPress={() => setPaywallContext('locked_category')}
+              />
+            </View>
+          )}
+        </Animated.View>
+      )}
     </ScrollView>
   );
 }
@@ -393,5 +429,26 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     textTransform: 'capitalize',
+  },
+  completionBanner: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    gap: 6,
+    marginTop: 16,
+  },
+  completionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  completionSubtitle: {
+    fontSize: 14,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  completionCTA: {
+    marginTop: 12,
+    width: '100%',
   },
 });
