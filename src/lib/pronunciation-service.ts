@@ -1,4 +1,3 @@
-import * as FileSystem from 'expo-file-system';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
 
 // ─── Transcription ────────────────────────────────────────────

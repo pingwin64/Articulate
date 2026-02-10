@@ -1769,6 +1769,7 @@ function Home() {
         params: { customTextId: text.id },
       });
     } catch (err) {
+      console.error('AI practice generation failed:', err);
       Alert.alert('Error', 'Could not generate today\'s practice. Please try again later.');
     } finally {
       setAiTextLoading(false);
@@ -1994,8 +1995,8 @@ function Home() {
           </Pressable>
         </Animated.View>
 
-        {/* Word bank review nudge — only when no resume card, 5+ saved words, 3+ days since review */}
-        {!resumeData && savedWords.length >= 5 && (() => {
+        {/* Word bank review nudge — 5+ saved words, 3+ days since review */}
+        {savedWords.length >= 5 && (() => {
           const daysSinceReview = lastWordReviewDate
             ? Math.floor((Date.now() - new Date(lastWordReviewDate).getTime()) / (1000 * 60 * 60 * 24))
             : 999;

@@ -33,6 +33,7 @@ interface UsePronunciationDrillReturn {
   startDrill: (word: string) => void;
   stopDrill: () => void;
   dismissFeedback: () => void;
+  listenToWord: () => void;
 }
 
 /**
@@ -178,12 +179,9 @@ export function usePronunciationDrill(
       return;
     }
 
-    // Phase 1: TTS speaks the word
-    setPhase('listening');
-    speakWord(word, ttsSpeed, voiceGender);
-
-    // Phase 2: After 1.5s, start recording
-    listenTimerRef.current = setTimeout(async () => {
+    // Go straight to recording — user tries to pronounce first
+    // They can tap "listen" button if they need help
+    (async () => {
       const granted = await recorder.requestMicPermission();
       if (!granted) {
         setError('Microphone permission required');
@@ -206,8 +204,15 @@ export function usePronunciationDrill(
       } catch {
         setPhase('idle');
       }
-    }, 1500);
-  }, [recorder, ttsSpeed, voiceGender, clearTimers, showFeedbackAnim, dismissFeedback, handleStopRecording, feedbackOpacity, feedbackScale]);
+    })();
+  }, [recorder, clearTimers, showFeedbackAnim, dismissFeedback, handleStopRecording, feedbackOpacity, feedbackScale]);
+
+  const listenToWord = useCallback(() => {
+    const word = currentWordRef.current;
+    if (word) {
+      speakWord(word, ttsSpeed, voiceGender);
+    }
+  }, [ttsSpeed, voiceGender]);
 
   const stopDrill = useCallback(() => {
     clearTimers();
@@ -238,5 +243,6 @@ export function usePronunciationDrill(
     startDrill,
     stopDrill,
     dismissFeedback,
+    listenToWord,
   };
 }

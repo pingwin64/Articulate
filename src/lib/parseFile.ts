@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 import JSZip from 'jszip';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
 
@@ -15,9 +15,8 @@ export async function parseFile(uri: string, mimeType: string): Promise<ParsedFi
 }
 
 async function parsePlainText(uri: string): Promise<ParsedFile> {
-  const content = await FileSystem.readAsStringAsync(uri, {
-    encoding: 'utf8',
-  });
+  const file = new File(uri);
+  const content = await file.text();
 
   const text = content.trim();
 
@@ -39,9 +38,8 @@ async function parsePlainText(uri: string): Promise<ParsedFile> {
 }
 
 async function parsePDF(uri: string): Promise<ParsedFile> {
-  const base64 = await FileSystem.readAsStringAsync(uri, {
-    encoding: 'base64',
-  });
+  const file = new File(uri);
+  const base64 = await file.base64();
 
   if (base64.length > 5 * 1024 * 1024) {
     throw new Error('This PDF is too large (max 5 MB). Try a shorter document.');
@@ -109,9 +107,8 @@ async function callEdgeFunction(fileData: string, model: string): Promise<Respon
 }
 
 async function parseDocx(uri: string): Promise<ParsedFile> {
-  const base64 = await FileSystem.readAsStringAsync(uri, {
-    encoding: 'base64',
-  });
+  const file = new File(uri);
+  const base64 = await file.base64();
 
   // DOCX is a ZIP archive. Use JSZip to properly decompress and extract XML.
   const zip = await JSZip.loadAsync(base64, { base64: true });

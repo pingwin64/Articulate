@@ -216,7 +216,7 @@ export default function CompleteScreen() {
   };
 
   // Smart CTA: should we suggest practice?
-  const showPracticeInstead = savedWords.length >= 3;
+  const showPracticeInstead = savedWords.length >= 1;
   const daysSinceReview = lastWordReviewDate
     ? Math.floor((Date.now() - new Date(lastWordReviewDate).getTime()) / (1000 * 60 * 60 * 24))
     : 999;
@@ -858,18 +858,6 @@ export default function CompleteScreen() {
                     {newBadge.name}
                   </Text>
                 </View>
-                <Pressable
-                  onPress={handleShareBadge}
-                  style={({ pressed }) => [
-                    styles.shareBadgeButton,
-                    { opacity: pressed ? 0.6 : 1 },
-                  ]}
-                >
-                  <Feather name="share" size={16} color={colors.secondary} />
-                  <Text style={[styles.shareBadgeText, { color: colors.secondary }]}>
-                    Share
-                  </Text>
-                </Pressable>
               </Animated.View>
             )}
 
@@ -1018,6 +1006,20 @@ export default function CompleteScreen() {
                 <Feather name="refresh-cw" size={18} color={colors.primary} />
                 <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>
                   Read Again
+                </Text>
+              </Pressable>
+            )}
+            {isBundledText && (
+              <Pressable
+                onPress={handleToggleFavorite}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  { opacity: pressed ? 0.6 : 1 },
+                ]}
+              >
+                <Feather name={isFavorited ? 'heart' : 'heart'} size={18} color={isFavorited ? '#FF6B6B' : colors.primary} />
+                <Text style={[styles.secondaryButtonText, { color: isFavorited ? '#FF6B6B' : colors.primary }]}>
+                  {isFavorited ? 'Saved' : 'Save'}
                 </Text>
               </Pressable>
             )}
@@ -1222,15 +1224,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 32,
+    gap: 20,
     paddingVertical: 12,
   },
   secondaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
   },
   secondaryButtonText: {
     fontSize: 15,

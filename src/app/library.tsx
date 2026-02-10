@@ -736,7 +736,18 @@ export default function LibraryScreen() {
             ) : (
               <>
                 <Animated.View entering={FadeIn.duration(300)} style={styles.readButtonSection}>
-                  <GlassButton title="Read My Words" onPress={handleReadMyWords} />
+                  <View style={styles.buttonRow}>
+                    <View style={styles.buttonHalf}>
+                      <GlassButton title="Read My Words" onPress={handleReadMyWords} />
+                    </View>
+                    <View style={styles.buttonHalf}>
+                      <GlassButton
+                        title="Review"
+                        onPress={() => router.push('/word-bank')}
+                        variant="outline"
+                      />
+                    </View>
+                  </View>
                   <Text style={[styles.wordCount, { color: colors.muted }]}>
                     {savedWords.length} {savedWords.length === 1 ? 'word' : 'words'} saved
                   </Text>
@@ -891,11 +902,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     paddingVertical: 12,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    borderWidth: 0,
   },
   tabButtonActive: {
     borderWidth: 1,
@@ -1078,6 +1088,14 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: Spacing.lg,
     alignItems: 'center',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  buttonHalf: {
+    flex: 1,
   },
   wordCount: {
     fontSize: 13,

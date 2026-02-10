@@ -75,10 +75,13 @@ export async function fetchDefinition(
 
   for (const meaning of entry.meanings || []) {
     const pos = meaning.partOfSpeech || 'unknown';
+    const groupSize = (meaning.definitions || []).length;
+    let posIndex = 0;
     for (const def of meaning.definitions || []) {
       const definition = def.definition || '';
-      const score = scoreDefinition(definition, pos, contextWords, cleanWord);
+      const score = scoreDefinition(definition, pos, contextWords, cleanWord, posIndex, groupSize);
       candidates.push({ partOfSpeech: pos, definition, score });
+      posIndex++;
     }
   }
 
@@ -98,73 +101,57 @@ export async function fetchDefinition(
 }
 
 /**
- * Score a definition based on context relevance
- * Higher score = more likely to be the correct/common meaning
+ * Score a definition based on context relevance, dictionary ordering,
+ * and meaning group size.
+ *
+ * Key signals:
+ * 1. Order within POS group — first definitions are most common
+ * 2. Meaning group size — POS with more definitions = primary usage
+ *    (e.g., "have" has 20+ verb defs but only 3 noun defs → verb is primary)
+ * 3. Context word matching — surrounding sentence provides disambiguation
  */
 function scoreDefinition(
   definition: string,
   partOfSpeech: string,
   contextWords: string[],
-  targetWord: string
+  targetWord: string,
+  orderIndex: number,
+  meaningGroupSize: number
 ): number {
   let score = 0;
   const defLower = definition.toLowerCase();
 
-  // HEAVILY boost human-related definitions (most common meanings for people words)
-  const humanTerms = ['human', 'person', 'people', 'child', 'woman', 'man', 'female', 'male', 'young woman', 'young man', 'boy', 'girl'];
-  for (const term of humanTerms) {
-    if (defLower.includes(term) && !defLower.includes('animal')) {
-      score += 20;
-    }
-  }
+  // ORDER WITHIN POS GROUP: First definition in each POS group is most common.
+  // +15 for first, decaying by 3 per position.
+  score += Math.max(0, 15 - orderIndex * 3);
 
-  // HEAVILY penalize animal-specific definitions for common words
+  // MEANING GROUP SIZE: More definitions = more important POS for this word.
+  // "have" verb (27 defs) vs noun (2 defs) → verb group gets much bigger bonus.
+  // "big" adj (13 defs) vs verb (2 defs) → adjective group wins.
+  // Capped at +15 so very large groups don't runaway.
+  score += Math.min(15, meaningGroupSize);
+
+  // Penalize animal-specific definitions for common words
   if (defLower.includes('animal') || defLower.includes('species') || defLower.includes('mammal')) {
-    score -= 25;
+    score -= 15;
   }
 
   // Boost for matching context words in the definition
   for (const word of contextWords) {
     if (word !== targetWord && word.length > 3 && defLower.includes(word)) {
-      score += 10;
+      score += 5;
     }
   }
 
-  // Boost common/primary meanings (shorter definitions often more common)
-  if (definition.length < 60) score += 3;
-  if (definition.length < 40) score += 2;
-
-  // Boost for common parts of speech in reading context
-  if (partOfSpeech === 'noun') score += 3;
-  if (partOfSpeech === 'verb') score += 2;
-  if (partOfSpeech === 'adjective') score += 1;
-
   // Penalize technical/rare/archaic meanings
   const technicalTerms = [
-    'architecture', 'edifice', 'computing', 'programming',
-    'biology', 'chemistry', 'physics', 'mathematics',
-    'legal', 'archaic', 'obsolete', 'rare', 'dialect',
-    'zoology', 'botany', 'geology', 'nautical'
+    'archaic', 'obsolete', 'rare', 'dialect',
+    'zoology', 'botany', 'geology', 'nautical',
+    'heraldry', 'falconry'
   ];
   for (const term of technicalTerms) {
     if (defLower.includes(term)) {
       score -= 10;
-    }
-  }
-
-  // Boost definitions about narrative/story meanings
-  const narrativeTerms = ['narrative', 'tale', 'account', 'book', 'read', 'written', 'fiction', 'plot', 'story'];
-  for (const term of narrativeTerms) {
-    if (defLower.includes(term)) {
-      score += 8;
-    }
-  }
-
-  // Boost everyday/common meanings
-  const commonTerms = ['a person', 'someone', 'something', 'the act of', 'to make', 'to do', 'to be'];
-  for (const term of commonTerms) {
-    if (defLower.includes(term)) {
-      score += 5;
     }
   }
 

@@ -157,12 +157,15 @@ export default function WordBankScreen() {
     if (hapticFeedback) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    if (reviewIndex < smartReviewOrder.length - 1) {
-      setReviewIndex((i) => i + 1);
-      setShowDefinition(false);
-    } else {
-      setReviewMode(false);
-    }
+    // Hide definition first, then advance to next word
+    setShowDefinition(false);
+    setTimeout(() => {
+      if (reviewIndex < smartReviewOrder.length - 1) {
+        setReviewIndex((i) => i + 1);
+      } else {
+        setReviewMode(false);
+      }
+    }, 150);
   }, [hapticFeedback, reviewIndex, smartReviewOrder.length]);
 
   // E1: Handle switching to pronunciation tab — check premium/free access
@@ -219,15 +222,16 @@ export default function WordBankScreen() {
       }
     }
 
+    // Dismiss feedback first, then advance after animation clears
     drill.dismissFeedback();
 
-    if (reviewIndex < smartReviewOrder.length - 1) {
-      setReviewIndex((i) => i + 1);
-    } else {
-      // Drill complete
-      setDrillComplete(true);
-      setDrillTotal((t) => t + (wasPerfect ? 0 : 0)); // already tracked above
-    }
+    setTimeout(() => {
+      if (reviewIndex < smartReviewOrder.length - 1) {
+        setReviewIndex((i) => i + 1);
+      } else {
+        setDrillComplete(true);
+      }
+    }, 300);
   }, [hapticFeedback, drill, smartReviewOrder, reviewIndex]);
 
   // E1: Retry current word
@@ -352,22 +356,12 @@ export default function WordBankScreen() {
                       {currentWord.word}
                     </Text>
 
-                    {/* Listening phase — TTS playing */}
-                    {drill.phase === 'listening' && (
-                      <Animated.View entering={FadeIn.duration(200)} style={styles.drillStatusRow}>
-                        <Feather name="volume-2" size={16} color={colors.primary} />
-                        <Text style={[styles.drillStatusText, { color: colors.primary }]}>
-                          Listen...
-                        </Text>
-                      </Animated.View>
-                    )}
-
-                    {/* Recording phase — mic active */}
+                    {/* Recording phase — mic active, user speaks */}
                     {drill.phase === 'recording' && (
                       <Animated.View entering={FadeIn.duration(200)} style={styles.drillStatusRow}>
                         <View style={[styles.recordingDot, { backgroundColor: colors.error }]} />
                         <Text style={[styles.drillStatusText, { color: colors.error }]}>
-                          Listening...
+                          Your turn...
                         </Text>
                       </Animated.View>
                     )}
@@ -423,6 +417,20 @@ export default function WordBankScreen() {
                       <Text style={[styles.flashcardHint, { color: colors.muted }]}>
                         Starting...
                       </Text>
+                    )}
+
+                    {/* Listen button — available during recording and idle */}
+                    {(drill.phase === 'recording' || drill.phase === 'idle') && (
+                      <Pressable
+                        onPress={drill.listenToWord}
+                        hitSlop={12}
+                        style={styles.listenButton}
+                      >
+                        <Feather name="volume-2" size={18} color={colors.muted} />
+                        <Text style={[styles.listenButtonText, { color: colors.muted }]}>
+                          Hear it
+                        </Text>
+                      </Pressable>
                     )}
 
                     {/* Tap hint when result is showing */}
@@ -793,6 +801,18 @@ const styles = StyleSheet.create({
   drillHeard: {
     fontSize: 13,
     fontWeight: '400',
+  },
+  listenButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginTop: 4,
+  },
+  listenButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   drillActions: {
     flexDirection: 'row',

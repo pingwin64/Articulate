@@ -1,5 +1,5 @@
-import { useAudioRecorder, AudioModule, RecordingPresets } from 'expo-audio';
-import * as FileSystem from 'expo-file-system';
+import { useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync } from 'expo-audio';
+import { File } from 'expo-file-system';
 
 export interface Recorder {
   requestMicPermission: () => Promise<boolean>;
@@ -17,20 +17,29 @@ export function useRecording(): Recorder {
   }
 
   async function start(): Promise<void> {
+    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
     await audioRecorder.prepareToRecordAsync();
     audioRecorder.record();
   }
 
   async function stop(): Promise<string> {
-    await audioRecorder.stop();
-    const uri = audioRecorder.uri;
-    if (!uri) throw new Error('No recording URI');
-    return FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+    try {
+      await audioRecorder.stop();
+      await setAudioModeAsync({ allowsRecording: false });
+      const uri = audioRecorder.uri;
+      if (!uri) throw new Error('No recording URI');
+      const file = new File(uri);
+      return await file.base64();
+    } catch (err) {
+      await setAudioModeAsync({ allowsRecording: false });
+      throw err;
+    }
   }
 
   function cancel(): void {
     try {
       audioRecorder.stop();
+      setAudioModeAsync({ allowsRecording: false });
     } catch {}
   }
 

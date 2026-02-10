@@ -398,14 +398,13 @@ const styles = StyleSheet.create({
   // Filter tabs
   filterContainer: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 4,
     marginBottom: Spacing.md,
-    flexWrap: 'wrap',
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 16,
     gap: 4,
