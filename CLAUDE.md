@@ -9,7 +9,7 @@
 
 **Numu is a completely separate Emirati Arabic learning app.** It has NOTHING to do with Articulate. If you see references to landmarks, Arabic phrases, lessons, Emirati dialect, or falcons — STOP IMMEDIATELY. You are looking at the wrong project.
 
-**This project is ONLY:** `/Users/alialfaras/Desktop/Articulate/`
+**This project is ONLY:** `/Users/rm/Desktop/apps/articulate/`
 
 ---
 
@@ -39,7 +39,7 @@ Articulate is a minimalist iOS reading app (Expo SDK 55 + React Native 0.83) tha
 
 **Correct Articulate tables:** None yet (app uses local MMKV storage). Edge functions only.
 
-**Edge Function:** `openai-proxy` — handles quiz generation, PDF parsing, image scanning, and AI text generation.
+**Edge Function:** `openai-proxy` — handles quiz generation, PDF parsing, image scanning, AI text generation, and audio transcription (Whisper).
 
 **How to verify and fix MCP connection:**
 1. In Claude Code, use `mcp__supabase__get_project_url` — should return `https://mgwkhxlhhrvjgixptcnu.supabase.co`
@@ -744,3 +744,82 @@ After Level 5 (10,000 words), progression doesn't cap:
 npx expo prebuild --clean && npx expo run:ios
 ```
 In code: always wrap in try-catch and check `StoreReview.hasAction()` before calling `requestReview()`.
+
+### 48. expo-file-system: Use New File API (SDK 55+)
+
+`readAsStringAsync` from `expo-file-system` is **deprecated** in SDK 55. Using it shows a full deprecation warning on screen that can be mistaken for an error.
+
+**Wrong:**
+```ts
+import * as FileSystem from 'expo-file-system';
+await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+```
+
+**Correct:**
+```ts
+import { File } from 'expo-file-system';
+const file = new File(uri);
+const base64 = await file.base64();
+const text = await file.text();
+```
+
+Files migrated: `useRecording.ts`, `parseFile.ts`. Dead import removed from `pronunciation-service.ts`.
+
+### 49. iOS Recording Requires setAudioModeAsync
+
+`expo-audio` recording on iOS requires enabling recording mode BEFORE calling `prepareToRecordAsync()`.
+
+```ts
+import { setAudioModeAsync } from 'expo-audio';
+await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+await audioRecorder.prepareToRecordAsync();
+audioRecorder.record();
+// After stop:
+await setAudioModeAsync({ allowsRecording: false });
+```
+
+Without this, `record()` and `stop()` fail silently or crash on iOS.
+
+### 50. Edge Function Deployment
+
+Local edge function code in `supabase/functions/` must be **deployed** to take effect. Local changes don't auto-deploy.
+
+```bash
+npx supabase login  # First time only — opens browser auth
+npx supabase functions deploy openai-proxy --project-ref mgwkhxlhhrvjgixptcnu
+```
+
+If the app shows "Unknown action" errors, the deployed version likely doesn't have the handler. Check local code vs deployed.
+
+### 51. Review Card Transitions: Dismiss Before Advancing
+
+When advancing flashcards or pronunciation drill cards, **always dismiss feedback/definition first, then advance the index after a delay**. Otherwise the new word renders while the old feedback/definition is still visible.
+
+**Wrong:**
+```ts
+setReviewIndex((i) => i + 1);
+setShowDefinition(false);
+```
+
+**Correct:**
+```ts
+setShowDefinition(false);
+setTimeout(() => {
+  setReviewIndex((i) => i + 1);
+}, 150);
+```
+
+Same pattern for pronunciation drill — `drill.dismissFeedback()` then `setTimeout(() => setReviewIndex(...), 300)`.
+
+### 52. Pronunciation Drill: User Tries First
+
+The pronunciation drill should NOT auto-play TTS. The user should attempt pronunciation first, with an optional "Hear it" button if they need help.
+
+Flow: show word → start recording immediately ("Your turn...") → score → show result.
+The `listenToWord()` function on the drill hook lets UI offer an on-demand TTS button.
+
+### 53. Library Has Separate Words View vs Word Bank Screen
+
+`library.tsx` (Words tab) shows word list with "Read My Words" + "Review" buttons.
+`word-bank.tsx` is the dedicated review screen with flashcards + pronunciation drill.
+The library Review button navigates to `/word-bank`. Don't duplicate review UI in library.
