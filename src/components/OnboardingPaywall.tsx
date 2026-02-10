@@ -273,25 +273,27 @@ export function OnboardingPaywall({
           )}
 
           {/* Variant Switcher - DEV ONLY */}
-          <View style={styles.variantSwitcher}>
-            {(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as LayoutVariant[]).map((v) => (
-              <Pressable
-                key={v}
-                onPress={() => setLayoutVariant(v)}
-                style={[
-                  styles.variantButton,
-                  {
-                    backgroundColor: layoutVariant === v ? colors.primary : glass.fill,
-                    borderColor: glass.border,
-                  },
-                ]}
-              >
-                <Text style={{ color: layoutVariant === v ? colors.bg : colors.primary, fontWeight: '600', fontSize: 12 }}>
-                  {v}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          {__DEV__ && (
+            <View style={styles.variantSwitcher}>
+              {(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as LayoutVariant[]).map((v) => (
+                <Pressable
+                  key={v}
+                  onPress={() => setLayoutVariant(v)}
+                  style={[
+                    styles.variantButton,
+                    {
+                      backgroundColor: layoutVariant === v ? colors.primary : glass.fill,
+                      borderColor: glass.border,
+                    },
+                  ]}
+                >
+                  <Text style={{ color: layoutVariant === v ? colors.bg : colors.primary, fontWeight: '600', fontSize: 12 }}>
+                    {v}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
 
           {/* VARIANT A: Segmented Control */}
           {layoutVariant === 'A' && (
@@ -900,7 +902,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   planRowItemBadgeText: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
     color: '#FFF',
     letterSpacing: 0.3,
@@ -1009,7 +1011,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   planBadgeE: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.3,
     marginBottom: 4,
@@ -1097,7 +1099,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   planRowGBadgeText: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
     color: '#FFF',
     letterSpacing: 0.3,
@@ -1143,7 +1145,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   priceLabelH: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '600',
     marginTop: 2,
   },

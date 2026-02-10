@@ -278,6 +278,13 @@ export default function CompleteScreen() {
       });
     }
 
+    // Increment AI texts read counter if this was an AI-generated text
+    const dailyAI = useSettingsStore.getState().dailyAIText;
+    if (params.customTextId && dailyAI && params.customTextId === dailyAI.id) {
+      const currentCount = useSettingsStore.getState().aiTextsRead || 0;
+      useSettingsStore.setState({ aiTextsRead: currentCount + 1 });
+    }
+
     // Record weekly reading data for insights
     const { recordWeeklyReading } = useSettingsStore.getState();
     recordWeeklyReading(wordsRead, wpm);

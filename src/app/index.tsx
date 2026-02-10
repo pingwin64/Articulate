@@ -2081,31 +2081,33 @@ function Home() {
 
         {/* Bookshelf Library - Variant Design System */}
         <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.bookshelfContainer}>
-          {/* Variant Switcher */}
-          <View style={styles.variantSwitcher}>
-            {(['A', 'B', 'C', 'D'] as const).map((v) => (
-              <Pressable
-                key={v}
-                onPress={() => {
-                  if (hapticEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShelfVariant(v);
-                }}
-                style={[
-                  styles.variantBtn,
-                  {
-                    backgroundColor: shelfVariant === v ? (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)') : 'transparent',
-                    borderColor: shelfVariant === v ? (isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.1)') : 'transparent',
-                  },
-                ]}
-              >
-                <Text style={{
-                  fontSize: 13, letterSpacing: 0.5,
-                  color: shelfVariant === v ? colors.primary : colors.muted,
-                  fontWeight: shelfVariant === v ? '700' : '500',
-                }}>{v}</Text>
-              </Pressable>
-            ))}
-          </View>
+          {/* Variant Switcher - DEV ONLY */}
+          {__DEV__ && (
+            <View style={styles.variantSwitcher}>
+              {(['A', 'B', 'C', 'D'] as const).map((v) => (
+                <Pressable
+                  key={v}
+                  onPress={() => {
+                    if (hapticEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setShelfVariant(v);
+                  }}
+                  style={[
+                    styles.variantBtn,
+                    {
+                      backgroundColor: shelfVariant === v ? (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)') : 'transparent',
+                      borderColor: shelfVariant === v ? (isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.1)') : 'transparent',
+                    },
+                  ]}
+                >
+                  <Text style={{
+                    fontSize: 13, letterSpacing: 0.5,
+                    color: shelfVariant === v ? colors.primary : colors.muted,
+                    fontWeight: shelfVariant === v ? '700' : '500',
+                  }}>{v}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
 
           {(() => {
             const bookData: BookData[] = [

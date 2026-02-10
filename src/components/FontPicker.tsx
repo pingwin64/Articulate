@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   fontLabel: {
-    fontSize: 9,
+    fontSize: 11,
     textAlign: 'center',
   },
 });

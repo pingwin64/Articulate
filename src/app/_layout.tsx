@@ -39,6 +39,8 @@ export default function RootLayout() {
     Literata_400Regular,
     Literata_600SemiBold,
     Literata_700Bold,
+    'OpenDyslexic-Regular': require('../../assets/fonts/OpenDyslexic-Regular.otf'),
+    'OpenDyslexic-Bold': require('../../assets/fonts/OpenDyslexic-Bold.otf'),
   });
 
   const { colors, isDark } = useTheme();

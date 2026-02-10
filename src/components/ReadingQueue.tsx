@@ -75,7 +75,18 @@ export function ReadingQueue() {
     [categoryReadCounts, readingHistory.length, isPremium]
   );
 
-  if (queue.length === 0) return null;
+  if (queue.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={[styles.label, { color: colors.secondary }]}>
+          UP NEXT
+        </Text>
+        <Text style={[styles.emptyText, { color: colors.muted }]}>
+          All caught up! Explore custom texts or revisit your favorites.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -135,5 +146,9 @@ const styles = StyleSheet.create({
   cardMetaText: {
     fontSize: 11,
     fontWeight: '400',
+  },
+  emptyText: {
+    fontSize: 14,
+    fontStyle: 'italic',
   },
 });

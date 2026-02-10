@@ -51,6 +51,12 @@
           "photosPermission": "Allow Articulate to access your photos to scan text from images.",
           "cameraPermission": "Allow Articulate to use your camera to scan text from photos."
         }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow Articulate to use your microphone to practice pronunciation."
+        }
       ]
     ]
   }

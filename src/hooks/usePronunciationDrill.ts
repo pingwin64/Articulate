@@ -8,14 +8,11 @@ import {
 import * as Haptics from 'expo-haptics';
 import { speakWord, stopSpeaking } from '../lib/tts';
 import {
-  requestMicrophonePermission,
-  startRecording,
-  stopRecording,
-  cancelRecording,
   transcribeAudio,
   scoreWord,
   type PronunciationFeedback,
 } from '../lib/pronunciation-service';
+import type { Recorder } from './useRecording';
 import { useSettingsStore } from '../lib/store/settings';
 import type { TTSSpeed, VoiceGender } from '../lib/store/settings';
 
@@ -25,6 +22,7 @@ interface UsePronunciationDrillOptions {
   ttsSpeed: TTSSpeed;
   voiceGender: VoiceGender;
   hapticFeedback: boolean;
+  recorder: Recorder;
 }
 
 interface UsePronunciationDrillReturn {
@@ -45,7 +43,7 @@ interface UsePronunciationDrillReturn {
 export function usePronunciationDrill(
   options: UsePronunciationDrillOptions,
 ): UsePronunciationDrillReturn {
-  const { ttsSpeed, voiceGender, hapticFeedback } = options;
+  const { ttsSpeed, voiceGender, hapticFeedback, recorder } = options;
 
   const [phase, setPhase] = useState<DrillPhase>('idle');
   const [feedback, setFeedback] = useState<PronunciationFeedback | null>(null);
@@ -93,7 +91,7 @@ export function usePronunciationDrill(
   const handleStopRecording = useCallback(async (word: string) => {
     if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
     try {
-      const base64 = await stopRecording();
+      const base64 = await recorder.stop();
 
       if (base64.length < 1400) {
         setError('Recording too short. Try holding a bit longer.');
@@ -156,12 +154,12 @@ export function usePronunciationDrill(
       feedbackTimerRef.current = setTimeout(dismissFeedback, 3000);
       return null;
     }
-  }, [hapticFeedback, showFeedbackAnim, dismissFeedback]);
+  }, [recorder, hapticFeedback, showFeedbackAnim, dismissFeedback]);
 
   const startDrill = useCallback((word: string) => {
     // Reset state
     clearTimers();
-    cancelRecording();
+    recorder.cancel();
     stopSpeaking();
     setPhase('idle');
     setFeedback(null);
@@ -186,7 +184,7 @@ export function usePronunciationDrill(
 
     // Phase 2: After 1.5s, start recording
     listenTimerRef.current = setTimeout(async () => {
-      const granted = await requestMicrophonePermission();
+      const granted = await recorder.requestMicPermission();
       if (!granted) {
         setError('Microphone permission required');
         setPhase('result');
@@ -196,7 +194,7 @@ export function usePronunciationDrill(
       }
 
       try {
-        await startRecording();
+        await recorder.start();
         setPhase('recording');
         setError(null);
         setFeedback(null);
@@ -209,23 +207,23 @@ export function usePronunciationDrill(
         setPhase('idle');
       }
     }, 1500);
-  }, [ttsSpeed, voiceGender, clearTimers, showFeedbackAnim, dismissFeedback, handleStopRecording, feedbackOpacity, feedbackScale]);
+  }, [recorder, ttsSpeed, voiceGender, clearTimers, showFeedbackAnim, dismissFeedback, handleStopRecording, feedbackOpacity, feedbackScale]);
 
   const stopDrill = useCallback(() => {
     clearTimers();
-    cancelRecording();
+    recorder.cancel();
     stopSpeaking();
     setPhase('idle');
     setFeedback(null);
     setError(null);
     feedbackOpacity.value = 0;
     feedbackScale.value = 0.8;
-  }, [clearTimers, feedbackOpacity, feedbackScale]);
+  }, [recorder, clearTimers, feedbackOpacity, feedbackScale]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      cancelRecording();
+      recorder.cancel();
       if (listenTimerRef.current) clearTimeout(listenTimerRef.current);
       if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
       if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);

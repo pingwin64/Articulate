@@ -8,6 +8,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 import type { SavedWord } from '../lib/store/settings';
 import { usePronunciationDrill } from '../hooks/usePronunciationDrill';
+import { useRecording } from '../hooks/useRecording';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { GlassSegmentedControl } from '../components/GlassSegmentedControl';
@@ -86,8 +87,9 @@ export default function WordBankScreen() {
   const [drillTotal, setDrillTotal] = useState(0);
   const [drillComplete, setDrillComplete] = useState(false);
 
-  // Pronunciation drill hook
-  const drill = usePronunciationDrill({ ttsSpeed, voiceGender, hapticFeedback });
+  // Recording + pronunciation drill hooks
+  const recorder = useRecording();
+  const drill = usePronunciationDrill({ ttsSpeed, voiceGender, hapticFeedback, recorder });
 
   const handleRemoveWord = useCallback((id: string, word: string) => {
     Alert.alert('Remove Word', `Remove "${word}" from your word bank?`, [

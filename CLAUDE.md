@@ -116,11 +116,12 @@ Examples of what we replaced:
 
 ### 3. Font System
 
-There are exactly **4 fonts** in `FontFamilies` (theme.ts):
+There are exactly **5 fonts** in `FontFamilies` (theme.ts):
 1. `sourceSerif` — Source Serif 4 (default, serif)
 2. `system` — SF Pro Display (system sans-serif)
 3. `jetBrains` — JetBrains Mono (monospace)
 4. `literata` — Literata (serif)
+5. `openDyslexic` — OpenDyslexic (accessibility, bundled OTF in assets/fonts/)
 
 **Do NOT add fonts that aren't actually bundled or available in React Native.** iOS system font names like `NewYork-Regular` are not valid RN font names and silently fall back to the system font. Always test that a new font renders distinctly from existing fonts before adding it.
 
@@ -244,8 +245,8 @@ npx expo run:ios
 
 ## Premium / Free Boundaries
 
-**Free features:** sourceSerif font, default color, default background, 3 core categories (story, article, speech), 1 custom text upload per day, daily word goal tracking
-**Premium features:** all fonts, all colors, all backgrounds, all categories, unlimited custom texts, TTS, auto-play, chunk reading, breathing animation, quizzes, scan text (unlimited), **entire library** (word bank, favorites, custom texts)
+**Free features:** sourceSerif font, default color, default background, 3 core categories (story, article, speech), 1 custom text upload per day, daily word goal tracking, 2 definitions/day, 1 quiz/day, 3 pronunciations/day, 1 listen & repeat/day
+**Premium features:** all fonts, all colors, all backgrounds, all categories, unlimited custom texts, TTS, auto-play, chunk reading, breathing animation, unlimited quizzes, unlimited definitions, scan text (unlimited), **entire library** (word bank, favorites, custom texts)
 
 When gating a feature for free users:
 - Show the control/button but trigger `setPaywallContext('locked_*')` on interaction
@@ -663,9 +664,9 @@ When adding new icon references:
 - Use `'iconname' as const` for literal values that TypeScript can't infer
 - For fallback values with `??`, annotate the variable: `const icon: FeatherIconName = lookup ?? 'award'`
 
-### 39. Store Version & Migration Pattern (v26+)
+### 39. Store Version & Migration Pattern (v27+)
 
-Current store version: **26**. When adding new persisted fields:
+Current store version: **27**. When adding new persisted fields:
 1. Add to `SettingsState` interface
 2. Add default value in the `set`/`get` creation block
 3. Add to `resetAll` defaults

@@ -34,14 +34,11 @@ import { Paywall } from '../components/Paywall';
 import { speakWord, stopSpeaking } from '../lib/tts';
 import { fetchDefinition, type WordDefinition } from '../lib/definitions';
 import {
-  requestMicrophonePermission,
-  startRecording,
-  stopRecording,
-  cancelRecording,
   transcribeAudio,
   scoreWord,
   type PronunciationFeedback,
 } from '../lib/pronunciation-service';
+import { useRecording } from '../hooks/useRecording';
 
 export default function ReadingScreen() {
   const { colors, glass, isDark } = useTheme();
@@ -78,6 +75,7 @@ export default function ReadingScreen() {
   const discoveredFeatures = useSettingsStore((s) => s.discoveredFeatures);
   const setFeatureDiscovered = useSettingsStore((s) => s.setFeatureDiscovered);
   const showToast = useToastStore((s) => s.showToast);
+  const recorder = useRecording();
   const [ttsEnabled, setTtsEnabled] = useState(false);
 
   // Listen & Repeat mode
@@ -214,7 +212,7 @@ export default function ReadingScreen() {
       tooltipDismissRef.current = setTimeout(() => {
         setFeatureTooltip(null);
         setFeatureDiscovered(key);
-      }, 5000);
+      }, 3000);
     }
     return () => {
       if (tooltipDismissRef.current) clearTimeout(tooltipDismissRef.current);
@@ -309,14 +307,14 @@ export default function ReadingScreen() {
 
     // Phase 2: After TTS + delay, auto-start recording
     listenRepeatTimerRef.current = setTimeout(async () => {
-      const granted = await requestMicrophonePermission();
+      const granted = await recorder.requestMicPermission();
       if (!granted) {
         setListenRepeatPhase('idle');
         return;
       }
 
       try {
-        await startRecording();
+        await recorder.start();
         setListenRepeatPhase('recording');
         setPronunciationError(null);
         setPronunciationFeedback(null);
@@ -341,7 +339,7 @@ export default function ReadingScreen() {
       // Turn off
       setListenRepeatActive(false);
       setListenRepeatPhase('idle');
-      cancelRecording();
+      recorder.cancel();
       stopSpeaking();
       if (listenRepeatTimerRef.current) clearTimeout(listenRepeatTimerRef.current);
       return;
@@ -429,9 +427,13 @@ export default function ReadingScreen() {
   }, [words, currentIndex]);
 
   const handleDefinitionTap = async () => {
+    // Free users: 2 definitions per day, then paywall
     if (!isPremium) {
-      setPaywallContext('locked_definition');
-      return;
+      const { canUseFreeDefinition } = useSettingsStore.getState();
+      if (!canUseFreeDefinition()) {
+        setPaywallContext('locked_definition');
+        return;
+      }
     }
     if (!singleWord) return;
     if (hapticFeedback) {
@@ -447,6 +449,8 @@ export default function ReadingScreen() {
       setDefinitionData(definitionCache.current[cacheKey]);
       setDefinitionError(null);
       openDefinitionCard();
+      // Consume free use on cache hit too
+      if (!isPremium) useSettingsStore.getState().useFreeDefinition();
       return;
     }
 
@@ -459,6 +463,8 @@ export default function ReadingScreen() {
       const data = await fetchDefinition(singleWord, context);
       definitionCache.current[cacheKey] = data;
       setDefinitionData(data);
+      // Consume free use only after successful fetch
+      if (!isPremium) useSettingsStore.getState().useFreeDefinition();
     } catch (err: unknown) {
       setDefinitionError(err instanceof Error ? err.message : 'Failed to fetch definition');
     } finally {
@@ -521,7 +527,7 @@ export default function ReadingScreen() {
   const handleStopRecording = useCallback(async () => {
     if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
     try {
-      const base64 = await stopRecording();
+      const base64 = await recorder.stop();
 
       // Guard: too short
       if (base64.length < 1400) {
@@ -620,7 +626,7 @@ export default function ReadingScreen() {
     }
 
     // Request mic permission
-    const granted = await requestMicrophonePermission();
+    const granted = await recorder.requestMicPermission();
     if (!granted) {
       setPronunciationError('Microphone permission denied.');
       setPronunciationState('result');
@@ -641,7 +647,7 @@ export default function ReadingScreen() {
 
     // Start recording
     try {
-      await startRecording();
+      await recorder.start();
       setHasUsedPronunciation(true);
       // Count free pronunciation use
       if (!isPremium) {
@@ -666,7 +672,7 @@ export default function ReadingScreen() {
   // Cancel recording + dismiss feedback on word change
   useEffect(() => {
     if (pronunciationState === 'recording') {
-      cancelRecording();
+      recorder.cancel();
     }
     if (pronunciationTimerRef.current) clearTimeout(pronunciationTimerRef.current);
     if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
@@ -680,7 +686,7 @@ export default function ReadingScreen() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      cancelRecording();
+      recorder.cancel();
       if (pronunciationTimerRef.current) clearTimeout(pronunciationTimerRef.current);
       if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
     };
@@ -690,7 +696,7 @@ export default function ReadingScreen() {
     if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current);
     if (listenRepeatTimerRef.current) clearTimeout(listenRepeatTimerRef.current);
     setListenRepeatActive(false);
-    cancelRecording();
+    recorder.cancel();
     stopSpeaking();
     if (router.canGoBack()) {
       router.back();

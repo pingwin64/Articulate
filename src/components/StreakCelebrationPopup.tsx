@@ -55,99 +55,75 @@ function getCtaCopy(streak: number): string {
   return 'Keep it going!';
 }
 
-// Gold color for lightning bolts
-const LIGHTNING_GOLD = '#FFD700';
-
-// Confetti pieces - start from left (-1) or right (1), with varying speeds and wobble
-const CONFETTI_PIECES = [
-  { side: -1, startY: -50, size: 28, speed: 2200, wobble: 30, delay: 0 },
-  { side: 1, startY: -80, size: 32, speed: 2400, wobble: -25, delay: 50 },
-  { side: -1, startY: 0, size: 24, speed: 2000, wobble: 35, delay: 100 },
-  { side: 1, startY: -30, size: 30, speed: 2600, wobble: -40, delay: 80 },
-  { side: -1, startY: 50, size: 26, speed: 2300, wobble: 28, delay: 150 },
-  { side: 1, startY: 80, size: 28, speed: 2100, wobble: -32, delay: 120 },
-  { side: -1, startY: -100, size: 22, speed: 2500, wobble: 38, delay: 200 },
-  { side: 1, startY: 30, size: 26, speed: 2350, wobble: -28, delay: 180 },
-  { side: -1, startY: 100, size: 30, speed: 2150, wobble: 25, delay: 60 },
-  { side: 1, startY: -60, size: 24, speed: 2450, wobble: -35, delay: 140 },
-  { side: -1, startY: 150, size: 20, speed: 2550, wobble: 42, delay: 220 },
-  { side: 1, startY: 120, size: 22, speed: 2250, wobble: -30, delay: 170 },
+const PARTICLE_DOTS = [
+  { x: 0.2, y: 0.35, size: 4, delay: 0, duration: 2000 },
+  { x: 0.8, y: 0.30, size: 3, delay: 200, duration: 2200 },
+  { x: 0.5, y: 0.25, size: 5, delay: 100, duration: 1800 },
+  { x: 0.3, y: 0.45, size: 3, delay: 300, duration: 2400 },
+  { x: 0.7, y: 0.40, size: 4, delay: 150, duration: 2100 },
 ];
 
-function ConfettiBolt({
+function ParticleDot({
   config,
   screenWidth,
   reduceMotion,
 }: {
-  config: typeof CONFETTI_PIECES[number];
+  config: typeof PARTICLE_DOTS[number];
   screenWidth: number;
   reduceMotion: boolean;
 }) {
-  // Start off-screen on left or right
-  const startX = config.side === -1 ? -50 : screenWidth + 50;
-  const endX = config.side === -1 ? screenWidth + 50 : -50;
-
-  const translateX = useSharedValue(startX);
-  const translateY = useSharedValue(config.startY);
-  const rotate = useSharedValue(config.side === -1 ? -30 : 30);
-  const opacity = useSharedValue(1); // Start visible
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(0);
 
   useEffect(() => {
     if (reduceMotion) {
-      // Just show static bolts at edges
-      translateX.value = config.side === -1 ? 40 : screenWidth - 70;
-      opacity.value = 0.7;
+      opacity.value = 0.3;
       return;
     }
 
-    const baseDelay = 200 + config.delay;
-    const duration = config.speed;
+    const baseDelay = 400 + config.delay;
 
-    // Fly across the screen
-    translateX.value = withDelay(
+    // Fade in, drift up slightly, fade out
+    opacity.value = withDelay(
       baseDelay,
-      withTiming(endX, { duration })
+      withSequence(
+        withTiming(0.5, { duration: 600 }),
+        withTiming(0.5, { duration: config.duration - 1200 }),
+        withTiming(0, { duration: 600 })
+      )
     );
 
-    // Float down while flying
     translateY.value = withDelay(
       baseDelay,
-      withTiming(config.startY + 350, { duration })
-    );
-
-    // Spin while flying
-    rotate.value = withDelay(
-      baseDelay,
-      withTiming(config.wobble * 6, { duration })
-    );
-
-    // Fade out as it exits
-    opacity.value = withDelay(
-      baseDelay + duration - 500,
-      withTiming(0, { duration: 500 })
+      withTiming(-20, { duration: config.duration })
     );
 
     return () => {
-      cancelAnimation(translateX);
-      cancelAnimation(translateY);
-      cancelAnimation(rotate);
       cancelAnimation(opacity);
+      cancelAnimation(translateY);
     };
-  }, [config, screenWidth, reduceMotion, startX, endX, translateX, translateY, rotate, opacity]);
+  }, [config, reduceMotion, opacity, translateY]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-      { rotate: `${rotate.value}deg` },
-    ],
     opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
   }));
 
   return (
-    <Animated.View style={[styles.confettiBolt, animatedStyle]}>
-      <Feather name="zap" size={config.size} color={LIGHTNING_GOLD} />
-    </Animated.View>
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          left: config.x * screenWidth,
+          top: `${config.y * 100}%`,
+          width: config.size,
+          height: config.size,
+          borderRadius: config.size / 2,
+          backgroundColor: 'rgba(255,215,0,0.6)',
+        },
+        animatedStyle,
+      ]}
+    />
   );
 }
 
@@ -240,10 +216,10 @@ export function StreakCelebrationPopup({
             <Feather name="x" size={24} color={colors.secondary} />
           </Pressable>
 
-          {/* Lightning confetti - flies across from sides */}
+          {/* Subtle celebration particles */}
           <View style={styles.confettiContainer} pointerEvents="none">
-            {CONFETTI_PIECES.map((config, index) => (
-              <ConfettiBolt
+            {PARTICLE_DOTS.map((config, index) => (
+              <ParticleDot
                 key={index}
                 config={config}
                 screenWidth={screenWidth}
@@ -351,11 +327,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
     zIndex: 0,
-  },
-  confettiBolt: {
-    position: 'absolute',
-    top: '40%',
-    left: 0,
   },
   content: {
     flex: 1,

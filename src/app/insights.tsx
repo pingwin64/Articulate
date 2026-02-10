@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   chartLabel: {
-    fontSize: 9,
+    fontSize: 11,
     textAlign: 'center',
   },
   // Category bars

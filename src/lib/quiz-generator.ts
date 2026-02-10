@@ -4,21 +4,26 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
 export async function generateQuizFromText(
   text: string,
 ): Promise<QuizQuestion[]> {
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/openai-proxy`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify({
-      action: 'generate-quiz',
-      text,
-    }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${SUPABASE_URL}/functions/v1/openai-proxy`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        action: 'generate-quiz',
+        text,
+      }),
+    });
+  } catch {
+    throw new Error('Unable to generate quiz. Check your connection and try again.');
+  }
 
   if (!response.ok) {
     const err = await response.json().catch(() => null);
-    throw new Error(err?.error ?? `Edge function error: ${response.status}`);
+    throw new Error(err?.error ?? 'Unable to generate quiz. Check your connection and try again.');
   }
 
   const data = await response.json();

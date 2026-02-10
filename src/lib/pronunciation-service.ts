@@ -1,25 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
 
-// ─── Recording (expo-av removed — stubbed until replacement) ───
-
-export async function requestMicrophonePermission(): Promise<boolean> {
-  console.warn('Pronunciation recording unavailable (expo-av removed)');
-  return false;
-}
-
-export async function startRecording(): Promise<void> {
-  throw new Error('Recording unavailable (expo-av removed)');
-}
-
-export async function stopRecording(): Promise<string> {
-  throw new Error('Recording unavailable (expo-av removed)');
-}
-
-export async function cancelRecording(): Promise<void> {
-  // no-op
-}
-
 // ─── Transcription ────────────────────────────────────────────
 
 export async function transcribeAudio(base64Audio: string): Promise<string> {

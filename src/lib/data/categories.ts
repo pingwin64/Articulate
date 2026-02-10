@@ -1041,6 +1041,14 @@ const literatureTexts: TextEntry[] = [
     textDifficulty: 'intermediate',
     words: w(`You pierce my soul. I am half agony, half hope. Tell me not that I am too late, that such precious feelings are gone for ever. I offer myself to you again with a heart even more your own than when you almost broke it, eight years and a half ago. Dare not say that man forgets sooner than woman, that his love has an earlier death. I have loved none but you. Unjust I may have been, weak and resentful I have been, but never inconstant. You alone have brought me to Bath. For you alone, I think and plan. Have you not seen this? I can hardly write. I am every instant hearing something which overpowers me. You sink your voice, but I can distinguish the tones of that voice when they would be lost on others. Too good, too excellent creature! You do us justice, indeed. You do believe that there is true attachment and constancy among men. Believe it to be most fervent, most undeviating. I must go, uncertain of my fate; but I shall return hither, or follow your party, as soon as possible.`),
   },
+  {
+    id: 'literature-hemingway',
+    title: 'The Old Man and the Sea',
+    author: 'Ernest Hemingway',
+    requiredReads: 16,
+    textDifficulty: 'beginner',
+    words: w(`He was an old man who fished alone in a skiff in the Gulf Stream and he had gone eighty-four days now without taking a fish. In the first forty days a boy had been with him. But after forty days without a fish the boy's parents had told him that the old man was now definitely and finally salao, which is the worst form of unlucky, and the boy had gone at their orders in another boat which caught three good fish the first week.`),
+  },
 ];
 
 // ─── Poetry ───────────────────────────────────────────────────

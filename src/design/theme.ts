@@ -12,6 +12,8 @@ export interface ColorPalette {
   warning: string;
   error: string;
   info: string;
+  disabled: string;
+  inactive: string;
 }
 
 export type ThemeMode = 'light' | 'dark';
@@ -29,6 +31,8 @@ export const Colors: Record<ThemeMode, ColorPalette> = {
     warning: '#FF9500',
     error: '#DC3545',
     info: '#0A84FF',
+    disabled: 'rgba(0,0,0,0.2)',
+    inactive: 'rgba(0,0,0,0.35)',
   },
   dark: {
     bg: '#000000',
@@ -42,6 +46,8 @@ export const Colors: Record<ThemeMode, ColorPalette> = {
     warning: '#FFD60A',
     error: '#FF453A',
     info: '#0A84FF',
+    disabled: 'rgba(255,255,255,0.2)',
+    inactive: 'rgba(255,255,255,0.35)',
   },
 };
 
@@ -108,6 +114,13 @@ export const FontFamilies = {
     semiBold: 'Literata_600SemiBold',
     bold: 'Literata_700Bold',
   },
+  openDyslexic: {
+    key: 'openDyslexic',
+    label: 'OpenDyslexic',
+    regular: 'OpenDyslexic-Regular',
+    semiBold: 'OpenDyslexic-Bold',
+    bold: 'OpenDyslexic-Bold',
+  },
 } as const;
 
 export type FontFamilyKey = keyof typeof FontFamilies;
@@ -152,7 +165,7 @@ export const GlassStyles = {
   light: {
     fill: 'rgba(0,0,0,0.03)',
     border: 'rgba(0,0,0,0.08)',
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.12,
     blurIntensity: 30,
   },
   dark: {

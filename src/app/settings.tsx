@@ -10,6 +10,7 @@ import {
   ActionSheetIOS,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import Constants from 'expo-constants';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -737,7 +738,12 @@ export default function SettingsScreen() {
           </Pressable>
         </GlassCard>
 
-        <View style={{ height: 40 }} />
+        {/* App Version */}
+        <Text style={[styles.versionText, { color: colors.muted }]}>
+          Articulate v{Constants.expoConfig?.version ?? '1.0.0'}{Constants.expoConfig?.ios?.buildNumber ? ` (${Constants.expoConfig.ios.buildNumber})` : ''}
+        </Text>
+
+        <View style={{ height: 24 }} />
       </ScrollView>
 
       {/* Paywall */}
@@ -821,7 +827,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   proBadgeText: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
@@ -871,5 +877,10 @@ const styles = StyleSheet.create({
   devTestButtonText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  versionText: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 12,
   },
 });
