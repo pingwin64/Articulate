@@ -216,17 +216,21 @@ export default function LibraryScreen() {
     });
   }, [removeSavedWord, hapticFeedback]);
 
-  const handleReadMyWords = useCallback(() => {
-    if (savedWords.length === 0) return;
-    if (hapticFeedback) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  // Pronunciation accuracy stats for Words tab subtitle
+  const pronunciationHistory = useSettingsStore((s) => s.pronunciationHistory);
+  const accuracyStats = useMemo(() => {
+    let totalAttempts = 0;
+    let totalPerfects = 0;
+    for (const w of savedWords) {
+      const history = pronunciationHistory[w.word.toLowerCase()];
+      if (history) {
+        totalAttempts += history.attempts;
+        totalPerfects += history.perfects;
+      }
     }
-    const wordArray = savedWords.map((w) => w.word);
-    router.push({
-      pathname: '/reading',
-      params: { wordBankWords: JSON.stringify(wordArray) },
-    });
-  }, [savedWords, hapticFeedback, router]);
+    if (totalAttempts === 0) return null;
+    return Math.round((totalPerfects / totalAttempts) * 100);
+  }, [savedWords, pronunciationHistory]);
 
   // Cleanup expired texts on mount (for free users)
   useEffect(() => {
@@ -736,20 +740,14 @@ export default function LibraryScreen() {
             ) : (
               <>
                 <Animated.View entering={FadeIn.duration(300)} style={styles.readButtonSection}>
-                  <View style={styles.buttonRow}>
-                    <View style={styles.buttonHalf}>
-                      <GlassButton title="Read My Words" onPress={handleReadMyWords} />
-                    </View>
-                    <View style={styles.buttonHalf}>
-                      <GlassButton
-                        title="Review"
-                        onPress={() => router.push('/word-bank')}
-                        variant="outline"
-                      />
-                    </View>
-                  </View>
+                  <GlassButton
+                    title="Review Flashcards"
+                    onPress={() => router.push('/word-bank')}
+                  />
                   <Text style={[styles.wordCount, { color: colors.muted }]}>
-                    {savedWords.length} {savedWords.length === 1 ? 'word' : 'words'} saved
+                    {accuracyStats !== null
+                      ? `${savedWords.length} words saved · ${accuracyStats}% accuracy`
+                      : `${savedWords.length} ${savedWords.length === 1 ? 'word' : 'words'} saved`}
                   </Text>
                 </Animated.View>
                 <View style={styles.wordList}>
@@ -1088,14 +1086,6 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: Spacing.lg,
     alignItems: 'center',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 10,
-    width: '100%',
-  },
-  buttonHalf: {
-    flex: 1,
   },
   wordCount: {
     fontSize: 13,

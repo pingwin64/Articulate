@@ -1734,15 +1734,7 @@ function Home() {
       return;
     }
     if (hasTodayAIText && dailyAIText) {
-      // Navigate to read the cached AI text
-      const store = useSettingsStore.getState();
-      // Store as custom text if not already there
-      const exists = store.customTexts.some((t) => t.id === dailyAIText.id);
-      if (!exists) {
-        useSettingsStore.setState({
-          customTexts: [...store.customTexts, dailyAIText],
-        });
-      }
+      // Navigate to read the cached AI text (lives in dailyAIText, not customTexts)
       router.push({
         pathname: '/reading',
         params: { customTextId: dailyAIText.id },
@@ -1754,15 +1746,8 @@ function Home() {
     try {
       const { getOrGenerateDailyText } = await import('../lib/ai-text-service');
       const text = await getOrGenerateDailyText();
-      // Store as custom text for reading
+      // Text is stored in dailyAIText by getOrGenerateDailyText — no need to add to customTexts
       const store = useSettingsStore.getState();
-      const exists = store.customTexts.some((t) => t.id === text.id);
-      if (!exists) {
-        useSettingsStore.setState({
-          customTexts: [...store.customTexts, text],
-        });
-      }
-      // Increment AI texts read counter
       useSettingsStore.setState({ aiTextsRead: (store.aiTextsRead || 0) + 1 });
       router.push({
         pathname: '/reading',
@@ -2134,77 +2119,6 @@ function Home() {
           })()}
         </Animated.View>
 
-        {/* Library Preview - Pro only */}
-        {isPremium && (favoriteTexts.length > 0 || customTexts.length > 0) && (
-          <View style={styles.librarySection}>
-            <View style={styles.librarySectionHeader}>
-              <Text style={[styles.librarySectionTitle, { color: colors.secondary }]}>
-                {favoriteTexts.length > 0 ? 'FAVORITES' : 'YOUR LIBRARY'}
-              </Text>
-              <Pressable onPress={() => router.push('/library')}>
-                <Text style={[styles.librarySeeAll, { color: colors.primary }]}>See all →</Text>
-              </Pressable>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.libraryScroll}
-              style={{ flexGrow: 0 }}
-            >
-              {(favoriteTexts.length > 0
-                ? favoriteTexts.slice(0, 5).map((fav) => {
-                    const cat = categories.find(c => c.key === fav.categoryKey);
-                    const text = cat?.texts.find(t => t.id === fav.textId);
-                    if (!text) return null;
-                    return (
-                      <Pressable
-                        key={`${fav.categoryKey}-${fav.textId}`}
-                        onPress={() => {
-                          router.push({
-                            pathname: '/reading',
-                            params: { categoryKey: fav.categoryKey, textId: fav.textId },
-                          });
-                        }}
-                        style={({ pressed }) => [
-                          styles.libraryCard,
-                          { backgroundColor: glass.fill, borderColor: glass.border, opacity: pressed ? 0.8 : 1 },
-                        ]}
-                      >
-                        <Text style={[styles.libraryCardTitle, { color: colors.primary }]} numberOfLines={2}>
-                          {text.title}
-                        </Text>
-                        <Text style={[styles.libraryCardMeta, { color: colors.muted }]}>
-                          {text.words.length} words
-                        </Text>
-                      </Pressable>
-                    );
-                  })
-                : customTexts.slice(0, 5).map((item) => (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => {
-                        router.push({
-                          pathname: '/reading',
-                          params: { categoryKey: 'custom', customTextId: item.id },
-                        });
-                      }}
-                      style={({ pressed }) => [
-                        styles.libraryCard,
-                        { backgroundColor: glass.fill, borderColor: glass.border, opacity: pressed ? 0.8 : 1 },
-                      ]}
-                    >
-                      <Text style={[styles.libraryCardTitle, { color: colors.primary }]} numberOfLines={2}>
-                        {item.title}
-                      </Text>
-                      <Text style={[styles.libraryCardMeta, { color: colors.muted }]}>
-                        {item.wordCount} words
-                      </Text>
-                    </Pressable>
-                  ))
-              )}
-            </ScrollView>
-          </View>
-        )}
 
         {/* Notices */}
         {showTrialCountdown && (
@@ -2738,44 +2652,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   // Library Section
-  librarySection: {
-    marginBottom: Spacing.lg,
-  },
-  librarySectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  librarySectionTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.8,
-  },
-  librarySeeAll: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  libraryScroll: {
-    gap: 12,
-  },
-  libraryCard: {
-    width: 140,
-    padding: 14,
-    borderRadius: 14,
-    borderCurve: 'continuous',
-    borderWidth: 0.5,
-    gap: 6,
-  },
-  libraryCardTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 18,
-  },
-  libraryCardMeta: {
-    fontSize: 12,
-    fontWeight: '400',
-  },
   // Daily goal progress
   dailyGoalRow: {
     marginTop: 10,

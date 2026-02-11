@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { createMMKV } from 'react-native-mmkv';
+import { MMKV } from 'react-native-mmkv';
 import type { FontFamilyKey, WordColorKey } from '../../design/theme';
 import { getBadgeById } from '../data/badges';
 import { getISOWeekId } from '../date';
 
-const storage = createMMKV({ id: 'articulate-mmkv' });
+const storage = new MMKV({ id: 'articulate-mmkv' });
 
 const mmkvStorage = {
   getItem: (name: string) => {
@@ -378,6 +378,7 @@ export interface SettingsState {
   savedWords: SavedWord[];
   addSavedWord: (word: SavedWord) => void;
   removeSavedWord: (id: string) => void;
+  enrichSavedWord: (word: string, data: { syllables?: string; partOfSpeech?: string; definition?: string }) => void;
 
   // Favorite Texts (Bundled texts saved to library)
   favoriteTexts: FavoriteText[];
@@ -450,6 +451,10 @@ export interface SettingsState {
   // Word Bank Review Tracking
   lastWordReviewDate: string | null;
   setLastWordReviewDate: (v: string | null) => void;
+
+  // Word Bank Session History
+  reviewSessions: { date: string; accuracy: number; wordCount: number; perfects: number; close: number; missed: number; mode: 'pronunciation' | 'flashcard' }[];
+  addReviewSession: (session: { accuracy: number; wordCount: number; perfects: number; close: number; missed: number; mode: 'pronunciation' | 'flashcard' }) => void;
 
   // Computed helper
   trialDaysRemaining: () => number;
@@ -1224,6 +1229,17 @@ export const useSettingsStore = create<SettingsState>()(
         set((s) => ({
           savedWords: s.savedWords.filter((w) => w.id !== id),
         })),
+      enrichSavedWord: (word, data) =>
+        set((s) => {
+          const idx = s.savedWords.findIndex((w) => w.word === word);
+          if (idx < 0) return s;
+          // Don't overwrite existing data
+          const existing = s.savedWords[idx];
+          if (existing.definition) return s;
+          const updated = [...s.savedWords];
+          updated[idx] = { ...existing, ...data };
+          return { savedWords: updated };
+        }),
 
       // Favorite Texts (Bundled texts saved to library)
       favoriteTexts: [],
@@ -1436,6 +1452,15 @@ export const useSettingsStore = create<SettingsState>()(
       lastWordReviewDate: null,
       setLastWordReviewDate: (v) => set({ lastWordReviewDate: v }),
 
+      // Word Bank Session History
+      reviewSessions: [],
+      addReviewSession: (session) => {
+        const state = get();
+        const entry = { ...session, date: new Date().toISOString() };
+        const updated = [entry, ...state.reviewSessions].slice(0, 30);
+        set({ reviewSessions: updated });
+      },
+
       // Computed helper
       trialDaysRemaining: () => {
         const state = get();
@@ -1551,11 +1576,12 @@ export const useSettingsStore = create<SettingsState>()(
         hasRequestedReview: false,
         discoveredFeatures: { definition: false, pronunciation: false, wordSave: false, tts: false },
         lastWordReviewDate: null,
+        reviewSessions: [],
       }),
     }),
     {
       name: 'articulate-settings',
-      version: 27,
+      version: 28,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -1854,6 +1880,10 @@ export const useSettingsStore = create<SettingsState>()(
           // v27: Free definitions (2/day foot-in-door)
           persisted.freeDefinitionsUsedToday = persisted.freeDefinitionsUsedToday ?? 0;
           persisted.lastFreeDefinitionDate = persisted.lastFreeDefinitionDate ?? null;
+        }
+        if (version < 28) {
+          // v28: Word bank review session history
+          persisted.reviewSessions = persisted.reviewSessions ?? [];
         }
         return persisted;
       },

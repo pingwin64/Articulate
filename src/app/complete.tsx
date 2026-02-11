@@ -26,6 +26,7 @@ import { StreakCelebrationPopup } from '../components/StreakCelebrationPopup';
 import { Spacing } from '../design/theme';
 import { ALL_BADGES, getBadgeById, type Badge } from '../lib/data/badges';
 import { cancelStreakAtRiskReminder } from '../lib/notifications';
+import { fetchDefinition } from '../lib/definitions';
 import * as StoreReview from 'expo-store-review';
 
 // Difficulty multipliers for level progress — wider spread so difficulty choice matters
@@ -123,9 +124,10 @@ export default function CompleteScreen() {
     router.replace('/');
   }, [hapticFeedback, setIsFirstReading, setHasOnboarded, router]);
 
-  const { customTexts, addFavoriteText, removeFavoriteText, isFavoriteText } = useSettingsStore();
+  const { customTexts, dailyAIText, addFavoriteText, removeFavoriteText, isFavoriteText } = useSettingsStore();
   const customText = params.customTextId
-    ? customTexts.find((t) => t.id === params.customTextId)
+    ? (customTexts.find((t) => t.id === params.customTextId)
+      ?? (dailyAIText?.id === params.customTextId ? dailyAIText : undefined))
     : undefined;
 
   // Check if this is a bundled text (has categoryKey and textId)
@@ -213,6 +215,14 @@ export default function CompleteScreen() {
     if (hapticFeedback) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+    // Background fetch definition data
+    fetchDefinition(word).then((data) => {
+      useSettingsStore.getState().enrichSavedWord(word, {
+        syllables: data.syllables,
+        partOfSpeech: data.partOfSpeech,
+        definition: data.definition,
+      });
+    }).catch(() => {}); // Silent fail — word bank review will retry
   };
 
   // Smart CTA: should we suggest practice?

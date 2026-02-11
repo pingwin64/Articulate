@@ -68,6 +68,12 @@ export default function RootLayout() {
   // Clean up expired free user texts on app start
   useEffect(() => {
     useSettingsStore.getState().cleanupExpiredFreeTexts();
+    // Remove AI-generated texts that were incorrectly saved to customTexts
+    const store = useSettingsStore.getState();
+    const cleaned = store.customTexts.filter((t) => !t.id.startsWith('ai-'));
+    if (cleaned.length !== store.customTexts.length) {
+      useSettingsStore.setState({ customTexts: cleaned });
+    }
   }, []);
 
   const onLayoutRootView = useCallback(async () => {
@@ -159,8 +165,8 @@ export default function RootLayout() {
             options={{
               animation: 'slide_from_right',
               headerShown: true,
-              title: 'My Words',
-              headerBackTitle: 'Home',
+              title: 'Review',
+              headerBackTitle: 'Library',
               headerStyle: { backgroundColor: colors.bg },
               headerTintColor: colors.primary,
               headerTitleStyle: { color: colors.primary },

@@ -1,8 +1,8 @@
 import * as Notifications from 'expo-notifications';
-import { createMMKV } from 'react-native-mmkv';
+import { MMKV } from 'react-native-mmkv';
 
 // Persist notification IDs in MMKV to survive app restarts
-const notifStorage = createMMKV({ id: 'articulate-notifications' });
+const notifStorage = new MMKV({ id: 'articulate-notifications' });
 
 function getDailyReminderId(): string | null {
   return notifStorage.getString('dailyReminderId') ?? null;

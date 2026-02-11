@@ -63,6 +63,7 @@ export default function ReadingScreen() {
     setResumeData,
     hasOnboarded,
     customTexts,
+    dailyAIText,
     showPaywall,
     setPaywallContext,
     paywallContext,
@@ -152,7 +153,8 @@ export default function ReadingScreen() {
     : null;
 
   const customText = params.customTextId
-    ? customTexts.find((t) => t.id === params.customTextId)
+    ? (customTexts.find((t) => t.id === params.customTextId)
+      ?? (dailyAIText?.id === params.customTextId ? dailyAIText : undefined))
     : undefined;
   const category = params.categoryKey
     ? categories.find((c) => c.key === params.categoryKey)
@@ -415,6 +417,16 @@ export default function ReadingScreen() {
       };
       addSavedWord(newWord);
       showToast(`Saved! ${savedWords.length + 1} in your bank`, 'heart');
+      // Background fetch if no cached definition data
+      if (!cached) {
+        fetchDefinition(singleWord).then((data) => {
+          useSettingsStore.getState().enrichSavedWord(singleWord, {
+            syllables: data.syllables,
+            partOfSpeech: data.partOfSpeech,
+            definition: data.definition,
+          });
+        }).catch(() => {}); // Silent fail — word bank review will retry
+      }
     }
   };
 
