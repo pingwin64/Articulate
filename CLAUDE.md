@@ -823,3 +823,27 @@ The `listenToWord()` function on the drill hook lets UI offer an on-demand TTS b
 `library.tsx` (Words tab) shows word list with "Read My Words" + "Review" buttons.
 `word-bank.tsx` is the dedicated review screen with flashcards + pronunciation drill.
 The library Review button navigates to `/word-bank`. Don't duplicate review UI in library.
+
+### 54. Optical Vertical Centering (Nav Bar Compensation)
+
+**Problem:** Content centered with `justifyContent: 'flex-start'` + `paddingTop: '30%'` sits too high, leaving dead space at the bottom.
+
+**Wrong:**
+```ts
+container: {
+  flex: 1,
+  justifyContent: 'flex-start',
+  paddingTop: '30%',  // top-heavy, dead space at bottom
+}
+```
+
+**Correct:**
+```ts
+container: {
+  flex: 1,
+  justifyContent: 'center',
+  paddingBottom: '12%',  // optical nudge upward
+}
+```
+
+Screens with a nav bar eat top space, so true `center` feels slightly low. Use `paddingBottom` (not `paddingTop`) to nudge content upward. This gives balanced, optically centered layouts without hardcoded top offsets.
