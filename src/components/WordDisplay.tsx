@@ -13,7 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
-import { FontFamilies, WordColors, Springs } from '../design/theme';
+import { FontFamilies, WordColors, WindDownColors, Springs } from '../design/theme';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
 
 interface WordDisplayProps {
@@ -34,7 +34,7 @@ function getWordColor(colorKey: WordColorKey, primaryColor: string): string {
 }
 
 export function WordDisplay({ word, wordKey }: WordDisplayProps) {
-  const { colors } = useTheme();
+  const { colors, windDownMode } = useTheme();
   const { fontFamily, wordSize, wordBold, wordColor, breathingAnimation, reduceMotion } = useSettingsStore();
 
   // Check system reduce motion preference
@@ -49,8 +49,8 @@ export function WordDisplay({ word, wordKey }: WordDisplayProps) {
 
   // Memoize color and font lookups to avoid per-frame recomputation
   const displayColor = useMemo(
-    () => getWordColor(wordColor, colors.primary),
-    [wordColor, colors.primary]
+    () => windDownMode ? WindDownColors.wordColor : getWordColor(wordColor, colors.primary),
+    [wordColor, colors.primary, windDownMode]
   );
 
   const fontFam = useMemo(
@@ -59,7 +59,15 @@ export function WordDisplay({ word, wordKey }: WordDisplayProps) {
   );
 
   // Respect both app setting and system accessibility preference
-  const shouldAnimate = breathingAnimation && !reduceMotion && !systemReduceMotion;
+  // Wind-down forces breathing on regardless of user's setting
+  const shouldAnimate = (breathingAnimation || windDownMode) && !reduceMotion && !systemReduceMotion;
+
+  // Wind-down: deeper amplitude (1.012 vs 1.008) and slower rhythm (2000ms vs 1500ms half-cycle)
+  const breatheAmplitude = windDownMode ? 1.012 : 1.008;
+  const breatheHalfCycle = windDownMode ? 2000 : 1500;
+
+  // Wind-down: slower entry spring for dreamy word appearance
+  const entrySpring = windDownMode ? { damping: 25, stiffness: 80 } : Springs.gentle;
 
   useEffect(() => {
     // Enter animation
@@ -69,11 +77,11 @@ export function WordDisplay({ word, wordKey }: WordDisplayProps) {
 
     opacity.value = withDelay(
       50,
-      withSpring(1, Springs.gentle)
+      withSpring(1, entrySpring)
     );
     scale.value = withDelay(
       50,
-      withSpring(1, Springs.gentle)
+      withSpring(1, entrySpring)
     );
 
     // Start breathing after entry (only if enabled and motion not reduced)
@@ -82,12 +90,12 @@ export function WordDisplay({ word, wordKey }: WordDisplayProps) {
       timer = setTimeout(() => {
         breatheScale.value = withRepeat(
           withSequence(
-            withTiming(1.008, {
-              duration: 1500,
+            withTiming(breatheAmplitude, {
+              duration: breatheHalfCycle,
               easing: Easing.inOut(Easing.ease),
             }),
             withTiming(1.0, {
-              duration: 1500,
+              duration: breatheHalfCycle,
               easing: Easing.inOut(Easing.ease),
             })
           ),
@@ -107,7 +115,7 @@ export function WordDisplay({ word, wordKey }: WordDisplayProps) {
       cancelAnimation(breatheScale);
       breatheScale.value = 1;
     };
-  }, [wordKey, opacity, scale, breatheScale, shouldAnimate]);
+  }, [wordKey, opacity, scale, breatheScale, shouldAnimate, breatheAmplitude, breatheHalfCycle, entrySpring]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,

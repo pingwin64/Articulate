@@ -1,14 +1,17 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { StyleSheet, View, Text, ScrollView, Pressable } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import Svg, { Rect, Path, Line } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
-import { getISOWeekId } from '../lib/date';
+import { getISOWeekId, getWeekStart } from '../lib/date';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
+import { WeeklySummaryShareCard } from '../components/WeeklySummaryShareCard';
+import { captureAndShare } from '../lib/share';
 import { Paywall } from '../components/Paywall';
 import { Spacing } from '../design/theme';
 
@@ -51,6 +54,10 @@ export default function InsightsScreen() {
     setPaywallContext,
     paywallContext,
   } = useSettingsStore();
+
+  const readingHistory = useSettingsStore((s) => s.readingHistory);
+  const hapticFeedback = useSettingsStore((s) => s.hapticFeedback);
+  const weeklySummaryRef = useRef<View>(null);
 
   const weeks = useMemo(() => getLast8Weeks(), []);
   const last7Days = useMemo(() => getLast7Days(), []);
@@ -100,6 +107,61 @@ export default function InsightsScreen() {
   // Words read this week
   const currentWeekId = getISOWeekId(new Date());
   const wordsThisWeek = weeklyWordCounts[currentWeekId] ?? 0;
+
+  // ─── Weekly share data ────────────────────────────────────
+  const weekShareData = useMemo(() => {
+    const weekStart = getWeekStart();
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+
+    // Texts this week from readingHistory
+    const thisWeekEntries = readingHistory.filter((e) => {
+      const d = new Date(e.completedAt);
+      return d >= weekStart && d < weekEnd;
+    });
+    const textsThisWeekCount = thisWeekEntries.length;
+
+    // Top category from this week's entries
+    const catCounts: Record<string, number> = {};
+    thisWeekEntries.forEach((e) => {
+      catCounts[e.categoryKey] = (catCounts[e.categoryKey] ?? 0) + 1;
+    });
+    const topCat = Object.entries(catCounts).sort(([, a], [, b]) => b - a)[0]?.[0];
+
+    // Reading days booleans (Mon-Sun)
+    const readingDaysBool: boolean[] = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(weekStart);
+      day.setDate(day.getDate() + i);
+      const key = day.toISOString().split('T')[0];
+      readingDaysBool.push((dailyReadingLog[key] ?? 0) > 0);
+    }
+
+    const activeDays = readingDaysBool.filter(Boolean).length;
+
+    const weekNum = currentWeekId.split('-W')[1];
+    const weekLabel = `Week ${parseInt(weekNum, 10)}`;
+
+    return {
+      weekLabel,
+      wordsRead: wordsThisWeek,
+      textsRead: textsThisWeekCount,
+      topCategory: topCat,
+      readingDays: readingDaysBool,
+      daysActive: activeDays,
+    };
+  }, [readingHistory, dailyReadingLog, wordsThisWeek, currentWeekId]);
+
+  const handleShareWeek = async () => {
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    await captureAndShare(
+      weeklySummaryRef,
+      `I read ${wordsThisWeek.toLocaleString()} words this week on Articulate!\n\nImprove your reading one word at a time.`,
+      'Share your week'
+    );
+  };
 
   const chartWidth = 280;
   const chartHeight = 120;
@@ -331,10 +393,42 @@ export default function InsightsScreen() {
             </GlassCard>
           </Animated.View>
 
+          {/* Share Your Week */}
+          {isPremium && (
+            <Animated.View entering={FadeIn.delay(600).duration(300)}>
+              <Pressable
+                onPress={handleShareWeek}
+                style={({ pressed }) => [
+                  styles.shareWeekButton,
+                  { borderColor: glass.border, opacity: pressed ? 0.6 : 1 },
+                ]}
+              >
+                <Feather name="share" size={16} color={colors.secondary} />
+                <Text style={[styles.shareWeekText, { color: colors.secondary }]}>
+                  Share Your Week
+                </Text>
+              </Pressable>
+            </Animated.View>
+          )}
+
           {/* Blur overlay for free users */}
           {!isPremium && renderBlurOverlay()}
         </View>
       </ScrollView>
+
+      {/* Off-screen share card for weekly summary capture */}
+      <View style={styles.offScreenContainer} pointerEvents="none">
+        <WeeklySummaryShareCard
+          ref={weeklySummaryRef}
+          weekLabel={weekShareData.weekLabel}
+          wordsRead={weekShareData.wordsRead}
+          textsRead={weekShareData.textsRead}
+          streak={currentStreak}
+          topCategory={weekShareData.topCategory}
+          daysActive={weekShareData.daysActive}
+          readingDays={weekShareData.readingDays}
+        />
+      </View>
 
       <Paywall
         visible={showPaywall}
@@ -499,5 +593,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '400',
     textAlign: 'center',
+  },
+  // Share week
+  shareWeekButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    borderWidth: 0.5,
+  },
+  shareWeekText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  offScreenContainer: {
+    position: 'absolute',
+    left: -9999,
+    top: -9999,
+    opacity: 0,
   },
 });

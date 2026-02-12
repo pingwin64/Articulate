@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, Modal, Pressable, useWindowDimensions, Share } from 'react-native';
+import { StyleSheet, View, Text, Modal, Pressable, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
   FadeIn,
@@ -12,9 +12,8 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import * as Sharing from 'expo-sharing';
-import { captureRef } from 'react-native-view-shot';
 import { Feather } from '@expo/vector-icons';
+import { captureAndShare } from '../lib/share';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore, STREAK_MILESTONES } from '../lib/store/settings';
 import { GlassCard } from './GlassCard';
@@ -174,25 +173,11 @@ export function StreakCelebrationPopup({
     if (hapticFeedback) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-
-    try {
-      // Capture the share card as image
-      const uri = await captureRef(shareCardRef, {
-        format: 'png',
-        quality: 1,
-      });
-
-      // Share the image
-      await Sharing.shareAsync(uri, {
-        mimeType: 'image/png',
-        dialogTitle: 'Share your streak',
-      });
-    } catch (error) {
-      // Fallback to text share if capture fails
-      await Share.share({
-        message: `I just hit a ${streak}-day reading streak on Articulate!\n\nImprove your reading skills one word at a time.`,
-      });
-    }
+    await captureAndShare(
+      shareCardRef,
+      `I just hit a ${streak}-day reading streak on Articulate!\n\nImprove your reading skills one word at a time.`,
+      'Share your streak'
+    );
   };
 
   return (

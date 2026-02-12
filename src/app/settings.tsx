@@ -38,6 +38,8 @@ import {
   requestNotificationPermissions,
   scheduleStreakReminder,
   cancelAllReminders,
+  scheduleWindDownReminder,
+  cancelWindDownReminder,
 } from '../lib/notifications';
 import { restorePurchases } from '../lib/purchases';
 import type { FeatherIconName } from '../types/icons';
@@ -194,6 +196,7 @@ export default function SettingsScreen() {
     sentenceRecap, setSentenceRecap,
     hapticFeedback, setHapticFeedback,
     breathingAnimation, setBreathingAnimation,
+    windDownMode, setWindDownMode,
     ttsSpeed, setTtsSpeed,
     voiceGender, setVoiceGender,
     autoPlay, setAutoPlay,
@@ -208,6 +211,9 @@ export default function SettingsScreen() {
     reminderHour, reminderMinute, setReminderTime,
     reduceMotion, setReduceMotion,
     dailyWordGoal, setDailyWordGoal,
+    sleepTimerMinutes, setSleepTimerMinutes,
+    windDownReminderEnabled, setWindDownReminderEnabled,
+    windDownReminderHour, windDownReminderMinute, setWindDownReminderTime,
     resetAll,
   } = useSettingsStore(useShallow((s) => ({
     isPremium: s.isPremium,
@@ -217,6 +223,7 @@ export default function SettingsScreen() {
     sentenceRecap: s.sentenceRecap, setSentenceRecap: s.setSentenceRecap,
     hapticFeedback: s.hapticFeedback, setHapticFeedback: s.setHapticFeedback,
     breathingAnimation: s.breathingAnimation, setBreathingAnimation: s.setBreathingAnimation,
+    windDownMode: s.windDownMode, setWindDownMode: s.setWindDownMode,
     ttsSpeed: s.ttsSpeed, setTtsSpeed: s.setTtsSpeed,
     voiceGender: s.voiceGender, setVoiceGender: s.setVoiceGender,
     autoPlay: s.autoPlay, setAutoPlay: s.setAutoPlay,
@@ -231,6 +238,9 @@ export default function SettingsScreen() {
     reminderHour: s.reminderHour, reminderMinute: s.reminderMinute, setReminderTime: s.setReminderTime,
     reduceMotion: s.reduceMotion, setReduceMotion: s.setReduceMotion,
     dailyWordGoal: s.dailyWordGoal, setDailyWordGoal: s.setDailyWordGoal,
+    sleepTimerMinutes: s.sleepTimerMinutes, setSleepTimerMinutes: s.setSleepTimerMinutes,
+    windDownReminderEnabled: s.windDownReminderEnabled, setWindDownReminderEnabled: s.setWindDownReminderEnabled,
+    windDownReminderHour: s.windDownReminderHour, windDownReminderMinute: s.windDownReminderMinute, setWindDownReminderTime: s.setWindDownReminderTime,
     resetAll: s.resetAll,
   })));
 
@@ -364,6 +374,38 @@ export default function SettingsScreen() {
     }
   }, [setReminderTime, notificationsEnabled, currentStreak]);
 
+  // Wind-down reminder handlers
+  const handleToggleWindDownReminder = useCallback(async (enabled: boolean) => {
+    try {
+      if (enabled) {
+        const granted = await requestNotificationPermissions();
+        if (!granted) {
+          Alert.alert('Permissions Required', 'Please enable notifications in your device settings.');
+          return;
+        }
+        setWindDownReminderEnabled(true);
+        await scheduleWindDownReminder(windDownReminderHour, windDownReminderMinute);
+      } else {
+        setWindDownReminderEnabled(false);
+        await cancelWindDownReminder();
+      }
+    } catch {
+      // Notification scheduling may fail on some devices
+    }
+  }, [setWindDownReminderEnabled, windDownReminderHour, windDownReminderMinute]);
+
+  const handleSetWindDownReminderTime = useCallback(async (hour: number, minute: number) => {
+    setWindDownReminderTime(hour, minute);
+    if (windDownReminderEnabled) {
+      await scheduleWindDownReminder(hour, minute);
+    }
+  }, [setWindDownReminderTime, windDownReminderEnabled]);
+
+  // Sleep timer options
+  const sleepTimerOptions = ['Off', '5m', '10m', '15m', '20m'];
+  const sleepTimerValues = [0, 5, 10, 15, 20];
+  const sleepTimerIndex = sleepTimerValues.indexOf(sleepTimerMinutes);
+
   const ttsSpeeds: TTSSpeed[] = ['slow', 'normal', 'fast'];
   const ttsLabels = ['Slow', 'Normal', 'Fast'];
   const ttsIndex = ttsSpeeds.indexOf(ttsSpeed);
@@ -423,6 +465,55 @@ export default function SettingsScreen() {
         {/* Reading */}
         <SectionHeader title="Reading" icon="book" />
         <GlassCard>
+          <LockedSettingRow label="Wind Down" isPremium={isPremium || trialActive} onLockedPress={() => handleLockedPress('locked_wind_down')} noBorder={windDownMode && (isPremium || trialActive)}>
+            <GlassToggle
+              value={windDownMode}
+              onValueChange={setWindDownMode}
+            />
+          </LockedSettingRow>
+          {(isPremium || trialActive) && windDownMode && (
+            <>
+              <View style={[styles.separator, { backgroundColor: glass.border }]} />
+              <View style={styles.settingBlock}>
+                <Text style={[styles.settingLabel, { color: colors.primary }]}>
+                  Sleep Timer
+                </Text>
+                <View style={styles.segmentedControlWrapper}>
+                  <GlassSegmentedControl
+                    options={sleepTimerOptions}
+                    selectedIndex={sleepTimerIndex >= 0 ? sleepTimerIndex : 2}
+                    onSelect={(i) => setSleepTimerMinutes(sleepTimerValues[i])}
+                  />
+                </View>
+              </View>
+              <View style={[styles.separator, { backgroundColor: glass.border }]} />
+              <SettingRow label="Bedtime Reminder" noBorder={!windDownReminderEnabled}>
+                <GlassToggle
+                  value={windDownReminderEnabled}
+                  onValueChange={handleToggleWindDownReminder}
+                />
+              </SettingRow>
+              {windDownReminderEnabled && (
+                <SettingRow label="Reminder Time" noBorder>
+                  <DateTimePicker
+                    value={(() => {
+                      const d = new Date();
+                      d.setHours(windDownReminderHour, windDownReminderMinute, 0, 0);
+                      return d;
+                    })()}
+                    mode="time"
+                    display="default"
+                    onChange={(_, selectedDate) => {
+                      if (selectedDate) {
+                        handleSetWindDownReminderTime(selectedDate.getHours(), selectedDate.getMinutes());
+                      }
+                    }}
+                  />
+                </SettingRow>
+              )}
+            </>
+          )}
+          <View style={[styles.separator, { backgroundColor: glass.border }]} />
           <View style={styles.settingBlock}>
             <Text style={[styles.settingLabel, { color: colors.primary }]}>
               Words at a Time

@@ -1,5 +1,7 @@
 import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { StyleSheet, View, Text, Pressable, ActivityIndicator, Dimensions } from 'react-native';
+import { captureAndShare } from '../lib/share';
+import { DefinitionShareCard } from '../components/DefinitionShareCard';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
@@ -9,6 +11,7 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
+  Easing,
   runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -67,7 +70,14 @@ export default function ReadingScreen() {
     showPaywall,
     setPaywallContext,
     paywallContext,
+    windDownMode,
+    sleepTimerMinutes,
+    windDownText,
   } = useSettingsStore();
+
+  // Wind-down mode: cap auto-play at a meditative pace
+  const WIND_DOWN_MAX_WPM = 120;
+  const effectiveWPM = windDownMode ? Math.min(autoPlayWPM, WIND_DOWN_MAX_WPM) : autoPlayWPM;
 
   const savedWords = useSettingsStore((s) => s.savedWords);
   const addSavedWord = useSettingsStore((s) => s.addSavedWord);
@@ -117,6 +127,7 @@ export default function ReadingScreen() {
   const [definitionLoading, setDefinitionLoading] = useState(false);
   const [definitionError, setDefinitionError] = useState<string | null>(null);
   const definitionCache = useRef<Record<string, WordDefinition>>({});
+  const definitionShareRef = useRef<View>(null);
 
   // Definition card animation
   const cardScale = useSharedValue(0);
@@ -154,7 +165,8 @@ export default function ReadingScreen() {
 
   const customText = params.customTextId
     ? (customTexts.find((t) => t.id === params.customTextId)
-      ?? (dailyAIText?.id === params.customTextId ? dailyAIText : undefined))
+      ?? (dailyAIText?.id === params.customTextId ? dailyAIText : undefined)
+      ?? (windDownText?.id === params.customTextId ? windDownText : undefined))
     : undefined;
   const category = params.categoryKey
     ? categories.find((c) => c.key === params.categoryKey)
@@ -174,6 +186,22 @@ export default function ReadingScreen() {
   const startTimeRef = useRef(Date.now());
   const autoPlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isNavigatingRef = useRef(false); // Guard against multiple navigation calls
+
+  // Sleep timer state (wind-down + auto-play)
+  const sleepTimerStartRef = useRef<number | null>(null);
+  const sleepFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sleepEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [goodnightVisible, setGoodnightVisible] = useState(false);
+  const sleepFadeOpacity = useSharedValue(1);
+  const goodnightOpacity = useSharedValue(0);
+
+  const sleepFadeStyle = useAnimatedStyle(() => ({
+    opacity: sleepFadeOpacity.value,
+  }));
+
+  const goodnightStyle = useAnimatedStyle(() => ({
+    opacity: goodnightOpacity.value,
+  }));
 
   const currentWord = words.slice(currentIndex, currentIndex + chunkSize).join(' ');
   const progress = totalWords > 0 ? currentIndex / totalWords : 0;
@@ -270,7 +298,7 @@ export default function ReadingScreen() {
   // Auto-play (only enable after user has completed onboarding)
   useEffect(() => {
     if (autoPlay && hasOnboarded && currentIndex < totalWords) {
-      const interval = 60000 / autoPlayWPM;
+      const interval = 60000 / effectiveWPM;
       autoPlayTimerRef.current = setTimeout(() => {
         advanceWord();
       }, interval);
@@ -278,7 +306,64 @@ export default function ReadingScreen() {
         if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current);
       };
     }
-  }, [autoPlay, hasOnboarded, currentIndex, autoPlayWPM, totalWords, advanceWord]);
+  }, [autoPlay, hasOnboarded, currentIndex, effectiveWPM, totalWords, advanceWord]);
+
+  // Sleep timer: fade out and show goodnight when wind-down + autoplay + timer
+  const sleepTimerActive = windDownMode && autoPlay && sleepTimerMinutes > 0;
+  useEffect(() => {
+    if (!sleepTimerActive) {
+      // Reset if conditions no longer met
+      sleepTimerStartRef.current = null;
+      if (sleepFadeTimerRef.current) clearTimeout(sleepFadeTimerRef.current);
+      if (sleepEndTimerRef.current) clearTimeout(sleepEndTimerRef.current);
+      sleepFadeOpacity.value = 1;
+      return;
+    }
+
+    // Initialize start time on first render with active timer
+    if (!sleepTimerStartRef.current) {
+      sleepTimerStartRef.current = Date.now();
+    }
+
+    const timerMs = sleepTimerMinutes * 60 * 1000;
+    const elapsed = Date.now() - sleepTimerStartRef.current;
+    const fadeStartMs = timerMs - 30000; // 30s before end
+    const remaining = timerMs - elapsed;
+
+    if (remaining <= 0) {
+      // Timer already expired
+      return;
+    }
+
+    // Schedule fade start (30s before expiry → opacity 1.0 to 0.3 over 15s)
+    const fadeDelay = Math.max(0, fadeStartMs - elapsed);
+    sleepFadeTimerRef.current = setTimeout(() => {
+      sleepFadeOpacity.value = withTiming(0.3, {
+        duration: 15000,
+        easing: Easing.inOut(Easing.ease),
+      });
+    }, fadeDelay);
+
+    // Schedule goodnight overlay at expiry
+    sleepEndTimerRef.current = setTimeout(() => {
+      // Stop auto-play
+      if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current);
+      // Show goodnight
+      setGoodnightVisible(true);
+      goodnightOpacity.value = withTiming(1, { duration: 800 });
+      // Auto-dismiss after 5s → navigate home
+      setTimeout(() => {
+        goodnightOpacity.value = withTiming(0, { duration: 600 }, () => {
+          runOnJS(router.replace)('/');
+        });
+      }, 5000);
+    }, remaining);
+
+    return () => {
+      if (sleepFadeTimerRef.current) clearTimeout(sleepFadeTimerRef.current);
+      if (sleepEndTimerRef.current) clearTimeout(sleepEndTimerRef.current);
+    };
+  }, [sleepTimerActive, sleepTimerMinutes]);
 
   // TTS: speak current word when enabled
   useEffect(() => {
@@ -502,6 +587,18 @@ export default function ReadingScreen() {
     }
   };
 
+  const handleShareDefinition = async () => {
+    if (!definitionData) return;
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    await captureAndShare(
+      definitionShareRef,
+      `${definitionData.word} — ${definitionData.definition}\n\nDiscover words with Articulate.`,
+      'Share word'
+    );
+  };
+
   const handleSaveFromDefinition = () => {
     if (!singleWord || !definitionData) return;
     if (hapticFeedback) {
@@ -707,6 +804,8 @@ export default function ReadingScreen() {
   const handleClose = () => {
     if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current);
     if (listenRepeatTimerRef.current) clearTimeout(listenRepeatTimerRef.current);
+    if (sleepFadeTimerRef.current) clearTimeout(sleepFadeTimerRef.current);
+    if (sleepEndTimerRef.current) clearTimeout(sleepEndTimerRef.current);
     setListenRepeatActive(false);
     recorder.cancel();
     stopSpeaking();
@@ -787,9 +886,9 @@ export default function ReadingScreen() {
             accessibilityLabel={`Current word: ${currentWord}. Tap to advance to next word. ${currentIndex + 1} of ${totalWords}.`}
             accessibilityRole="button"
           >
-            <View style={styles.wordContainer}>
+            <Animated.View style={[styles.wordContainer, sleepTimerActive && sleepFadeStyle]}>
               <WordDisplay word={currentWord} wordKey={currentIndex} />
-            </View>
+            </Animated.View>
 
             {/* Below-word content: absolutely positioned to prevent layout shift */}
             <View style={styles.belowWord} pointerEvents="box-none">
@@ -864,6 +963,14 @@ export default function ReadingScreen() {
             </View>
           </Pressable>
         </SafeAreaView>
+
+        {/* Goodnight overlay (sleep timer) */}
+        {goodnightVisible && (
+          <Animated.View style={[styles.goodnightOverlay, { backgroundColor: colors.bg }, goodnightStyle]}>
+            <Feather name="moon" size={32} color="#D4A574" />
+            <Text style={[styles.goodnightText, { color: '#D4A574' }]}>Goodnight</Text>
+          </Animated.View>
+        )}
 
         {/* Definition Card Popup */}
         {showDefinition && (
@@ -947,29 +1054,51 @@ export default function ReadingScreen() {
                     {definitionData.definition}
                   </Text>
 
-                  {/* Save to word bank - minimal inline */}
-                  <Pressable
-                    onPress={handleSaveFromDefinition}
-                    style={styles.definitionSaveRow}
-                    hitSlop={12}
-                  >
-                    <Ionicons
-                      name={isWordSaved ? 'heart' : 'heart-outline'}
-                      size={16}
-                      color={isWordSaved ? colors.error : colors.muted}
-                    />
-                    <Text
-                      style={[
-                        styles.definitionSaveText,
-                        { color: isWordSaved ? colors.error : colors.muted },
-                      ]}
+                  {/* Save + Share row */}
+                  <View style={styles.definitionActionsRow}>
+                    <Pressable
+                      onPress={handleSaveFromDefinition}
+                      style={styles.definitionSaveRow}
+                      hitSlop={12}
                     >
-                      {isWordSaved ? 'Saved' : 'Save to Word Bank'}
-                    </Text>
-                  </Pressable>
+                      <Ionicons
+                        name={isWordSaved ? 'heart' : 'heart-outline'}
+                        size={16}
+                        color={isWordSaved ? colors.error : colors.muted}
+                      />
+                      <Text
+                        style={[
+                          styles.definitionSaveText,
+                          { color: isWordSaved ? colors.error : colors.muted },
+                        ]}
+                      >
+                        {isWordSaved ? 'Saved' : 'Save to Word Bank'}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={handleShareDefinition}
+                      style={styles.definitionShareButton}
+                      hitSlop={12}
+                    >
+                      <Feather name="share" size={15} color={colors.muted} />
+                    </Pressable>
+                  </View>
                 </View>
               )}
             </Animated.View>
+          </View>
+        )}
+
+        {/* Off-screen share card for definition capture */}
+        {definitionData && (
+          <View style={styles.offScreenContainer} pointerEvents="none">
+            <DefinitionShareCard
+              ref={definitionShareRef}
+              word={definitionData.word}
+              partOfSpeech={definitionData.partOfSpeech}
+              syllables={definitionData.syllables}
+              definition={definitionData.definition}
+            />
           </View>
         )}
 
@@ -1216,16 +1345,33 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  definitionActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    paddingTop: 4,
+  },
   definitionSaveRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 16,
-    paddingTop: 4,
   },
   definitionSaveText: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  definitionShareButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  offScreenContainer: {
+    position: 'absolute',
+    left: -9999,
+    top: -9999,
+    opacity: 0,
   },
   // Pronunciation
   pronunciationRow: {
@@ -1256,5 +1402,18 @@ const styles = StyleSheet.create({
   pronunciationHeard: {
     fontSize: 13,
     fontWeight: '400',
+  },
+  // Goodnight overlay
+  goodnightOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  goodnightText: {
+    fontSize: 32,
+    fontWeight: '300',
+    letterSpacing: 1,
   },
 });

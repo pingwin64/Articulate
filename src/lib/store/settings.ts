@@ -93,6 +93,7 @@ export type PaywallContext =
   | 'locked_library' | 'locked_library_words' | 'locked_library_faves' | 'locked_library_texts'
   | 'locked_pronunciation'
   | 'locked_ai_practice'
+  | 'locked_wind_down'
   | 'generic';
 
 export interface SavedWord {
@@ -213,6 +214,24 @@ export interface SettingsState {
   setHapticFeedback: (v: boolean) => void;
   breathingAnimation: boolean;
   setBreathingAnimation: (v: boolean) => void;
+  windDownMode: boolean;
+  setWindDownMode: (v: boolean) => void;
+
+  // Wind-down v2: Sleep Timer
+  sleepTimerMinutes: number;
+  setSleepTimerMinutes: (v: number) => void;
+
+  // Wind-down v2: Bedtime Reminder
+  windDownReminderEnabled: boolean;
+  windDownReminderHour: number;
+  windDownReminderMinute: number;
+  setWindDownReminderEnabled: (v: boolean) => void;
+  setWindDownReminderTime: (hour: number, minute: number) => void;
+
+  // Wind-down v2: Tonight's Reading
+  windDownText: CustomText | null;
+  windDownTextDate: string | null;
+  setWindDownText: (text: CustomText | null) => void;
 
   // Audio
   ttsSpeed: TTSSpeed;
@@ -415,7 +434,10 @@ export interface SettingsState {
   // AI Daily Practice
   dailyAIText: CustomText | null;
   dailyAITextDate: string | null;
-  setDailyAIText: (text: CustomText | null) => void;
+  dailyAITextPersonalizationReason: string | null;
+  dailyAITextCategory: string | null;
+  recentAITopics: string[];
+  setDailyAIText: (text: CustomText | null, reason?: string, category?: string) => void;
   aiTextsRead: number;
 
   // Vocabulary Tracking
@@ -613,6 +635,27 @@ export const useSettingsStore = create<SettingsState>()(
       setHapticFeedback: (v) => set({ hapticFeedback: v }),
       breathingAnimation: true,
       setBreathingAnimation: (v) => set({ breathingAnimation: v }),
+      windDownMode: false,
+      setWindDownMode: (v) => set({ windDownMode: v }),
+
+      // Wind-down v2: Sleep Timer
+      sleepTimerMinutes: 10,
+      setSleepTimerMinutes: (v) => set({ sleepTimerMinutes: v }),
+
+      // Wind-down v2: Bedtime Reminder
+      windDownReminderEnabled: false,
+      windDownReminderHour: 21,
+      windDownReminderMinute: 30,
+      setWindDownReminderEnabled: (v) => set({ windDownReminderEnabled: v }),
+      setWindDownReminderTime: (hour, minute) => set({ windDownReminderHour: hour, windDownReminderMinute: minute }),
+
+      // Wind-down v2: Tonight's Reading
+      windDownText: null,
+      windDownTextDate: null,
+      setWindDownText: (text) => set({
+        windDownText: text,
+        windDownTextDate: text ? new Date().toDateString() : null,
+      }),
 
       // Audio
       ttsSpeed: 'normal',
@@ -1366,11 +1409,25 @@ export const useSettingsStore = create<SettingsState>()(
       // AI Daily Practice
       dailyAIText: null,
       dailyAITextDate: null,
+      dailyAITextPersonalizationReason: null,
+      dailyAITextCategory: null,
+      recentAITopics: [],
       aiTextsRead: 0,
-      setDailyAIText: (text) => set({
-        dailyAIText: text,
-        dailyAITextDate: new Date().toDateString(),
-      }),
+      setDailyAIText: (text, reason, category) => {
+        const state = get();
+        const updates: Partial<SettingsState> = {
+          dailyAIText: text,
+          dailyAITextDate: new Date().toDateString(),
+          dailyAITextPersonalizationReason: reason ?? null,
+          dailyAITextCategory: category ?? null,
+        };
+        // Rotate recentAITopics — keep last 7
+        if (text?.title) {
+          const topics = [text.title, ...state.recentAITopics].slice(0, 7);
+          updates.recentAITopics = topics;
+        }
+        set(updates);
+      },
 
       // Vocabulary Tracking
       uniqueWordsEncountered: 0,
@@ -1489,6 +1546,13 @@ export const useSettingsStore = create<SettingsState>()(
         sentenceRecap: false,
         hapticFeedback: true,
         breathingAnimation: true,
+        windDownMode: false,
+        sleepTimerMinutes: 10,
+        windDownReminderEnabled: false,
+        windDownReminderHour: 21,
+        windDownReminderMinute: 30,
+        windDownText: null,
+        windDownTextDate: null,
         ttsSpeed: 'normal',
         voiceGender: 'female' as VoiceGender,
         autoPlay: false,
@@ -1566,6 +1630,9 @@ export const useSettingsStore = create<SettingsState>()(
         lastFreeListenRepeatDate: null,
         dailyAIText: null,
         dailyAITextDate: null,
+        dailyAITextPersonalizationReason: null,
+        dailyAITextCategory: null,
+        recentAITopics: [],
         aiTextsRead: 0,
         uniqueWordsEncountered: 0,
         uniqueWordSet: [],
@@ -1581,7 +1648,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'articulate-settings',
-      version: 28,
+      version: 31,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -1884,6 +1951,25 @@ export const useSettingsStore = create<SettingsState>()(
         if (version < 28) {
           // v28: Word bank review session history
           persisted.reviewSessions = persisted.reviewSessions ?? [];
+        }
+        if (version < 29) {
+          // v29: AI personalization fields
+          persisted.dailyAITextPersonalizationReason = persisted.dailyAITextPersonalizationReason ?? null;
+          persisted.dailyAITextCategory = persisted.dailyAITextCategory ?? null;
+          persisted.recentAITopics = persisted.recentAITopics ?? [];
+        }
+        if (version < 30) {
+          // v30: Wind-down mode
+          persisted.windDownMode = persisted.windDownMode ?? false;
+        }
+        if (version < 31) {
+          // v31: Wind-down v2 — sleep timer, bedtime reminder, tonight's reading
+          persisted.sleepTimerMinutes = persisted.sleepTimerMinutes ?? 10;
+          persisted.windDownText = persisted.windDownText ?? null;
+          persisted.windDownTextDate = persisted.windDownTextDate ?? null;
+          persisted.windDownReminderEnabled = persisted.windDownReminderEnabled ?? false;
+          persisted.windDownReminderHour = persisted.windDownReminderHour ?? 21;
+          persisted.windDownReminderMinute = persisted.windDownReminderMinute ?? 30;
         }
         return persisted;
       },

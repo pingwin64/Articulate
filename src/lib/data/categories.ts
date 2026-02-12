@@ -1562,6 +1562,9 @@ const mindfulnessTexts: TextEntry[] = [
 
 export const FREE_CATEGORY_KEYS = ['story', 'poetry', 'wisdom'] as const;
 
+// Calming categories surfaced first during wind-down mode
+export const WIND_DOWN_CATEGORY_KEYS = ['wisdom', 'poetry', 'philosophy'] as const;
+
 // ─── Export ───────────────────────────────────────────────────
 
 /**

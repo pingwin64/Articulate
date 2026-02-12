@@ -1,11 +1,12 @@
 import React, { forwardRef } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
 
-interface StreakShareCardProps {
-  streak: number;
-  message: string;
+interface DefinitionShareCardProps {
+  word: string;
+  partOfSpeech?: string;
+  syllables?: string;
+  definition: string;
 }
 
 // Instagram Story format: 9:16 aspect ratio
@@ -13,8 +14,10 @@ const CARD_WIDTH = 1080;
 const CARD_HEIGHT = 1920;
 const SCALE = 0.3;
 
-export const StreakShareCard = forwardRef<View, StreakShareCardProps>(
-  ({ streak, message }, ref) => {
+export const DefinitionShareCard = forwardRef<View, DefinitionShareCardProps>(
+  ({ word, partOfSpeech, syllables, definition }, ref) => {
+    const hasSyllableBreaks = syllables && /[·\-]/.test(syllables);
+
     return (
       <View
         ref={ref}
@@ -30,44 +33,56 @@ export const StreakShareCard = forwardRef<View, StreakShareCardProps>(
           end={{ x: 0.8, y: 1 }}
         />
 
-        {/* Decorative glows */}
+        {/* Decorative glow circle — top right */}
         <View style={styles.glowTopRight} />
+        {/* Decorative glow circle — bottom left */}
         <View style={styles.glowBottomLeft} />
 
         {/* Content */}
         <View style={styles.content}>
-          {/* Top section — label */}
-          <View style={styles.topSection}>
-            <View style={styles.streakPill}>
-              <View style={styles.pillDot} />
-              <Text style={styles.streakPillText}>STREAK</Text>
-            </View>
-          </View>
+          {/* Top spacer — balances the bottom branding */}
+          <View />
 
-          {/* Center section — streak hero */}
+          {/* Center section — word hero */}
           <View style={styles.heroSection}>
-            {/* Lightning icon */}
-            <Feather name="zap" size={40 * SCALE} color="#FBBF24" />
+            {/* Big word */}
+            <Text
+              style={styles.word}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.5}
+            >
+              {word}
+            </Text>
 
-            {/* Big streak number */}
-            <Text style={styles.streakNumber}>{streak}</Text>
+            {/* Part of speech + syllables row */}
+            <View style={styles.metaRow}>
+              {partOfSpeech ? (
+                <View style={styles.posPill}>
+                  <Text style={styles.posText}>{partOfSpeech}</Text>
+                </View>
+              ) : null}
+              {hasSyllableBreaks ? (
+                <Text style={styles.syllables}>{syllables}</Text>
+              ) : null}
+            </View>
 
-            {/* "day streak" label */}
-            <Text style={styles.streakLabel}>day streak</Text>
-
-            {/* Divider */}
+            {/* Divider line */}
             <View style={styles.dividerContainer}>
               <View style={styles.dividerLine} />
               <View style={styles.dividerDiamond} />
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Motivational message */}
-            <Text style={styles.message}>"{message}"</Text>
+            {/* Definition */}
+            <Text style={styles.definition} numberOfLines={6}>
+              {definition}
+            </Text>
           </View>
 
           {/* Bottom section — branding */}
           <View style={styles.bottomSection}>
+            {/* Logo mark — three bars */}
             <View style={styles.logoMark}>
               <View style={styles.logoBar} />
               <View style={[styles.logoBar, styles.logoBarShort]} />
@@ -82,9 +97,9 @@ export const StreakShareCard = forwardRef<View, StreakShareCardProps>(
   }
 );
 
-StreakShareCard.displayName = 'StreakShareCard';
+DefinitionShareCard.displayName = 'DefinitionShareCard';
 
-const S = SCALE;
+const S = SCALE; // shorthand
 
 const styles = StyleSheet.create({
   container: {
@@ -98,7 +113,7 @@ const styles = StyleSheet.create({
     width: 500 * S,
     height: 500 * S,
     borderRadius: 250 * S,
-    backgroundColor: 'rgba(251, 191, 36, 0.06)',
+    backgroundColor: 'rgba(99, 102, 241, 0.08)',
   },
   glowBottomLeft: {
     position: 'absolute',
@@ -116,52 +131,45 @@ const styles = StyleSheet.create({
     paddingBottom: 100 * S,
     justifyContent: 'space-between',
   },
-  // ─── Top ──────────────────────────────────────
-  topSection: {
-    alignItems: 'flex-start',
-  },
-  streakPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10 * S,
-    backgroundColor: 'rgba(251, 191, 36, 0.08)',
-    paddingHorizontal: 24 * S,
-    paddingVertical: 12 * S,
-    borderRadius: 40 * S,
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.15)',
-  },
-  pillDot: {
-    width: 10 * S,
-    height: 10 * S,
-    borderRadius: 5 * S,
-    backgroundColor: '#FBBF24',
-  },
-  streakPillText: {
-    fontSize: 22 * S,
-    fontWeight: '600',
-    color: 'rgba(251, 191, 36, 0.7)',
-    letterSpacing: 4 * S,
-  },
   // ─── Hero ─────────────────────────────────────
   heroSection: {
     alignItems: 'center',
-    gap: 12 * S,
+    gap: 16 * S,
   },
-  streakNumber: {
-    fontSize: 200 * S,
+  word: {
+    fontSize: 140 * S,
     fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: -6 * S,
-    lineHeight: 220 * S,
+    letterSpacing: -3 * S,
+    textAlign: 'center',
+    textTransform: 'capitalize',
+    lineHeight: 160 * S,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16 * S,
     marginTop: 8 * S,
   },
-  streakLabel: {
-    fontSize: 48 * S,
+  posPill: {
+    paddingHorizontal: 24 * S,
+    paddingVertical: 10 * S,
+    borderRadius: 24 * S,
+    backgroundColor: 'rgba(129, 140, 248, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(129, 140, 248, 0.2)',
+  },
+  posText: {
+    fontSize: 26 * S,
+    fontWeight: '600',
+    color: '#A5B4FC',
+    textTransform: 'lowercase',
+  },
+  syllables: {
+    fontSize: 28 * S,
     fontWeight: '400',
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: -16 * S,
-    letterSpacing: 4 * S,
+    color: 'rgba(255, 255, 255, 0.4)',
+    letterSpacing: 3 * S,
   },
   // ─── Divider ──────────────────────────────────
   dividerContainer: {
@@ -169,7 +177,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12 * S,
     marginVertical: 24 * S,
-    width: '50%',
+    width: '60%',
   },
   dividerLine: {
     flex: 1,
@@ -179,16 +187,17 @@ const styles = StyleSheet.create({
   dividerDiamond: {
     width: 8 * S,
     height: 8 * S,
-    backgroundColor: 'rgba(251, 191, 36, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     transform: [{ rotate: '45deg' }],
   },
-  message: {
-    fontSize: 32 * S,
+  // ─── Definition ───────────────────────────────
+  definition: {
+    fontSize: 34 * S,
     fontWeight: '400',
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: 'rgba(255, 255, 255, 0.65)',
     fontStyle: 'italic',
     textAlign: 'center',
-    lineHeight: 48 * S,
+    lineHeight: 52 * S,
     paddingHorizontal: 20 * S,
   },
   // ─── Bottom ───────────────────────────────────

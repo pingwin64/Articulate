@@ -66,8 +66,16 @@ Deno.serve(async (req: Request) => {
       return await handleGenerateText(body.level, body.category, body.wordCount);
     }
 
+    if (action === "generate-personalized-text") {
+      return await handleGeneratePersonalizedText(body.payload);
+    }
+
     if (action === "transcribe-audio") {
       return await handleTranscribeAudio(body.audioData);
+    }
+
+    if (action === "generate-wind-down-text") {
+      return await handleGenerateWindDownText(body.payload);
     }
 
     return json({ error: "Unknown action" }, 400);
@@ -315,6 +323,136 @@ The text should be engaging, coherent, and educational. Return a JSON object wit
   }
 }
 
+async function handleGeneratePersonalizedText(payload: {
+  level: number;
+  levelName: string;
+  category: string;
+  wordCount: number;
+  favoriteGenres: string[];
+  savedWordSamples: string[];
+  savedWordCategories: string[];
+  difficultyPreference: string;
+  recentTitles: string[];
+  recentAITopics: string[];
+  isNewUser: boolean;
+  currentStreak: number;
+  avgWPM: number;
+}) {
+  if (!payload?.category) {
+    return json({ error: "Missing category in payload" }, 400);
+  }
+
+  const safeWordCount = Math.max(100, Math.min(payload.wordCount || 200, 500));
+
+  const tierDescriptions: Record<string, string> = {
+    Beginner:
+      "Use common everyday vocabulary (top 3000 words). Short, simple sentences (8-12 words). Concrete, familiar topics.",
+    Intermediate:
+      "Use standard vocabulary with occasional uncommon words. Compound sentences (12-18 words). Cultural and varied topics.",
+    Advanced:
+      "Use rich, SAT-level vocabulary. Complex sentence structures (18-25 words). Abstract and philosophical topics requiring inference.",
+    Expert:
+      "Use academic and literary vocabulary. Dense, multi-clause sentences (25+ words). Specialized topics with nuanced arguments.",
+    Master:
+      "Use scholarly vocabulary across disciplines. Sophisticated prose with layered meaning. Paradoxes, ambiguity, and complex reasoning.",
+  };
+
+  const tierDesc = tierDescriptions[payload.levelName] ?? tierDescriptions.Intermediate;
+
+  // Build avoidance list
+  const avoidTitles = [...(payload.recentTitles || []), ...(payload.recentAITopics || [])]
+    .filter(Boolean)
+    .slice(0, 10);
+  const avoidanceClause = avoidTitles.length > 0
+    ? `\nDo NOT reuse or closely paraphrase any of these recent titles: ${avoidTitles.map(t => `"${t}"`).join(", ")}.`
+    : "";
+
+  // Build interest breadcrumbs from saved words
+  const wordBreadcrumbs = (payload.savedWordSamples || []).length > 0
+    ? `\nThe reader has shown interest in words like: ${payload.savedWordSamples.join(", ")}. Let these hint at the reader's intellectual interests — weave similar vocabulary naturally.`
+    : "";
+
+  // Genre preferences
+  const genreHint = (payload.favoriteGenres || []).length > 0
+    ? `Their favorite genres are: ${payload.favoriteGenres.join(", ")}.`
+    : "";
+
+  // Difficulty preference
+  const diffHint = payload.difficultyPreference === "challenging"
+    ? "The reader prefers challenging material — lean into complexity."
+    : payload.difficultyPreference === "accessible"
+      ? "The reader prefers accessible material — keep it clear and inviting."
+      : "";
+
+  // New user treatment
+  const newUserHint = payload.isNewUser
+    ? "\nThis is a new reader — make the text welcoming, clear, and immediately engaging. Hook them in the first sentence."
+    : "";
+
+  // Streak acknowledgment
+  const streakHint = payload.currentStreak >= 7
+    ? "\nThe reader has a strong reading streak. You may subtly weave themes of persistence, growth, or daily practice if it fits the genre naturally — but don't force it."
+    : "";
+
+  const systemPrompt = `You are a literary curator crafting a personalized daily reading for a specific reader. Your goal is to write something that feels hand-picked — not generic.
+
+Reader profile:
+- Reading level: ${payload.levelName} (Level ${payload.level}/5)
+- ${tierDesc}
+- ${genreHint}
+- ${diffHint}
+- Reading pace: ~${payload.avgWPM} WPM${wordBreadcrumbs}${newUserHint}${streakHint}
+
+Guidelines:
+- Write an evocative, specific title — not generic (e.g., "The Beekeeper's Last Summer" not "A Story About Nature")
+- The text should feel curated for THIS reader
+- Maintain literary quality appropriate to the difficulty level
+- Be engaging from the very first sentence${avoidanceClause}
+
+Always respond with valid JSON containing exactly two fields: "title" and "text". No markdown, no extra commentary.`;
+
+  const userPrompt = `Write a ${safeWordCount}-word ${payload.category} passage. Return JSON with "title" and "text" fields.`;
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.85,
+      max_tokens: 2000,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    return json(
+      { error: err?.error?.message ?? `OpenAI error: ${response.status}` },
+      response.status === 429 ? 429 : 502
+    );
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content ?? "";
+
+  try {
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return json({ title: parsed.title, text: parsed.text });
+    }
+    return json({ title: payload.category, text: content });
+  } catch {
+    return json({ title: payload.category, text: content });
+  }
+}
+
 async function handleTranscribeAudio(audioData: string) {
   if (!audioData) {
     return json({ error: "No audio data provided" }, 400);
@@ -358,6 +496,86 @@ async function handleTranscribeAudio(audioData: string) {
 
   const data = await response.json();
   return json({ text: data.text ?? "" });
+}
+
+async function handleGenerateWindDownText(payload: {
+  level: number;
+  levelName: string;
+  category: string;
+  wordCount: number;
+  favoriteGenres: string[];
+  savedWordSamples: string[];
+  recentTitles: string[];
+  recentAITopics: string[];
+}) {
+  if (!payload?.category) {
+    return json({ error: "Missing category in payload" }, 400);
+  }
+
+  const safeWordCount = Math.max(80, Math.min(payload.wordCount || 150, 200));
+
+  // Build avoidance list
+  const avoidTitles = [...(payload.recentTitles || []), ...(payload.recentAITopics || [])]
+    .filter(Boolean)
+    .slice(0, 10);
+  const avoidanceClause = avoidTitles.length > 0
+    ? `\nDo NOT reuse or closely paraphrase any of these recent titles: ${avoidTitles.map(t => `"${t}"`).join(", ")}.`
+    : "";
+
+  const systemPrompt = `You are a literary curator crafting a calming bedtime reading passage. Write a contemplative, soothing ${payload.category} text suitable for reading before sleep.
+
+Reader level: ${payload.levelName} (Level ${payload.level}/5)
+
+Guidelines:
+- Write in a gentle, reflective, soothing tone
+- No conflict, urgency, tension, or suspense
+- The pace should feel unhurried and meditative
+- Use imagery that evokes calm: nature, stillness, warmth, quiet
+- The last sentence should feel like a natural resting point — a place where the reader can close their eyes
+- Write an evocative, specific title — not generic${avoidanceClause}
+
+Always respond with valid JSON containing exactly two fields: "title" and "text". No markdown, no extra commentary.`;
+
+  const userPrompt = `Write a ${safeWordCount}-word calming ${payload.category} passage for bedtime reading. Return JSON with "title" and "text" fields.`;
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.85,
+      max_tokens: 1000,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    return json(
+      { error: err?.error?.message ?? `OpenAI error: ${response.status}` },
+      response.status === 429 ? 429 : 502
+    );
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content ?? "";
+
+  try {
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return json({ title: parsed.title, text: parsed.text });
+    }
+    return json({ title: "Tonight's Reading", text: content });
+  } catch {
+    return json({ title: "Tonight's Reading", text: content });
+  }
 }
 
 function json(data: unknown, status = 200) {

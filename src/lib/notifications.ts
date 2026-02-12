@@ -26,6 +26,17 @@ function setStreakAtRiskId(id: string | null) {
   }
 }
 
+function getWindDownReminderId(): string | null {
+  return notifStorage.getString('windDownReminderId') ?? null;
+}
+function setWindDownReminderId(id: string | null) {
+  if (id) {
+    notifStorage.set('windDownReminderId', id);
+  } else {
+    notifStorage.remove('windDownReminderId');
+  }
+}
+
 const STREAK_MESSAGES = [
   "Don't lose your {streak}-day streak! A quick read keeps it alive.",
   'Your streak is at {streak} days. Keep the momentum going!',
@@ -40,6 +51,14 @@ const GENERIC_MESSAGES = [
   'Build your reading muscles — one session a day.',
   'Focused reading time. Open Articulate.',
   'A few minutes now, sharper reading skills forever.',
+];
+
+const WIND_DOWN_MESSAGES = [
+  'Your wind-down reading is ready.',
+  "Tonight's reading awaits.",
+  'A few quiet minutes before sleep.',
+  'Time to unwind with a calm read.',
+  'Your bedtime reading is waiting.',
 ];
 
 const STREAK_AT_RISK_MESSAGES = [
@@ -67,8 +86,10 @@ export async function cleanupOrphanedNotifications(): Promise<void> {
     const knownIds = new Set<string>();
     const dailyId = getDailyReminderId();
     const riskId = getStreakAtRiskId();
+    const windDownId = getWindDownReminderId();
     if (dailyId) knownIds.add(dailyId);
     if (riskId) knownIds.add(riskId);
+    if (windDownId) knownIds.add(windDownId);
 
     for (const notif of scheduled) {
       if (!knownIds.has(notif.identifier)) {
@@ -113,10 +134,47 @@ export async function scheduleStreakReminder(
   setDailyReminderId(id);
 }
 
+export async function scheduleWindDownReminder(
+  hour: number,
+  minute: number
+): Promise<void> {
+  // Cancel previous wind-down reminder by persisted ID
+  const prevId = getWindDownReminderId();
+  if (prevId) {
+    await Notifications.cancelScheduledNotificationAsync(prevId).catch((e) => { if (__DEV__) console.warn('[Notifications] Failed to cancel wind-down reminder:', e); });
+    setWindDownReminderId(null);
+  }
+
+  const message = WIND_DOWN_MESSAGES[Math.floor(Math.random() * WIND_DOWN_MESSAGES.length)];
+
+  const id = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Articulate',
+      body: message,
+      sound: true,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour,
+      minute,
+    },
+  });
+  setWindDownReminderId(id);
+}
+
+export async function cancelWindDownReminder(): Promise<void> {
+  const id = getWindDownReminderId();
+  if (id) {
+    await Notifications.cancelScheduledNotificationAsync(id).catch((e) => { if (__DEV__) console.warn('[Notifications] Failed to cancel wind-down reminder:', e); });
+    setWindDownReminderId(null);
+  }
+}
+
 export async function cancelAllReminders(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
   setDailyReminderId(null);
   setStreakAtRiskId(null);
+  setWindDownReminderId(null);
 }
 
 /**

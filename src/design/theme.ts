@@ -176,6 +176,37 @@ export const GlassStyles = {
   },
 } as const;
 
+// Wind-down mode warm color overrides — zero blue, WCAG AA contrast
+export const WindDownColors = {
+  light: {
+    bg: '#F5EDDC',        // Sepia light
+    surface: 'rgba(61,46,28,0.05)',
+    stroke: 'rgba(61,46,28,0.10)',
+    primary: '#3D2E1C',   // Warm brown
+    secondary: '#6B5744',
+    muted: '#8B7B6B',
+  },
+  dark: {
+    bg: '#1D1508',        // Sepia dark
+    surface: 'rgba(232,213,181,0.06)',
+    stroke: 'rgba(232,213,181,0.12)',
+    primary: '#E8D5B5',   // Warm cream
+    secondary: '#A89070',
+    muted: '#7A6A58',
+  },
+  glass: {
+    light: {
+      fill: 'rgba(61,46,28,0.04)',
+      border: 'rgba(61,46,28,0.10)',
+    },
+    dark: {
+      fill: 'rgba(232,213,181,0.06)',
+      border: 'rgba(232,213,181,0.12)',
+    },
+  },
+  wordColor: '#D4A574',   // Warm amber
+} as const;
+
 export const WordColors = [
   { key: 'default', label: 'Default', color: null },
   { key: 'white', label: 'White', color: '#FFFFFF' },

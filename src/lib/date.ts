@@ -13,3 +13,14 @@ export function getISOWeekId(date: Date): string {
     );
   return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 }
+
+/** Returns the Monday 00:00:00 of the current ISO week */
+export function getWeekStart(date: Date = new Date()): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  // Monday = 1, Sunday = 0. Shift Sunday to 7 for ISO week
+  const diff = d.getDate() - ((day === 0 ? 7 : day) - 1);
+  d.setDate(diff);
+  return d;
+}

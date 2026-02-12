@@ -37,7 +37,7 @@ import type { FeatherIconName } from '../types/icons';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
 import { useShallow } from 'zustand/react/shallow';
-import { categories, FREE_CATEGORY_KEYS } from '../lib/data/categories';
+import { categories, FREE_CATEGORY_KEYS, WIND_DOWN_CATEGORY_KEYS } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { PageDots } from '../components/PageDots';
@@ -987,6 +987,8 @@ function Onboarding() {
 
 const CORE_CATEGORIES = categories.filter((c) => (FREE_CATEGORY_KEYS as readonly string[]).includes(c.key));
 const OTHER_CATEGORIES = categories.filter((c) => !(FREE_CATEGORY_KEYS as readonly string[]).includes(c.key));
+const WIND_DOWN_CORE = categories.filter((c) => (WIND_DOWN_CATEGORY_KEYS as readonly string[]).includes(c.key));
+const WIND_DOWN_OTHER = categories.filter((c) => !(WIND_DOWN_CATEGORY_KEYS as readonly string[]).includes(c.key));
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 // ─── CategoryTile Component ──────────────────────────────────
@@ -1490,6 +1492,7 @@ function Home() {
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   const [shelfVariant, setShelfVariant] = useState<ShelfVariant>('D');
   const [aiTextLoading, setAiTextLoading] = useState(false);
+  const [windDownTextLoading, setWindDownTextLoading] = useState(false);
   const {
     resumeData,
     currentStreak,
@@ -1510,6 +1513,7 @@ function Home() {
     totalWordsRead,
     textsCompleted,
     reduceMotion,
+    windDownMode,
   } = useSettingsStore(useShallow((s) => ({
     resumeData: s.resumeData,
     currentStreak: s.currentStreak,
@@ -1530,9 +1534,13 @@ function Home() {
     totalWordsRead: s.totalWordsRead,
     textsCompleted: s.textsCompleted,
     reduceMotion: s.reduceMotion,
+    windDownMode: s.windDownMode,
   })));
   const dailyAIText = useSettingsStore((s) => s.dailyAIText);
   const dailyAITextDate = useSettingsStore((s) => s.dailyAITextDate);
+  const dailyAITextReason = useSettingsStore((s) => s.dailyAITextPersonalizationReason);
+  const windDownText = useSettingsStore((s) => s.windDownText);
+  const windDownTextDate = useSettingsStore((s) => s.windDownTextDate);
   const lastWordReviewDate = useSettingsStore((s) => s.lastWordReviewDate);
 
   // Stable action references — these don't trigger re-renders
@@ -1654,6 +1662,8 @@ function Home() {
     for (const cat of categories) {
       const isAccessible = isPremium || (FREE_CATEGORY_KEYS as readonly string[]).includes(cat.key);
       if (!isAccessible) continue;
+      // Wind-down: restrict shuffle to calming categories
+      if (windDownMode && !(WIND_DOWN_CATEGORY_KEYS as readonly string[]).includes(cat.key)) continue;
       for (const text of cat.texts) {
         const required = text.requiredReads ?? 0;
         const completed = categoryReadCounts[cat.key] ?? 0;
@@ -1663,7 +1673,7 @@ function Home() {
       }
     }
     return results;
-  }, [isPremium, categoryReadCounts]);
+  }, [isPremium, categoryReadCounts, windDownMode]);
 
   const handleShuffle = useCallback(() => {
     if (shuffleableTexts.length === 0) return;
@@ -1725,28 +1735,25 @@ function Home() {
     [isPremium, setPaywallContext, setSelectedCategoryKey, router]
   );
 
-  // ─── AI Daily Practice ──────────────────────────────────────
+  // ─── Your Daily Read ──────────────────────────────────────
   const hasTodayAIText = dailyAITextDate === new Date().toDateString() && dailyAIText !== null;
 
-  const handleAIPractice = useCallback(async () => {
+  const handleDailyRead = useCallback(async () => {
     if (!isPremium) {
       setPaywallContext('locked_ai_practice');
       return;
     }
     if (hasTodayAIText && dailyAIText) {
-      // Navigate to read the cached AI text (lives in dailyAIText, not customTexts)
       router.push({
         pathname: '/reading',
         params: { customTextId: dailyAIText.id },
       });
       return;
     }
-    // Generate new text
     setAiTextLoading(true);
     try {
       const { getOrGenerateDailyText } = await import('../lib/ai-text-service');
       const text = await getOrGenerateDailyText();
-      // Text is stored in dailyAIText by getOrGenerateDailyText — no need to add to customTexts
       const store = useSettingsStore.getState();
       useSettingsStore.setState({ aiTextsRead: (store.aiTextsRead || 0) + 1 });
       router.push({
@@ -1754,12 +1761,43 @@ function Home() {
         params: { customTextId: text.id },
       });
     } catch (err) {
-      console.error('AI practice generation failed:', err);
-      Alert.alert('Error', 'Could not generate today\'s practice. Please try again later.');
+      console.error('Daily read generation failed:', err);
+      Alert.alert('Error', 'Could not generate your daily read. Please try again later.');
     } finally {
       setAiTextLoading(false);
     }
   }, [isPremium, hasTodayAIText, dailyAIText, setPaywallContext, router]);
+
+  // Tonight's Reading (wind-down exclusive content)
+  const hasTodayWindDownText = windDownTextDate === new Date().toDateString() && windDownText !== null;
+
+  const handleTonightsReading = useCallback(async () => {
+    if (!isPremium) {
+      setPaywallContext('locked_wind_down');
+      return;
+    }
+    if (hasTodayWindDownText && windDownText) {
+      router.push({
+        pathname: '/reading',
+        params: { customTextId: windDownText.id },
+      });
+      return;
+    }
+    setWindDownTextLoading(true);
+    try {
+      const { getOrGenerateWindDownText } = await import('../lib/ai-text-service');
+      const text = await getOrGenerateWindDownText();
+      router.push({
+        pathname: '/reading',
+        params: { customTextId: text.id },
+      });
+    } catch (err) {
+      console.error('Wind-down text generation failed:', err);
+      Alert.alert('Error', 'Could not generate tonight\'s reading. Please try again later.');
+    } finally {
+      setWindDownTextLoading(false);
+    }
+  }, [isPremium, hasTodayWindDownText, windDownText, setPaywallContext, router]);
 
   const formatNumber = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
   const insightsCount = textsCompleted;
@@ -1940,12 +1978,53 @@ function Home() {
           </View>
         )}
 
-        {/* AI Daily Practice Card */}
-        <Animated.View entering={FadeIn.delay(120).duration(400)} style={styles.aiPracticeSection}>
+        {/* Tonight's Reading (wind-down) OR Your Daily Read */}
+        <Animated.View entering={FadeIn.delay(120).duration(400)} style={styles.dailyReadSection}>
+          {windDownMode ? (
+            <Pressable
+              onPress={handleTonightsReading}
+              style={({ pressed }) => [
+                styles.dailyReadCard,
+                {
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                  borderColor: glass.border,
+                  transform: [{ scale: pressed ? 0.98 : 1 }],
+                },
+              ]}
+            >
+              {hasTodayWindDownText && (
+                <View style={[styles.dailyReadAccent, { backgroundColor: '#D4A574' }]} />
+              )}
+              <View style={styles.dailyReadRow}>
+                <Feather name="moon" size={18} color="#D4A574" />
+                <View style={styles.dailyReadText}>
+                  <Text style={[styles.dailyReadTitle, { color: colors.primary }]}>
+                    {hasTodayWindDownText ? "Tonight's Reading" : "Generate Tonight's Reading"}
+                  </Text>
+                  <Text style={[styles.dailyReadSub, { color: colors.muted }]} numberOfLines={1}>
+                    {hasTodayWindDownText && windDownText
+                      ? windDownText.title
+                      : isPremium
+                        ? 'A calming passage for bedtime'
+                        : 'Unlock with Pro'}
+                  </Text>
+                </View>
+                {windDownTextLoading ? (
+                  <View style={styles.dailyReadArrow}>
+                    <Text style={[styles.dailyReadArrowText, { color: colors.muted }]}>...</Text>
+                  </View>
+                ) : !isPremium ? (
+                  <Feather name="lock" size={14} color={colors.muted} />
+                ) : (
+                  <Feather name="chevron-right" size={16} color={colors.muted} />
+                )}
+              </View>
+            </Pressable>
+          ) : (
           <Pressable
-            onPress={handleAIPractice}
+            onPress={handleDailyRead}
             style={({ pressed }) => [
-              styles.aiPracticeCard,
+              styles.dailyReadCard,
               {
                 backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
                 borderColor: glass.border,
@@ -1953,23 +2032,31 @@ function Home() {
               },
             ]}
           >
-            <View style={styles.aiPracticeRow}>
-              <Feather name="zap" size={18} color={colors.primary} />
-              <View style={styles.aiPracticeText}>
-                <Text style={[styles.aiPracticeTitle, { color: colors.primary }]}>
-                  {hasTodayAIText ? 'Today\'s Practice' : 'Generate Today\'s Practice'}
+            {hasTodayAIText && (
+              <View style={[styles.dailyReadAccent, { backgroundColor: colors.primary }]} />
+            )}
+            <View style={styles.dailyReadRow}>
+              <Feather name="book-open" size={18} color={colors.primary} />
+              <View style={styles.dailyReadText}>
+                <Text style={[styles.dailyReadTitle, { color: colors.primary }]}>
+                  {hasTodayAIText ? 'Your Daily Read' : 'Generate Your Daily Read'}
                 </Text>
-                <Text style={[styles.aiPracticeSub, { color: colors.muted }]}>
+                <Text style={[styles.dailyReadSub, { color: colors.muted }]} numberOfLines={1}>
                   {hasTodayAIText && dailyAIText
                     ? dailyAIText.title
                     : isPremium
-                      ? 'AI-personalized reading for your level'
+                      ? 'Personalized to your reading taste'
                       : 'Unlock with Pro'}
                 </Text>
+                {hasTodayAIText && dailyAITextReason ? (
+                  <Text style={[styles.dailyReadReason, { color: colors.muted }]} numberOfLines={1}>
+                    {dailyAITextReason}
+                  </Text>
+                ) : null}
               </View>
               {aiTextLoading ? (
-                <View style={styles.aiPracticeArrow}>
-                  <Text style={[styles.aiPracticeArrowText, { color: colors.muted }]}>...</Text>
+                <View style={styles.dailyReadArrow}>
+                  <Text style={[styles.dailyReadArrowText, { color: colors.muted }]}>...</Text>
                 </View>
               ) : !isPremium ? (
                 <Feather name="lock" size={14} color={colors.muted} />
@@ -1978,6 +2065,7 @@ function Home() {
               )}
             </View>
           </Pressable>
+          )}
         </Animated.View>
 
         {/* Word bank review nudge — 5+ saved words, 3+ days since review */}
@@ -2006,8 +2094,8 @@ function Home() {
 
         {/* Categories Grid */}
         <Animated.View entering={FadeIn.delay(140).duration(400)} style={styles.categoriesGrid}>
-          {/* Always show: Story, Poetry, Speech */}
-          {CORE_CATEGORIES.map((cat, index) => (
+          {/* Wind-down: show wisdom/poetry/philosophy as main grid */}
+          {(windDownMode ? WIND_DOWN_CORE : CORE_CATEGORIES).map((cat, index) => (
             <CategoryTile
               key={cat.key}
               category={cat}
@@ -2018,8 +2106,8 @@ function Home() {
           ))}
 
           {/* Expanded: Show remaining categories */}
-          {categoriesExpanded && OTHER_CATEGORIES.map((cat, index) => {
-            const isLocked = !isPremium;
+          {categoriesExpanded && (windDownMode ? WIND_DOWN_OTHER : OTHER_CATEGORIES).map((cat, index) => {
+            const isLocked = !isPremium && !(FREE_CATEGORY_KEYS as readonly string[]).includes(cat.key);
             return (
               <CategoryTile
                 key={cat.key}
@@ -2034,9 +2122,9 @@ function Home() {
 
           {/* Toggle tile: +More / Show Less */}
           <MoreTile
-            count={OTHER_CATEGORIES.length}
+            count={(windDownMode ? WIND_DOWN_OTHER : OTHER_CATEGORIES).length}
             onPress={() => setCategoriesExpanded(!categoriesExpanded)}
-            index={categoriesExpanded ? CORE_CATEGORIES.length + OTHER_CATEGORIES.length : 3}
+            index={categoriesExpanded ? (windDownMode ? WIND_DOWN_CORE : CORE_CATEGORIES).length + (windDownMode ? WIND_DOWN_OTHER : OTHER_CATEGORIES).length : 3}
             expanded={categoriesExpanded}
           />
         </Animated.View>
@@ -2546,39 +2634,54 @@ const styles = StyleSheet.create({
   resumeSection: {
     marginBottom: Spacing.lg,
   },
-  // AI Daily Practice
-  aiPracticeSection: {
+  // Your Daily Read
+  dailyReadSection: {
     marginTop: Spacing.sm,
   },
-  aiPracticeCard: {
+  dailyReadCard: {
     borderRadius: 14,
     borderCurve: 'continuous',
     borderWidth: 0.5,
     paddingHorizontal: 16,
     paddingVertical: 14,
+    overflow: 'hidden',
   },
-  aiPracticeRow: {
+  dailyReadAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    opacity: 0.3,
+  },
+  dailyReadRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  aiPracticeText: {
+  dailyReadText: {
     flex: 1,
     gap: 2,
   },
-  aiPracticeTitle: {
+  dailyReadTitle: {
     fontSize: 15,
     fontWeight: '600',
   },
-  aiPracticeSub: {
+  dailyReadSub: {
     fontSize: 13,
     fontWeight: '400',
   },
-  aiPracticeArrow: {
+  dailyReadReason: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    fontWeight: '400',
+    marginTop: 1,
+  },
+  dailyReadArrow: {
     width: 20,
     alignItems: 'center',
   },
-  aiPracticeArrowText: {
+  dailyReadArrowText: {
     fontSize: 14,
   },
   // Categories Grid

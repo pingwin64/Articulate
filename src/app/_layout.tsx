@@ -76,6 +76,20 @@ export default function RootLayout() {
     }
   }, []);
 
+  // Background prefetch daily AI text + wind-down text (2s delay, silent)
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        const { prefetchDailyText, prefetchWindDownText } = await import('../lib/ai-text-service');
+        await prefetchDailyText();
+        await prefetchWindDownText();
+      } catch {
+        // Prefetch failure is invisible to user
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded) {
       await SplashScreen.hideAsync();

@@ -1,10 +1,10 @@
 import { useColorScheme } from 'react-native';
-import { Colors, GlassStyles, BackgroundThemes, type ThemeMode } from '../design/theme';
+import { Colors, GlassStyles, BackgroundThemes, WindDownColors, type ThemeMode } from '../design/theme';
 import { useSettingsStore } from '../lib/store/settings';
 
 export function useTheme() {
   const systemScheme = useColorScheme();
-  const { themeMode, backgroundTheme } = useSettingsStore();
+  const { themeMode, backgroundTheme, windDownMode } = useSettingsStore();
 
   let mode: ThemeMode = themeMode === 'system'
     ? (systemScheme === 'dark' ? 'dark' : 'light')
@@ -17,14 +17,36 @@ export function useTheme() {
     mode = 'dark';
   }
 
-  const colors = Colors[mode];
-  const glass = GlassStyles[mode];
+  const baseColors = Colors[mode];
+  const baseGlass = GlassStyles[mode];
   const bg = bgTheme.darkOnly ? bgTheme.dark : bgTheme[mode];
+
+  // Wind-down mode: override colors with warm palette (non-destructive)
+  if (windDownMode) {
+    const warm = WindDownColors[mode];
+    const warmGlass = WindDownColors.glass[mode];
+    return {
+      mode,
+      colors: {
+        ...baseColors,
+        bg: warm.bg,
+        surface: warm.surface,
+        stroke: warm.stroke,
+        primary: warm.primary,
+        secondary: warm.secondary,
+        muted: warm.muted,
+      },
+      glass: { ...baseGlass, fill: warmGlass.fill, border: warmGlass.border },
+      isDark: mode === 'dark',
+      windDownMode: true as const,
+    };
+  }
 
   return {
     mode,
-    colors: { ...colors, bg },
-    glass,
+    colors: { ...baseColors, bg },
+    glass: baseGlass,
     isDark: mode === 'dark',
+    windDownMode: false as const,
   };
 }

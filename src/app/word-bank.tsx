@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { StyleSheet, View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { captureAndShare } from '../lib/share';
+import { DefinitionShareCard } from '../components/DefinitionShareCard';
 import { useRouter } from 'expo-router';
 import Animated, {
   FadeIn,
@@ -68,6 +70,8 @@ export default function WordBankScreen() {
   // Recording + pronunciation drill hooks
   const recorder = useRecording();
   const drill = usePronunciationDrill({ ttsSpeed, voiceGender, hapticFeedback, recorder });
+
+  const wordBankShareRef = useRef<View>(null);
 
   const lastWordReviewDate = useSettingsStore((s) => s.lastWordReviewDate);
 
@@ -381,6 +385,19 @@ export default function WordBankScreen() {
     drill.stopDrill();
     router.back();
   }, [drill, router]);
+
+  const handleShareWord = useCallback(async () => {
+    const word = reviewOrder[reviewIndex];
+    if (!word?.definition) return;
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    await captureAndShare(
+      wordBankShareRef,
+      `${word.word} — ${word.definition}\n\nDiscover words with Articulate.`,
+      'Share word'
+    );
+  }, [reviewOrder, reviewIndex, hapticFeedback]);
 
   // ─── Completion stats ─────────────────────────────────────────
   const completionAccuracy = useMemo(() => {
@@ -799,6 +816,17 @@ export default function WordBankScreen() {
                       </Text>
                     </View>
                   )}
+
+                  {/* Share button — only when definition is available */}
+                  {currentWord.definition && (
+                    <Pressable
+                      onPress={handleShareWord}
+                      style={styles.backShareButton}
+                      hitSlop={12}
+                    >
+                      <Feather name="share" size={15} color={colors.muted} />
+                    </Pressable>
+                  )}
                 </Animated.View>
               </View>
             </GlassCard>
@@ -839,6 +867,19 @@ export default function WordBankScreen() {
           </Text>
         </Pressable>
       </View>
+
+      {/* Off-screen share card for word capture */}
+      {currentWord.definition && (
+        <View style={styles.offScreenContainer} pointerEvents="none">
+          <DefinitionShareCard
+            ref={wordBankShareRef}
+            word={currentWord.word}
+            partOfSpeech={currentWord.partOfSpeech}
+            syllables={currentWord.syllables}
+            definition={currentWord.definition}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -1130,5 +1171,20 @@ const styles = StyleSheet.create({
     height: 44,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  backShareButton: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  offScreenContainer: {
+    position: 'absolute',
+    left: -9999,
+    top: -9999,
+    opacity: 0,
   },
 });
