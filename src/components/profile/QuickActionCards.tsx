@@ -72,7 +72,7 @@ export function QuickActionCards({ reduceMotion, onPaywall }: QuickActionCardsPr
         </GlassCard>
       </Pressable>
 
-      {/* Get a Free Month - Referral */}
+      {/* Referral — hidden until backend is ready
       <Pressable onPress={() => router.push('/referral')}>
         <GlassCard>
           <View style={styles.row}>
@@ -91,6 +91,7 @@ export function QuickActionCards({ reduceMotion, onPaywall }: QuickActionCardsPr
           </View>
         </GlassCard>
       </Pressable>
+      */}
     </Animated.View>
   );
 }
