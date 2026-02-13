@@ -41,8 +41,8 @@ Unlock all fonts, colors, themes, unlimited text imports, text-to-speech, chunk 
 
 ---
 
-Privacy Policy: [URL]
-Terms of Service: [URL]
+Privacy Policy: https://articulate-ashy.vercel.app/privacy.html
+Terms of Service: https://articulate-ashy.vercel.app/terms.html
 
 ## Keywords (100 char max)
 reading,focus,speed,RSVP,one word,fluency,comprehension,vocabulary,dyslexia,streak,pronunciation
@@ -54,7 +54,7 @@ Initial release. Welcome to Articulate.
 Build focus and fluency with science-backed reading practice. One word at a time — the way your brain actually works.
 
 ## Support URL
-mailto:support@articulate.app
+mailto:admin@ordco.net
 
 ## Marketing URL
 (optional — add if you have a landing page)

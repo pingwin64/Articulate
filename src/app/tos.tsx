@@ -117,7 +117,7 @@ export default function TermsOfServiceScreen() {
 
         <Section title="Contact">
           <Paragraph colors={colors}>
-            If you have questions about these Terms of Service, please contact us through the App Store.
+            If you have questions about these Terms of Service, please contact us at admin@ordco.net.
           </Paragraph>
         </Section>
       </ScrollView>

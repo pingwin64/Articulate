@@ -13,6 +13,12 @@
 
 ---
 
+## Contact & Support
+
+- **Support email for all user-facing surfaces:** `admin@ordco.net`
+- This applies to: Privacy Policy, Terms of Service, App Store metadata, in-app Contact Support, and any future contact references
+- **Never use** `support@articulate.app` — that domain is not configured
+
 ## Project Overview
 
 Articulate is a minimalist iOS reading app (Expo SDK 55 + React Native 0.83) that displays one word at a time. Design philosophy: **liquid glass minimalism** — clean, subtle, no garish colors or heavy UI elements.

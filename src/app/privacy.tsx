@@ -129,7 +129,7 @@ export default function PrivacyPolicyScreen() {
 
         <Section title="Contact">
           <Paragraph colors={colors}>
-            If you have questions about this privacy policy, please contact us through the App Store or at support@articulate.app.
+            If you have questions about this privacy policy, please contact us at admin@ordco.net.
           </Paragraph>
         </Section>
       </ScrollView>

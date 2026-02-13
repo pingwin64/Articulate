@@ -741,7 +741,7 @@ export default function SettingsScreen() {
             <Feather name="star" size={18} color={colors.muted} />
           </Pressable>
           <Pressable
-            onPress={() => Linking.openURL('mailto:support@articulate.app?subject=Articulate%20Support')}
+            onPress={() => Linking.openURL('mailto:admin@ordco.net?subject=Articulate%20Support')}
             style={styles.settingRowNoBorder}
           >
             <Text style={[styles.settingLabel, { color: colors.primary }]}>Contact Support</Text>
