@@ -8,7 +8,6 @@ import {
   Image,
 } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { useSettingsStore } from '../../lib/store/settings';
@@ -38,7 +37,6 @@ export function HeroProfileSection({ onEditProfile, reduceMotion }: HeroProfileS
   const [nameInput, setNameInput] = useState(displayName ?? '');
   const inputRef = useRef<TextInput>(null);
 
-  const accentColor44 = profileColor + '44';
   const readingLevelLabel = getLevelName(levelProgress);
 
   const formatNumber = (n: number) =>
@@ -47,14 +45,9 @@ export function HeroProfileSection({ onEditProfile, reduceMotion }: HeroProfileS
   const membershipLabel = isPremium ? 'PRO'
     : trialActive ? `TRIAL \u00B7 ${trialDaysRemaining()} days left` : 'FREE';
 
-  const membershipBadgeBg = isPremium
-    ? isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'
-    : trialActive
-      ? isDark ? 'rgba(255,149,0,0.15)' : 'rgba(255,149,0,0.1)'
-      : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)';
+  const membershipBadgeBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)';
 
-  const membershipBadgeColor = isPremium ? colors.primary
-    : trialActive ? colors.warning : colors.muted;
+  const membershipBadgeColor = isPremium ? colors.primary : colors.secondary;
 
   const handleNameSubmit = () => {
     const trimmed = nameInput.trim();
@@ -80,12 +73,9 @@ export function HeroProfileSection({ onEditProfile, reduceMotion }: HeroProfileS
             style={[styles.orb, { borderColor: glass.border }]}
           />
         ) : (
-          <LinearGradient
-            colors={[profileColor, accentColor44]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.orb, { borderColor: glass.border }]}
-          />
+          <View style={[styles.orb, { backgroundColor: profileColor + '20', borderColor: glass.border }]}>
+            <Feather name="user" size={40} color={profileColor} />
+          </View>
         )}
         <View style={[styles.editBadge, { backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)', borderColor: glass.border }]}>
           <Feather name="edit-2" size={14} color={colors.primary} />
@@ -166,6 +156,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   editBadge: {
     position: 'absolute',

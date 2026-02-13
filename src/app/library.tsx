@@ -293,6 +293,7 @@ export default function LibraryScreen() {
             }}
             style={[
               styles.tabButton,
+              { borderColor: glass.border },
               activeTab === 'myTexts' && styles.tabButtonActive,
               activeTab === 'myTexts' && { borderColor: colors.primary },
             ]}
@@ -314,6 +315,7 @@ export default function LibraryScreen() {
             }}
             style={[
               styles.tabButton,
+              { borderColor: glass.border },
               activeTab === 'favorites' && styles.tabButtonActive,
               activeTab === 'favorites' && { borderColor: colors.primary },
             ]}
@@ -339,6 +341,7 @@ export default function LibraryScreen() {
             }}
             style={[
               styles.tabButton,
+              { borderColor: glass.border },
               activeTab === 'words' && styles.tabButtonActive,
               activeTab === 'words' && { borderColor: colors.primary },
             ]}
@@ -903,7 +906,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 12,
     borderRadius: 12,
-    borderWidth: 0,
+    borderWidth: 0.5,
   },
   tabButtonActive: {
     borderWidth: 1,

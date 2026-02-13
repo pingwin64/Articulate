@@ -611,8 +611,8 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                   ]}
                   onPress={() => handleSelectPlan('lifetime')}
                 >
-                  <View style={[styles.lifetimeBadge, { backgroundColor: '#22C55E' }]}>
-                    <Text style={[styles.bestValueText, { color: '#FFF' }]}>
+                  <View style={[styles.lifetimeBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' }]}>
+                    <Text style={[styles.bestValueText, { color: colors.secondary }]}>
                       BEST VALUE
                     </Text>
                   </View>

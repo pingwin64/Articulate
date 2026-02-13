@@ -1147,7 +1147,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 // ─── Bookshelf Design Variants ──────────────────────────────────────────────
 
-type ShelfVariant = 'A' | 'B' | 'C' | 'D';
+type ShelfVariant = 'A' | 'D';
 
 interface BookData {
   label: string;
@@ -1252,152 +1252,6 @@ function ShelfVariantA({ books, isDark, glass, themeColors }: { books: BookData[
         <View style={{ height: 2, backgroundColor: gold, opacity: 0.2, borderRadius: 1 }} />
         <View style={{ height: 6, backgroundColor: glass.fill, borderBottomLeftRadius: 4, borderBottomRightRadius: 4, borderWidth: 0.5, borderTopWidth: 0, borderColor: glass.border }} />
         <View style={{ height: 4, marginHorizontal: 8, borderRadius: 2, marginTop: 1, backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.04)' }} />
-      </View>
-    </View>
-  );
-}
-
-// ─── VARIANT B: Minimal Luxe ────────────────────────────────────────────────
-
-const ACCENT_B = {
-  light: ['#8B6F47', '#7A5A3A', '#6B4D30'],
-  dark: ['#A08060', '#907050', '#806040'],
-};
-
-function BookVariantB({ book, index, isDark, themeColors }: { book: BookData; index: number; isDark: boolean; themeColors: any }) {
-  const { animatedStyle, handlePressIn, handlePressOut, handlePress } = useBookAnimation(index);
-  const accent = isDark ? ACCENT_B.dark[index] : ACCENT_B.light[index];
-  const heights = [140, 152, 136];
-
-  return (
-    <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={handlePress(book.onPress)} style={{ flex: 1, alignItems: 'center' }}>
-      <Animated.View style={[{
-        width: '100%', height: heights[index], borderRadius: 6,
-        backgroundColor: isDark ? '#141414' : '#FAFAF8',
-        borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: isDark ? 0.3 : 0.08, shadowRadius: 6, elevation: 3,
-        overflow: 'hidden',
-      }, animatedStyle]}>
-        <View style={{ position: 'absolute', left: 0, top: 16, bottom: 16, width: 3, backgroundColor: accent, borderTopRightRadius: 2, borderBottomRightRadius: 2 }} />
-        <LinearGradient
-          colors={[`${accent}08`, 'transparent'] as [string, string]}
-          start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 40 }}
-        />
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingLeft: 6 }}>
-          {book.isLocked ? (
-            <Feather name="lock" size={20} color={themeColors.muted} />
-          ) : (
-            <Feather name={book.icon} size={20} color={accent} />
-          )}
-          <Text style={{ color: themeColors.primary, fontSize: 13, fontWeight: '600', letterSpacing: 0.5, textAlign: 'center' }}>{book.label}</Text>
-          {!book.isLocked && book.count > 0 && (
-            <Text style={{ color: accent, fontSize: 11, fontWeight: '500' }}>{book.count}</Text>
-          )}
-        </View>
-        <View style={{ position: 'absolute', bottom: 0, left: 12, right: 12, height: 1, backgroundColor: accent, opacity: 0.15 }} />
-      </Animated.View>
-    </Pressable>
-  );
-}
-
-function ShelfVariantB({ books, isDark, themeColors }: { books: BookData[]; isDark: boolean; themeColors: any }) {
-  return (
-    <View>
-      <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 16, alignItems: 'flex-end', zIndex: 2 }}>
-        {books.map((b, i) => <BookVariantB key={b.label} book={b} index={i} isDark={isDark} themeColors={themeColors} />)}
-      </View>
-      <View style={{ marginTop: 6, paddingHorizontal: 16, zIndex: 1 }}>
-        <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: 0.5 }} />
-      </View>
-    </View>
-  );
-}
-
-// ─── VARIANT C: Living Ink ──────────────────────────────────────────────────
-
-const INK_COLORS = {
-  light: [
-    { bg: ['#1A1A2E', '#16213E'] as [string, string], glow: '#E2B055' },
-    { bg: ['#1A2E1A', '#162E21'] as [string, string], glow: '#55B07A' },
-    { bg: ['#2E1A1A', '#3E1621'] as [string, string], glow: '#B07055' },
-  ],
-  dark: [
-    { bg: ['#0E0E1A', '#0A0E1E'] as [string, string], glow: '#C9963A' },
-    { bg: ['#0E1A0E', '#0A1E14'] as [string, string], glow: '#3A9A5A' },
-    { bg: ['#1A0E0E', '#1E0A10'] as [string, string], glow: '#9A5A3A' },
-  ],
-};
-
-function BookVariantC({ book, index, isDark }: { book: BookData; index: number; isDark: boolean }) {
-  const { animatedStyle, handlePressIn, handlePressOut, handlePress } = useBookAnimation(index);
-  const reduceMotion = useSettingsStore((s) => s.reduceMotion);
-  const colorSet = isDark ? INK_COLORS.dark[index] : INK_COLORS.light[index];
-  const heights = [152, 164, 146];
-
-  const glowOpacity = useSharedValue(0.4);
-  useEffect(() => {
-    if (reduceMotion) return;
-    glowOpacity.value = withRepeat(
-      withSequence(
-        withTiming(0.7, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.4, { duration: 2500, easing: Easing.inOut(Easing.ease) })
-      ), -1, true
-    );
-    return () => { cancelAnimation(glowOpacity); glowOpacity.value = 0.4; };
-  }, [reduceMotion]);
-
-  const glowStyle = useAnimatedStyle(() => ({ opacity: glowOpacity.value }));
-
-  return (
-    <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={handlePress(book.onPress)} style={{ flex: 1, alignItems: 'center' }}>
-      <Animated.View style={[{
-        width: '100%', height: heights[index], borderRadius: 5,
-        shadowColor: colorSet.glow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 6,
-        overflow: 'hidden',
-      }, animatedStyle]}>
-        <LinearGradient
-          colors={colorSet.bg}
-          start={{ x: 0, y: 0 }} end={{ x: 0.3, y: 1 }}
-          style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Animated.View style={[{ position: 'absolute', top: -20, left: '20%', right: '20%', height: 60, borderRadius: 30, backgroundColor: colorSet.glow }, glowStyle]} />
-          <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 }}>
-            <LinearGradient colors={['rgba(255,255,255,0.1)', 'rgba(0,0,0,0.15)'] as [string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1 }} />
-          </View>
-          <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(0,0,0,0.3)' }} />
-          <View style={{ position: 'absolute', top: 14, left: 10, right: 10, height: 0.5, backgroundColor: colorSet.glow, opacity: 0.2 }} />
-          <View style={{ alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            {book.isLocked ? (
-              <Feather name="lock" size={18} color="rgba(255,255,255,0.4)" />
-            ) : (
-              <Feather name={book.icon} size={18} color={colorSet.glow} />
-            )}
-            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700', letterSpacing: 2, textTransform: 'uppercase', textAlign: 'center' }}>{book.label}</Text>
-            {!book.isLocked && book.count > 0 && (
-              <Text style={{ color: colorSet.glow, fontSize: 11, fontWeight: '600', opacity: 0.8 }}>{book.count}</Text>
-            )}
-          </View>
-          <View style={{ position: 'absolute', bottom: 14, left: 10, right: 10, height: 0.5, backgroundColor: colorSet.glow, opacity: 0.2 }} />
-        </LinearGradient>
-      </Animated.View>
-    </Pressable>
-  );
-}
-
-function ShelfVariantC({ books, isDark }: { books: BookData[]; isDark: boolean }) {
-  return (
-    <View>
-      <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 16, alignItems: 'flex-end', zIndex: 2 }}>
-        {books.map((b, i) => <BookVariantC key={b.label} book={b} index={i} isDark={isDark} />)}
-      </View>
-      <View style={{ marginTop: -2, zIndex: 1, paddingHorizontal: 10 }}>
-        <LinearGradient
-          colors={isDark ? ['#1A1A1A', '#0E0E0E'] as [string, string] : ['#2A2A2A', '#1A1A1A'] as [string, string]}
-          start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-          style={{ height: 12, borderBottomLeftRadius: 3, borderBottomRightRadius: 3 }}
-        />
-        <View style={{ height: 6, marginHorizontal: 10, borderRadius: 4, marginTop: 1, backgroundColor: 'rgba(0,0,0,0.3)' }} />
       </View>
     </View>
   );
@@ -2158,7 +2012,7 @@ function Home() {
           {/* Variant Switcher - DEV ONLY */}
           {__DEV__ && (
             <View style={styles.variantSwitcher}>
-              {(['A', 'B', 'C', 'D'] as const).map((v) => (
+              {(['A', 'D'] as const).map((v) => (
                 <Pressable
                   key={v}
                   onPress={() => {
@@ -2200,8 +2054,6 @@ function Home() {
             ];
             switch (shelfVariant) {
               case 'A': return <ShelfVariantA books={bookData} isDark={isDark} glass={glass} themeColors={colors} />;
-              case 'B': return <ShelfVariantB books={bookData} isDark={isDark} themeColors={colors} />;
-              case 'C': return <ShelfVariantC books={bookData} isDark={isDark} />;
               case 'D': return <ShelfVariantD books={bookData} isDark={isDark} />;
             }
           })()}
