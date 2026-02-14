@@ -23,6 +23,16 @@ export async function initPurchases(): Promise<void> {
   await Purchases.configure({ apiKey: API_KEY });
   isInitialized = true;
 
+  // Persist RevenueCat app_user_id as deviceUserId for server-side identification
+  try {
+    const rcUserId = await Purchases.getAppUserID();
+    if (rcUserId) {
+      useSettingsStore.setState({ deviceUserId: rcUserId });
+    }
+  } catch {
+    // Falls back to existing UUID stored in MMKV
+  }
+
   Purchases.addCustomerInfoUpdateListener((info: any) => {
     const isPremium = !!info.entitlements.active[ENTITLEMENT_ID];
     const store = useSettingsStore.getState();

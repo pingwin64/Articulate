@@ -1,23 +1,17 @@
 import type { QuizQuestion } from './data/quizzes';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
+import { callEdgeFunction } from './api';
 
 export async function generateQuizFromText(
   text: string,
 ): Promise<QuizQuestion[]> {
   let response: Response;
   try {
-    response = await fetch(`${SUPABASE_URL}/functions/v1/openai-proxy`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({
-        action: 'generate-quiz',
-        text,
-      }),
-    });
-  } catch {
+    response = await callEdgeFunction('generate-quiz', { text });
+  } catch (error) {
+    // Re-throw RateLimitError and PremiumRequiredError as-is
+    if (error instanceof Error && (error.name === 'RateLimitError' || error.name === 'PremiumRequiredError')) {
+      throw error;
+    }
     throw new Error('Unable to generate quiz. Check your connection and try again.');
   }
 

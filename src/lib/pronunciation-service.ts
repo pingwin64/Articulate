@@ -1,20 +1,9 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
+import { callEdgeFunction } from './api';
 
 // ─── Transcription ────────────────────────────────────────────
 
 export async function transcribeAudio(base64Audio: string): Promise<string> {
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/openai-proxy`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      apikey: SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify({
-      action: 'transcribe-audio',
-      audioData: base64Audio,
-    }),
-  });
+  const response = await callEdgeFunction('transcribe-audio', { audioData: base64Audio });
 
   if (!response.ok) {
     const err = await response.json().catch(() => null);

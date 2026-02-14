@@ -58,7 +58,8 @@
         {
           "microphonePermission": "Allow Articulate to use your microphone to practice pronunciation."
         }
-      ]
+      ],
+      ["./plugins/withMetroPort", 47000]
     ]
   }
 }

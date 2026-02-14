@@ -6,7 +6,7 @@
 
 import { useSettingsStore, getCurrentLevel } from './store/settings';
 import type { CustomText } from './store/settings';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
+import { callEdgeFunction } from './api';
 
 const CATEGORIES = [
   'story', 'essay', 'speech', 'philosophy', 'science',
@@ -211,17 +211,7 @@ export async function generateDailyText(): Promise<{ text: CustomText; reason: s
   const { category, reason } = selectCategory(payload);
   payload.category = category;
 
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/openai-proxy`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify({
-      action: 'generate-personalized-text',
-      payload,
-    }),
-  });
+  const response = await callEdgeFunction('generate-personalized-text', { payload });
 
   if (!response.ok) {
     throw new Error(`Failed to generate text: ${response.status}`);
@@ -302,17 +292,7 @@ export async function generateWindDownText(): Promise<CustomText> {
   payload.category = WIND_DOWN_CATEGORIES[Math.floor(Math.random() * WIND_DOWN_CATEGORIES.length)];
   payload.wordCount = Math.min(payload.wordCount, 200);
 
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/openai-proxy`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify({
-      action: 'generate-wind-down-text',
-      payload,
-    }),
-  });
+  const response = await callEdgeFunction('generate-wind-down-text', { payload });
 
   if (!response.ok) {
     throw new Error(`Failed to generate wind-down text: ${response.status}`);

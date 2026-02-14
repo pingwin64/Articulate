@@ -1,6 +1,6 @@
 import { File } from 'expo-file-system';
 import JSZip from 'jszip';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
+import { callEdgeFunction as callEdge } from './api';
 
 interface ParsedFile {
   title: string;
@@ -92,18 +92,7 @@ async function parsePDF(uri: string): Promise<ParsedFile> {
 }
 
 async function callEdgeFunction(fileData: string, model: string): Promise<Response> {
-  return fetch(`${SUPABASE_URL}/functions/v1/openai-proxy`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify({
-      action: 'parse-pdf',
-      fileData,
-      model,
-    }),
-  });
+  return callEdge('parse-pdf', { fileData, model });
 }
 
 async function parseDocx(uri: string): Promise<ParsedFile> {

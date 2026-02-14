@@ -1,7 +1,30 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+// ─── Rate Limits (per hour) ─────────────────────────────────────
+const RATE_LIMITS: Record<string, { free: number; premium: number }> = {
+  "generate-quiz": { free: 5, premium: 50 },
+  "parse-pdf": { free: 3, premium: 30 },
+  "scan-image": { free: 5, premium: 50 },
+  "generate-text": { free: 3, premium: 30 },
+  "generate-personalized-text": { free: 3, premium: 30 },
+  "generate-wind-down-text": { free: 3, premium: 30 },
+  "transcribe-audio": { free: 10, premium: 100 },
+};
+
+// Actions that require premium (server-side gate as safety net)
+const PREMIUM_ONLY_ACTIONS = new Set([
+  "generate-personalized-text",
+  "generate-wind-down-text",
+]);
+
+// ─── Prompts ────────────────────────────────────────────────────
 const QUIZ_SYSTEM_PROMPT = `You are a reading comprehension quiz generator. Given a text passage, generate exactly 3 multiple-choice comprehension questions. Each question should test understanding of specific details from the passage.
 
 Respond ONLY with a JSON array in this exact format:
@@ -26,14 +49,105 @@ const PDF_PROMPT =
 const SCAN_IMAGE_PROMPT =
   "Extract all readable text from this image. Return ONLY the text as plain paragraphs. No markdown, no headers, no commentary. If no text is visible, respond with exactly: NO_TEXT_FOUND";
 
+// ─── Helpers ────────────────────────────────────────────────────
+
+async function checkPremiumStatus(userId: string): Promise<boolean> {
+  if (userId === "anonymous") return false;
+  try {
+    const { data } = await supabase
+      .from("user_subscriptions")
+      .select("is_premium, expires_at")
+      .eq("rc_user_id", userId)
+      .maybeSingle();
+
+    if (!data) return false;
+    if (!data.is_premium) return false;
+    // If has expiration, check it hasn't passed
+    if (data.expires_at && new Date(data.expires_at) < new Date()) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getWindowStart(): string {
+  const now = new Date();
+  now.setMinutes(0, 0, 0);
+  return now.toISOString();
+}
+
+async function checkRateLimit(
+  userId: string,
+  action: string,
+  isPremium: boolean
+): Promise<{ blocked: boolean; remaining: number }> {
+  const limits = RATE_LIMITS[action];
+  if (!limits) return { blocked: false, remaining: 999 };
+
+  const limit = isPremium ? limits.premium : limits.free;
+  const windowStart = getWindowStart();
+
+  try {
+    const { data, error } = await supabase.rpc("increment_rate_limit", {
+      p_user_id: userId,
+      p_action: action,
+      p_window_start: windowStart,
+      p_limit: limit,
+    });
+
+    if (error) {
+      console.error("Rate limit RPC error:", error);
+      // Fail open — don't block on DB errors
+      return { blocked: false, remaining: limit };
+    }
+
+    return {
+      blocked: data?.blocked ?? false,
+      remaining: data?.remaining ?? limit,
+    };
+  } catch (err) {
+    console.error("Rate limit check failed:", err);
+    return { blocked: false, remaining: limit };
+  }
+}
+
+function logUsage(
+  userId: string,
+  action: string,
+  isPremium: boolean,
+  statusCode: number,
+  startTime: number,
+  extra?: { errorMessage?: string; openaiModel?: string; metadata?: Record<string, unknown> }
+) {
+  // Fire-and-forget — don't await
+  const durationMs = Date.now() - startTime;
+  supabase
+    .from("usage_logs")
+    .insert({
+      user_id: userId,
+      action,
+      is_premium: isPremium,
+      status_code: statusCode,
+      error_message: extra?.errorMessage ?? null,
+      openai_model: extra?.openaiModel ?? null,
+      duration_ms: durationMs,
+      metadata: extra?.metadata ?? {},
+    })
+    .then(({ error }) => {
+      if (error) console.error("Usage log insert error:", error);
+    });
+}
+
+// ─── Main Handler ───────────────────────────────────────────────
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
       headers: {
-        "Access-Control-Allow-Origin": "https://mgwkhxlhhrvjgixptcnu.supabase.co",
+        "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Allow-Headers":
-          "Content-Type, Authorization, apikey, x-client-info",
+          "Content-Type, Authorization, apikey, x-client-info, x-user-id",
       },
     });
   }
@@ -46,50 +160,106 @@ Deno.serve(async (req: Request) => {
     return json({ error: "OpenAI API key not configured" }, 500);
   }
 
+  const startTime = Date.now();
+  const userId = req.headers.get("x-user-id") || "anonymous";
+
   try {
     const body = await req.json();
     const { action } = body;
 
+    if (!action || typeof action !== "string") {
+      return json({ error: "Missing action" }, 400);
+    }
+
+    // ─── Premium check ──────────────────────────────────────
+    const isPremium = await checkPremiumStatus(userId);
+
+    if (PREMIUM_ONLY_ACTIONS.has(action) && !isPremium) {
+      logUsage(userId, action, false, 403, startTime, {
+        errorMessage: "Premium required",
+      });
+      return json(
+        { error: "This feature requires a premium subscription" },
+        403
+      );
+    }
+
+    // ─── Rate limiting ──────────────────────────────────────
+    const { blocked, remaining } = await checkRateLimit(
+      userId,
+      action,
+      isPremium
+    );
+
+    if (blocked) {
+      logUsage(userId, action, isPremium, 429, startTime, {
+        errorMessage: "Rate limited",
+      });
+      return json(
+        {
+          error: "Rate limit exceeded. Please try again later.",
+          retryAfter: 3600,
+          remaining: 0,
+        },
+        429
+      );
+    }
+
+    // ─── Route to handler ───────────────────────────────────
+    let result: Response;
+
     if (action === "generate-quiz") {
-      return await handleGenerateQuiz(body.text);
+      result = await handleGenerateQuiz(body.text);
+    } else if (action === "parse-pdf") {
+      result = await handleParsePDF(body.fileData, body.model);
+    } else if (action === "scan-image") {
+      result = await handleScanImage(body.imageData);
+    } else if (action === "generate-text") {
+      result = await handleGenerateText(body.level, body.category, body.wordCount);
+    } else if (action === "generate-personalized-text") {
+      result = await handleGeneratePersonalizedText(body.payload);
+    } else if (action === "generate-wind-down-text") {
+      result = await handleGeneratePersonalizedText(body.payload);
+    } else if (action === "transcribe-audio") {
+      result = await handleTranscribeAudio(body.audioData);
+    } else {
+      return json({ error: "Unknown action" }, 400);
     }
 
-    if (action === "parse-pdf") {
-      return await handleParsePDF(body.fileData, body.model);
-    }
+    // ─── Log usage ──────────────────────────────────────────
+    logUsage(userId, action, isPremium, result.status, startTime, {
+      openaiModel: getModelForAction(action, body),
+      metadata: { remaining },
+    });
 
-    if (action === "scan-image") {
-      return await handleScanImage(body.imageData);
-    }
-
-    if (action === "generate-text") {
-      return await handleGenerateText(body.level, body.category, body.wordCount);
-    }
-
-    if (action === "generate-personalized-text") {
-      return await handleGeneratePersonalizedText(body.payload);
-    }
-
-    if (action === "transcribe-audio") {
-      return await handleTranscribeAudio(body.audioData);
-    }
-
-    if (action === "generate-wind-down-text") {
-      return await handleGenerateWindDownText(body.payload);
-    }
-
-    return json({ error: "Unknown action" }, 400);
+    return result;
   } catch (err) {
-    return json({ error: err instanceof Error ? err.message : "Internal error" }, 500);
+    logUsage(userId, "unknown", false, 500, startTime, {
+      errorMessage: err instanceof Error ? err.message : "Internal error",
+    });
+    return json(
+      { error: err instanceof Error ? err.message : "Internal error" },
+      500
+    );
   }
 });
+
+function getModelForAction(action: string, body: any): string {
+  if (action === "parse-pdf") {
+    const allowedModels = ["gpt-4o-mini", "gpt-4o"];
+    return allowedModels.includes(body.model) ? body.model : "gpt-4o-mini";
+  }
+  if (action === "transcribe-audio") return "whisper-1";
+  return "gpt-4o-mini";
+}
+
+// ─── Action Handlers ────────────────────────────────────────────
 
 async function handleGenerateQuiz(text: string) {
   if (!text || text.length < 20) {
     return json({ error: "Text too short for quiz generation" }, 400);
   }
 
-  // Limit text length to control costs
   const trimmed = text.slice(0, 8000);
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -186,7 +356,6 @@ async function handleScanImage(imageData: string) {
     return json({ error: "No image data provided" }, 400);
   }
 
-  // Ensure proper data URI format
   const imageUrl = imageData.startsWith("data:")
     ? imageData
     : `data:image/jpeg;base64,${imageData}`;
@@ -310,13 +479,11 @@ The text should be engaging, coherent, and educational. Return a JSON object wit
   const content = data.choices?.[0]?.message?.content ?? "";
 
   try {
-    // Try to parse as JSON first
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
       return json({ title: parsed.title, text: parsed.text });
     }
-    // Fallback: use raw content as text
     return json({ title: category, text: content });
   } catch {
     return json({ title: category, text: content });
@@ -359,7 +526,6 @@ async function handleGeneratePersonalizedText(payload: {
 
   const tierDesc = tierDescriptions[payload.levelName] ?? tierDescriptions.Intermediate;
 
-  // Build avoidance list
   const avoidTitles = [...(payload.recentTitles || []), ...(payload.recentAITopics || [])]
     .filter(Boolean)
     .slice(0, 10);
@@ -367,29 +533,24 @@ async function handleGeneratePersonalizedText(payload: {
     ? `\nDo NOT reuse or closely paraphrase any of these recent titles: ${avoidTitles.map(t => `"${t}"`).join(", ")}.`
     : "";
 
-  // Build interest breadcrumbs from saved words
   const wordBreadcrumbs = (payload.savedWordSamples || []).length > 0
     ? `\nThe reader has shown interest in words like: ${payload.savedWordSamples.join(", ")}. Let these hint at the reader's intellectual interests — weave similar vocabulary naturally.`
     : "";
 
-  // Genre preferences
   const genreHint = (payload.favoriteGenres || []).length > 0
     ? `Their favorite genres are: ${payload.favoriteGenres.join(", ")}.`
     : "";
 
-  // Difficulty preference
   const diffHint = payload.difficultyPreference === "challenging"
     ? "The reader prefers challenging material — lean into complexity."
     : payload.difficultyPreference === "accessible"
       ? "The reader prefers accessible material — keep it clear and inviting."
       : "";
 
-  // New user treatment
   const newUserHint = payload.isNewUser
     ? "\nThis is a new reader — make the text welcoming, clear, and immediately engaging. Hook them in the first sentence."
     : "";
 
-  // Streak acknowledgment
   const streakHint = payload.currentStreak >= 7
     ? "\nThe reader has a strong reading streak. You may subtly weave themes of persistence, growth, or daily practice if it fits the genre naturally — but don't force it."
     : "";
@@ -458,7 +619,6 @@ async function handleTranscribeAudio(audioData: string) {
     return json({ error: "No audio data provided" }, 400);
   }
 
-  // Decode base64 to binary
   const binaryString = atob(audioData);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {
@@ -498,92 +658,12 @@ async function handleTranscribeAudio(audioData: string) {
   return json({ text: data.text ?? "" });
 }
 
-async function handleGenerateWindDownText(payload: {
-  level: number;
-  levelName: string;
-  category: string;
-  wordCount: number;
-  favoriteGenres: string[];
-  savedWordSamples: string[];
-  recentTitles: string[];
-  recentAITopics: string[];
-}) {
-  if (!payload?.category) {
-    return json({ error: "Missing category in payload" }, 400);
-  }
-
-  const safeWordCount = Math.max(80, Math.min(payload.wordCount || 150, 200));
-
-  // Build avoidance list
-  const avoidTitles = [...(payload.recentTitles || []), ...(payload.recentAITopics || [])]
-    .filter(Boolean)
-    .slice(0, 10);
-  const avoidanceClause = avoidTitles.length > 0
-    ? `\nDo NOT reuse or closely paraphrase any of these recent titles: ${avoidTitles.map(t => `"${t}"`).join(", ")}.`
-    : "";
-
-  const systemPrompt = `You are a literary curator crafting a calming bedtime reading passage. Write a contemplative, soothing ${payload.category} text suitable for reading before sleep.
-
-Reader level: ${payload.levelName} (Level ${payload.level}/5)
-
-Guidelines:
-- Write in a gentle, reflective, soothing tone
-- No conflict, urgency, tension, or suspense
-- The pace should feel unhurried and meditative
-- Use imagery that evokes calm: nature, stillness, warmth, quiet
-- The last sentence should feel like a natural resting point — a place where the reader can close their eyes
-- Write an evocative, specific title — not generic${avoidanceClause}
-
-Always respond with valid JSON containing exactly two fields: "title" and "text". No markdown, no extra commentary.`;
-
-  const userPrompt = `Write a ${safeWordCount}-word calming ${payload.category} passage for bedtime reading. Return JSON with "title" and "text" fields.`;
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.85,
-      max_tokens: 1000,
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => null);
-    return json(
-      { error: err?.error?.message ?? `OpenAI error: ${response.status}` },
-      response.status === 429 ? 429 : 502
-    );
-  }
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content ?? "";
-
-  try {
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return json({ title: parsed.title, text: parsed.text });
-    }
-    return json({ title: "Tonight's Reading", text: content });
-  } catch {
-    return json({ title: "Tonight's Reading", text: content });
-  }
-}
-
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "https://mgwkhxlhhrvjgixptcnu.supabase.co",
+      "Access-Control-Allow-Origin": "*",
     },
   });
 }

@@ -478,6 +478,9 @@ export interface SettingsState {
   reviewSessions: { date: string; accuracy: number; wordCount: number; perfects: number; close: number; missed: number; mode: 'pronunciation' | 'flashcard' }[];
   addReviewSession: (session: { accuracy: number; wordCount: number; perfects: number; close: number; missed: number; mode: 'pronunciation' | 'flashcard' }) => void;
 
+  // Device User ID (for server-side rate limiting & analytics)
+  deviceUserId: string;
+
   // Computed helper
   trialDaysRemaining: () => number;
 
@@ -1518,6 +1521,9 @@ export const useSettingsStore = create<SettingsState>()(
         set({ reviewSessions: updated });
       },
 
+      // Device User ID (for server-side rate limiting & analytics)
+      deviceUserId: crypto.randomUUID(),
+
       // Computed helper
       trialDaysRemaining: () => {
         const state = get();
@@ -1644,11 +1650,12 @@ export const useSettingsStore = create<SettingsState>()(
         discoveredFeatures: { definition: false, pronunciation: false, wordSave: false, tts: false },
         lastWordReviewDate: null,
         reviewSessions: [],
+        deviceUserId: crypto.randomUUID(),
       }),
     }),
     {
       name: 'articulate-settings',
-      version: 31,
+      version: 32,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -1970,6 +1977,10 @@ export const useSettingsStore = create<SettingsState>()(
           persisted.windDownReminderEnabled = persisted.windDownReminderEnabled ?? false;
           persisted.windDownReminderHour = persisted.windDownReminderHour ?? 21;
           persisted.windDownReminderMinute = persisted.windDownReminderMinute ?? 30;
+        }
+        if (version < 32) {
+          // v32: Device user ID for server-side rate limiting & analytics
+          persisted.deviceUserId = persisted.deviceUserId ?? crypto.randomUUID();
         }
         return persisted;
       },
