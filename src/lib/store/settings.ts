@@ -371,6 +371,8 @@ export interface SettingsState {
   useStreakRestore: () => void;
   dismissStreakRestore: () => void;
   addPurchasedRestore: () => void;
+  streakAtRiskDismissedDate: string | null;
+  dismissStreakAtRisk: () => void;
 
   // Weekly Challenge
   weeklyChallengeWeek: string | null;
@@ -1098,6 +1100,8 @@ export const useSettingsStore = create<SettingsState>()(
       streakFrozenTonight: false,
       streakFreezeActivatedDate: null,
       pendingStreakRestore: null,
+      streakAtRiskDismissedDate: null,
+      dismissStreakAtRisk: () => set({ streakAtRiskDismissedDate: new Date().toISOString().slice(0, 10) }),
 
       refillStreakAllowancesIfNewMonth: () => {
         const state = get();
@@ -1604,6 +1608,7 @@ export const useSettingsStore = create<SettingsState>()(
         streakFrozenTonight: false,
         streakFreezeActivatedDate: null,
         pendingStreakRestore: null,
+        streakAtRiskDismissedDate: null,
         weeklyChallengeWeek: null,
         weeklyChallengeProgress: 0,
         weeklyChallengeCompleted: false,
@@ -1648,7 +1653,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'articulate-settings',
-      version: 31,
+      version: 32,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -1970,6 +1975,10 @@ export const useSettingsStore = create<SettingsState>()(
           persisted.windDownReminderEnabled = persisted.windDownReminderEnabled ?? false;
           persisted.windDownReminderHour = persisted.windDownReminderHour ?? 21;
           persisted.windDownReminderMinute = persisted.windDownReminderMinute ?? 30;
+        }
+        if (version < 32) {
+          // v32: Streak at risk popup dismissal tracking
+          persisted.streakAtRiskDismissedDate = persisted.streakAtRiskDismissedDate ?? null;
         }
         return persisted;
       },

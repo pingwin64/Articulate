@@ -52,6 +52,7 @@ import {
   WordColors,
   BackgroundThemes,
   Radius,
+  HitTargets,
 } from '../design/theme';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
 import { scheduleStreakAtRiskReminder, cleanupOrphanedNotifications, requestNotificationPermissions, scheduleStreakReminder } from '../lib/notifications';
@@ -1497,14 +1498,27 @@ function Home() {
   }, [resetDailyIfNewDay, refillStreakAllowancesIfNewMonth, checkWeeklyChallenge]);
 
   // Streak "at risk" detection — warn at 20h (4-hour buffer before streak resets at 48h)
-  const isStreakAtRisk = currentStreak > 0 && lastReadDate !== null && (() => {
+  const streakAtRiskDismissedDate = useSettingsStore((s) => s.streakAtRiskDismissedDate);
+  const dismissStreakAtRisk = useSettingsStore((s) => s.dismissStreakAtRisk);
+
+  const streakAtRiskInfo = useMemo(() => {
+    if (currentStreak <= 0 || lastReadDate === null) return { atRisk: false, hoursRemaining: 0 };
     const now = Date.now();
     const lastMs = new Date(lastReadDate).getTime();
-    if (isNaN(lastMs)) return false;
+    if (isNaN(lastMs)) return { atRisk: false, hoursRemaining: 0 };
     const elapsed = now - lastMs;
     const HOURS_20 = 20 * 60 * 60 * 1000;
-    return elapsed >= HOURS_20;
-  })();
+    const HOURS_48 = 48 * 60 * 60 * 1000;
+    const atRisk = elapsed >= HOURS_20;
+    const hoursRemaining = Math.max(0, (HOURS_48 - elapsed) / (60 * 60 * 1000));
+    return { atRisk, hoursRemaining };
+  }, [currentStreak, lastReadDate]);
+
+  const isStreakAtRisk = streakAtRiskInfo.atRisk;
+
+  // Show popup only if at risk AND not already dismissed today
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const showStreakAtRiskPopup = isStreakAtRisk && streakAtRiskDismissedDate !== todayStr;
 
   const setSelectedCategoryKey = useSettingsStore((s) => s.setSelectedCategoryKey);
 
@@ -1713,6 +1727,38 @@ function Home() {
           )}
         </View>
       </View>
+
+      {/* Streak at risk sticky banner */}
+      {showStreakAtRiskPopup && (
+        <Animated.View entering={FadeIn.duration(300)} style={[styles.stickyBannerC, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderLeftColor: colors.primary + '60' }]}>
+          <Pressable
+            style={styles.stickyBannerTap}
+            onPress={() => {
+              dismissStreakAtRisk();
+              const firstCat = CORE_CATEGORIES[0];
+              if (firstCat) {
+                setSelectedCategoryKey(firstCat.key);
+                router.push({ pathname: '/text-select', params: { categoryKey: firstCat.key } });
+              }
+            }}
+          >
+            <View style={styles.bannerCRow}>
+              <Feather name="zap" size={16} color={colors.primary} />
+              <View style={styles.bannerCText}>
+                <Text style={[styles.bannerCTitle, { color: colors.primary }]}>
+                  {currentStreak} {currentStreak === 1 ? 'day' : 'days'} built. Don't start over.
+                </Text>
+                <Text style={[styles.bannerCSub, { color: colors.muted }]}>
+                  One quick read keeps it alive
+                </Text>
+              </View>
+            </View>
+          </Pressable>
+          <Pressable onPress={() => dismissStreakAtRisk()} hitSlop={HitTargets.hitSlop} style={styles.stickyBannerClose}>
+            <Feather name="x" size={14} color={colors.muted} />
+          </Pressable>
+        </Animated.View>
+      )}
 
       {/* Main content */}
       <ScrollView
@@ -2097,36 +2143,6 @@ function Home() {
           </Animated.View>
         )}
 
-        {isStreakAtRisk && (
-          <Animated.View entering={FadeIn.duration(400)} style={styles.bannerSection} accessibilityLabel={`Streak at risk: ${currentStreak}-day streak. Read one text to keep it going`} accessibilityRole="button">
-            <GlassCard onPress={() => {
-              const firstCat = CORE_CATEGORIES[0];
-              if (firstCat) {
-                setSelectedCategoryKey(firstCat.key);
-                router.push({
-                  pathname: '/text-select',
-                  params: { categoryKey: firstCat.key },
-                });
-              }
-            }}>
-              <View style={styles.streakAtRiskBanner}>
-                <View style={styles.streakAtRiskContent}>
-                  <Feather name="alert-circle" size={18} color={colors.warning ?? colors.primary} />
-                  <View style={styles.streakAtRiskText}>
-                    <Text style={[styles.streakAtRiskTitle, { color: colors.primary }]}>
-                      Don't lose your {currentStreak}-day streak
-                    </Text>
-                    <Text style={[styles.streakAtRiskSubtitle, { color: colors.secondary }]}>
-                      Read one text to keep it going
-                    </Text>
-                  </View>
-                </View>
-                <Feather name="chevron-right" size={18} color={colors.muted} />
-              </View>
-            </GlassCard>
-          </Animated.View>
-        )}
-
         {/* 9. Bottom spacer */}
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -2457,6 +2473,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.sm,
   },
+  stickyBannerTap: {
+    flex: 1,
+  },
+  stickyBannerClose: {
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  stickyBannerC: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.lg,
+    borderLeftWidth: 3,
+  },
+  bannerCRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  bannerCText: {
+    gap: 1,
+  },
+  bannerCTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  bannerCSub: {
+    fontSize: 12,
+    fontWeight: '400',
+  },
   heroSection: {
     marginBottom: Spacing.xl, // Increased for better visual separation
   },
@@ -2681,30 +2730,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   trialBannerSubtitle: {
-    fontSize: 13,
-    fontWeight: '400',
-  },
-  // Streak at risk banner
-  streakAtRiskBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  streakAtRiskContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  streakAtRiskText: {
-    flex: 1,
-    gap: 2,
-  },
-  streakAtRiskTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  streakAtRiskSubtitle: {
     fontSize: 13,
     fontWeight: '400',
   },

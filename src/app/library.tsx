@@ -298,7 +298,7 @@ export default function LibraryScreen() {
               activeTab === 'myTexts' && { borderColor: colors.primary },
             ]}
           >
-            <Feather name="edit-3" size={16} color={activeTab === 'myTexts' ? colors.primary : colors.muted} />
+            <Feather name="edit-3" size={14} color={activeTab === 'myTexts' ? colors.primary : colors.muted} />
             <Text style={[styles.tabButtonText, { color: activeTab === 'myTexts' ? colors.primary : colors.muted }]}>
               My Texts
             </Text>
@@ -320,7 +320,7 @@ export default function LibraryScreen() {
               activeTab === 'favorites' && { borderColor: colors.primary },
             ]}
           >
-            <Feather name="heart" size={16} color={activeTab === 'favorites' ? colors.primary : colors.muted} />
+            <Feather name="heart" size={14} color={activeTab === 'favorites' ? colors.primary : colors.muted} />
             <Text style={[styles.tabButtonText, { color: activeTab === 'favorites' ? colors.primary : colors.muted }]}>
               Favorites
             </Text>
@@ -346,7 +346,7 @@ export default function LibraryScreen() {
               activeTab === 'words' && { borderColor: colors.primary },
             ]}
           >
-            <Feather name="bookmark" size={16} color={activeTab === 'words' ? colors.primary : colors.muted} />
+            <Feather name="bookmark" size={14} color={activeTab === 'words' ? colors.primary : colors.muted} />
             <Text style={[styles.tabButtonText, { color: activeTab === 'words' ? colors.primary : colors.muted }]}>
               My Words
             </Text>
@@ -513,7 +513,7 @@ export default function LibraryScreen() {
                 {!search && (
                   <Pressable
                     onPress={() => router.push('/paste')}
-                    style={[styles.emptyButton, { borderColor: colors.muted }]}
+                    style={[styles.emptyButton, { borderColor: glass.border }]}
                   >
                     <Text style={[styles.emptyButtonText, { color: colors.primary }]}>Add Text</Text>
                   </Pressable>
@@ -627,7 +627,7 @@ export default function LibraryScreen() {
                 {!search && (
                   <Pressable
                     onPress={() => router.push('/')}
-                    style={[styles.emptyButton, { borderColor: colors.muted }]}
+                    style={[styles.emptyButton, { borderColor: glass.border }]}
                   >
                     <Text style={[styles.emptyButtonText, { color: colors.primary }]}>Start Reading</Text>
                   </Pressable>
@@ -735,7 +735,7 @@ export default function LibraryScreen() {
                 </Text>
                 <Pressable
                   onPress={() => router.push('/')}
-                  style={[styles.emptyButton, { borderColor: colors.muted }]}
+                  style={[styles.emptyButton, { borderColor: glass.border }]}
                 >
                   <Text style={[styles.emptyButtonText, { color: colors.primary }]}>Start Reading</Text>
                 </Pressable>
@@ -896,32 +896,35 @@ const styles = StyleSheet.create({
   // Tabs
   tabRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
   },
   tabButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
     paddingVertical: 12,
+    paddingHorizontal: 6,
     borderRadius: 12,
     borderWidth: 0.5,
   },
   tabButtonActive: {
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
   tabButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   tabBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 8,
+    minWidth: 22,
+    alignItems: 'center',
   },
   tabBadgeText: {
-    fontSize: 12, // Meets Apple HIG minimum (11pt)
+    fontSize: 11,
     fontWeight: '600',
   },
   // Search
@@ -1057,10 +1060,10 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 0.5,
   },
   emptyButtonText: {
     fontSize: 15,
