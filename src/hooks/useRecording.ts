@@ -1,4 +1,4 @@
-import { useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync } from 'expo-audio';
+import { useRef, useCallback } from 'react';
 import { File } from 'expo-file-system';
 
 export interface Recorder {
@@ -8,25 +8,47 @@ export interface Recorder {
   cancel: () => void;
 }
 
-export function useRecording(): Recorder {
-  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+// Lazy-load expo-audio to avoid module-level prototype patching that crashes
+// when the native AudioRecorder SharedObject isn't ready yet.
+function getAudioModule() {
+  return require('expo-audio') as typeof import('expo-audio');
+}
 
-  async function requestMicPermission(): Promise<boolean> {
+/**
+ * Lazy audio recorder — defers all expo-audio access to when recording actually starts,
+ * avoiding the "SharedObject<AudioRecorder>" crash at module import time.
+ */
+export function useRecording(): Recorder {
+  const recorderRef = useRef<any>(null);
+
+  const requestMicPermission = useCallback(async (): Promise<boolean> => {
+    const { AudioModule } = getAudioModule();
     const { granted } = await AudioModule.requestRecordingPermissionsAsync();
     return granted;
-  }
+  }, []);
 
-  async function start(): Promise<void> {
+  const start = useCallback(async (): Promise<void> => {
+    const { AudioModule, RecordingPresets, setAudioModeAsync } = getAudioModule();
+    // Release any previous recorder
+    if (recorderRef.current) {
+      try { await recorderRef.current.stop(); } catch {}
+      recorderRef.current = null;
+    }
     await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-    await audioRecorder.prepareToRecordAsync();
-    audioRecorder.record();
-  }
+    const recorder = new AudioModule.AudioRecorder(RecordingPresets.HIGH_QUALITY);
+    recorderRef.current = recorder;
+    await recorder.prepareToRecordAsync();
+    recorder.record();
+  }, []);
 
-  async function stop(): Promise<string> {
+  const stop = useCallback(async (): Promise<string> => {
+    const { setAudioModeAsync } = getAudioModule();
+    const recorder = recorderRef.current;
+    if (!recorder) throw new Error('No active recorder');
     try {
-      await audioRecorder.stop();
+      await recorder.stop();
       await setAudioModeAsync({ allowsRecording: false });
-      const uri = audioRecorder.uri;
+      const uri = recorder.uri;
       if (!uri) throw new Error('No recording URI');
       const file = new File(uri);
       return await file.base64();
@@ -34,14 +56,16 @@ export function useRecording(): Recorder {
       await setAudioModeAsync({ allowsRecording: false });
       throw err;
     }
-  }
+  }, []);
 
-  function cancel(): void {
+  const cancel = useCallback((): void => {
     try {
-      audioRecorder.stop();
+      const { setAudioModeAsync } = getAudioModule();
+      recorderRef.current?.stop();
       setAudioModeAsync({ allowsRecording: false });
     } catch {}
-  }
+    recorderRef.current = null;
+  }, []);
 
   return { requestMicPermission, start, stop, cancel };
 }

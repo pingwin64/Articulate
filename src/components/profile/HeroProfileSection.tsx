@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -12,7 +12,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { useSettingsStore } from '../../lib/store/settings';
 import { getLevelName } from '../../lib/store/settings';
-import { Spacing, Radius } from '../../design/theme';
+import { Radius } from '../../design/theme';
 
 interface HeroProfileSectionProps {
   onEditProfile: () => void;
@@ -23,7 +23,6 @@ export function HeroProfileSection({ onEditProfile, reduceMotion }: HeroProfileS
   const { colors, glass, isDark } = useTheme();
 
   const profileImage = useSettingsStore((s) => s.profileImage);
-  const profileColor = useSettingsStore((s) => s.profileColor);
   const displayName = useSettingsStore((s) => s.displayName);
   const setDisplayName = useSettingsStore((s) => s.setDisplayName);
   const levelProgress = useSettingsStore((s) => s.levelProgress);
@@ -36,6 +35,17 @@ export function HeroProfileSection({ onEditProfile, reduceMotion }: HeroProfileS
   const [isEditing, setIsEditing] = useState(false);
   const [nameInput, setNameInput] = useState(displayName ?? '');
   const inputRef = useRef<TextInput>(null);
+  const nameBeforeEdit = useRef(displayName);
+
+  // Accent color derived from theme primary — always matches the background theme
+  const accent = colors.primary;
+
+  const initials = useMemo(() => {
+    if (!displayName) return null;
+    const parts = displayName.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return parts[0].slice(0, 2).toUpperCase();
+  }, [displayName]);
 
   const readingLevelLabel = getLevelName(levelProgress);
 
@@ -55,7 +65,13 @@ export function HeroProfileSection({ onEditProfile, reduceMotion }: HeroProfileS
     setIsEditing(false);
   };
 
+  const handleNameCancel = () => {
+    setNameInput(nameBeforeEdit.current ?? '');
+    setIsEditing(false);
+  };
+
   const handleNameTap = () => {
+    nameBeforeEdit.current = displayName;
     setNameInput(displayName ?? '');
     setIsEditing(true);
     setTimeout(() => inputRef.current?.focus(), 100);
@@ -73,8 +89,12 @@ export function HeroProfileSection({ onEditProfile, reduceMotion }: HeroProfileS
             style={[styles.orb, { borderColor: glass.border }]}
           />
         ) : (
-          <View style={[styles.orb, { backgroundColor: profileColor + '20', borderColor: glass.border }]}>
-            <Feather name="user" size={40} color={profileColor} />
+          <View style={[styles.orb, { backgroundColor: accent + '15', borderColor: glass.border }]}>
+            {initials ? (
+              <Text style={[styles.initialsText, { color: accent }]}>{initials}</Text>
+            ) : (
+              <Feather name="user" size={40} color={accent} />
+            )}
           </View>
         )}
         <View style={[styles.editBadge, { backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)', borderColor: glass.border }]}>
@@ -83,30 +103,46 @@ export function HeroProfileSection({ onEditProfile, reduceMotion }: HeroProfileS
       </Pressable>
 
       {/* Display Name */}
-      {isEditing ? (
-        <TextInput
-          ref={inputRef}
-          value={nameInput}
-          onChangeText={(text) => setNameInput(text.slice(0, 24))}
-          onSubmitEditing={handleNameSubmit}
-          onBlur={handleNameSubmit}
-          returnKeyType="done"
-          maxLength={24}
-          placeholder="Add your name"
-          placeholderTextColor={colors.muted}
-          style={[styles.nameInput, { color: colors.primary, borderBottomColor: colors.primary }]}
-          autoFocus
-        />
-      ) : (
-        <Pressable onPress={handleNameTap}>
-          <Text style={[
-            styles.displayName,
-            { color: displayName ? colors.primary : colors.muted },
-          ]}>
-            {displayName ?? 'Add your name'}
-          </Text>
-        </Pressable>
-      )}
+      <View style={styles.nameRow}>
+        {isEditing ? (
+          <View style={styles.nameEditRow}>
+            <Pressable onPress={handleNameCancel} hitSlop={12} style={styles.nameAction}>
+              <Feather name="x" size={16} color={colors.muted} />
+            </Pressable>
+            <TextInput
+              ref={inputRef}
+              value={nameInput}
+              onChangeText={(text) => setNameInput(text.slice(0, 24))}
+              onSubmitEditing={handleNameSubmit}
+              returnKeyType="done"
+              maxLength={24}
+              placeholder="Your name"
+              placeholderTextColor={colors.muted + '80'}
+              style={[styles.nameInput, { color: colors.primary }]}
+              autoFocus
+            />
+            <Pressable onPress={handleNameSubmit} hitSlop={12} style={styles.nameAction}>
+              <Feather name="check" size={16} color={colors.primary} />
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable onPress={handleNameTap} style={styles.nameTapTarget}>
+            {displayName ? (
+              <>
+                <Text style={[styles.displayName, { color: colors.primary }]}>
+                  {displayName}
+                </Text>
+                <Feather name="edit-2" size={13} color={colors.muted} style={{ marginLeft: 6 }} />
+              </>
+            ) : (
+              <View style={[styles.addNamePill, { borderColor: colors.muted + '40' }]}>
+                <Feather name="plus" size={14} color={colors.muted} />
+                <Text style={[styles.addNameText, { color: colors.muted }]}>Add your name</Text>
+              </View>
+            )}
+          </Pressable>
+        )}
+      </View>
 
       {/* Reading Level */}
       <Text style={[styles.levelLabel, { color: colors.primary }]}>
@@ -159,6 +195,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  initialsText: {
+    fontSize: 38,
+    fontWeight: '700',
+    letterSpacing: -1,
+  },
   editBadge: {
     position: 'absolute',
     bottom: 0,
@@ -171,21 +212,56 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },
+  nameRow: {
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  nameTapTarget: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 44,
+    paddingHorizontal: 8,
+  },
   displayName: {
     fontSize: 22,
     fontWeight: '600',
     letterSpacing: -0.2,
-    marginTop: 16,
+  },
+  nameEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  nameAction: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   nameInput: {
     fontSize: 22,
     fontWeight: '600',
     letterSpacing: -0.2,
-    marginTop: 16,
     textAlign: 'center',
-    borderBottomWidth: 1,
-    paddingBottom: 4,
     minWidth: 120,
+    paddingVertical: 4,
+  },
+  addNamePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  addNameText: {
+    fontSize: 15,
+    fontWeight: '500',
   },
   levelLabel: {
     fontSize: 18,

@@ -371,6 +371,8 @@ export interface SettingsState {
   useStreakRestore: () => void;
   dismissStreakRestore: () => void;
   addPurchasedRestore: () => void;
+  streakAtRiskDismissedDate: string | null;
+  dismissStreakAtRisk: () => void;
 
   // Weekly Challenge
   weeklyChallengeWeek: string | null;
@@ -1101,6 +1103,8 @@ export const useSettingsStore = create<SettingsState>()(
       streakFrozenTonight: false,
       streakFreezeActivatedDate: null,
       pendingStreakRestore: null,
+      streakAtRiskDismissedDate: null,
+      dismissStreakAtRisk: () => set({ streakAtRiskDismissedDate: new Date().toISOString().slice(0, 10) }),
 
       refillStreakAllowancesIfNewMonth: () => {
         const state = get();
@@ -1610,6 +1614,7 @@ export const useSettingsStore = create<SettingsState>()(
         streakFrozenTonight: false,
         streakFreezeActivatedDate: null,
         pendingStreakRestore: null,
+        streakAtRiskDismissedDate: null,
         weeklyChallengeWeek: null,
         weeklyChallengeProgress: 0,
         weeklyChallengeCompleted: false,
@@ -1979,8 +1984,13 @@ export const useSettingsStore = create<SettingsState>()(
           persisted.windDownReminderMinute = persisted.windDownReminderMinute ?? 30;
         }
         if (version < 32) {
+<<<<<<< HEAD
           // v32: Device user ID for server-side rate limiting & analytics
           persisted.deviceUserId = persisted.deviceUserId ?? crypto.randomUUID();
+=======
+          // v32: Streak at risk popup dismissal tracking
+          persisted.streakAtRiskDismissedDate = persisted.streakAtRiskDismissedDate ?? null;
+>>>>>>> be1a9cd5d1d4731ca32c207b473dd3d9dba6677f
         }
         return persisted;
       },

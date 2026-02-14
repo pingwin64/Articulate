@@ -560,8 +560,8 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                   ]}
                   onPress={() => handleSelectPlan('monthly')}
                 >
-                  <View style={[styles.bestValueBadge, { backgroundColor: colors.primary }]}>
-                    <Text style={[styles.bestValueText, { color: colors.bg }]}>
+                  <View style={[styles.planBadge, { backgroundColor: '#34C759' }]}>
+                    <Text style={[styles.planBadgeText, { color: '#fff' }]}>
                       MOST POPULAR
                     </Text>
                   </View>
@@ -588,6 +588,7 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                   ]}
                   onPress={() => handleSelectPlan('weekly')}
                 >
+                  <View style={styles.planBadgeSpacer} />
                   <Text style={[styles.planName, { color: colors.primary }]}>
                     Weekly
                   </Text>
@@ -611,8 +612,8 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                   ]}
                   onPress={() => handleSelectPlan('lifetime')}
                 >
-                  <View style={[styles.lifetimeBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' }]}>
-                    <Text style={[styles.bestValueText, { color: colors.secondary }]}>
+                  <View style={[styles.planBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.05)' }]}>
+                    <Text style={[styles.planBadgeText, { color: colors.secondary }]}>
                       BEST VALUE
                     </Text>
                   </View>
@@ -671,26 +672,26 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
                 : 'One-time purchase. No subscription.'}
             </Text>
             <View style={styles.secondaryRow}>
-              <Pressable onPress={handleRestore} disabled={isLoading} hitSlop={12}>
+              <Pressable onPress={handleRestore} disabled={isLoading} hitSlop={16}>
                 <Text style={[styles.secondaryLink, { color: colors.muted }]}>
                   Restore Purchase
                 </Text>
               </Pressable>
               <Text style={[styles.dot, { color: colors.muted }]}>{'\u00B7'}</Text>
-              <Pressable onPress={handleClose} disabled={isLoading} hitSlop={12}>
+              <Pressable onPress={handleClose} disabled={isLoading} hitSlop={16}>
                 <Text style={[styles.secondaryLink, { color: colors.muted }]}>
                   Continue Free
                 </Text>
               </Pressable>
             </View>
             <View style={styles.legalRow}>
-              <Pressable onPress={() => { handleClose(); router.push('/privacy'); }} hitSlop={8}>
+              <Pressable onPress={() => { handleClose(); router.push('/privacy'); }} hitSlop={16}>
                 <Text style={[styles.legalLink, { color: colors.muted }]}>
                   Privacy
                 </Text>
               </Pressable>
               <Text style={[styles.dot, { color: colors.muted }]}>{'\u00B7'}</Text>
-              <Pressable onPress={() => { handleClose(); router.push('/tos'); }} hitSlop={8}>
+              <Pressable onPress={() => { handleClose(); router.push('/tos'); }} hitSlop={16}>
                 <Text style={[styles.legalLink, { color: colors.muted }]}>
                   Terms
                 </Text>
@@ -739,8 +740,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Spacing.lg,
     gap: 16,
-    flexGrow: 1,
-    justifyContent: 'flex-start',
     paddingTop: 8,
     paddingBottom: 16,
   },
@@ -834,33 +833,24 @@ const styles = StyleSheet.create({
   planCard: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
+    paddingBottom: 12,
     paddingHorizontal: 6,
     borderRadius: 14,
     borderCurve: 'continuous',
+    overflow: 'hidden',
     gap: 2,
     minHeight: 100,
   },
-  bestValueBadge: {
-    position: 'absolute',
-    top: 0,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
+  planBadge: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    paddingVertical: 3,
+    marginBottom: 4,
   },
-  lifetimeBadge: {
-    position: 'absolute',
-    top: 0,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
+  planBadgeSpacer: {
+    height: 20,
   },
-  bestValueText: {
+  planBadgeText: {
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.3,

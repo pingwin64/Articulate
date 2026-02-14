@@ -800,9 +800,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   variantButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -860,7 +860,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   planNameCompact: {
-    fontSize: 8,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.3,
     marginBottom: 2,
@@ -927,7 +927,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   planBadgeTextD: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.3,
     marginBottom: 4,
@@ -1048,7 +1048,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   planBadgeTextF: {
-    fontSize: 8,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.3,
   },

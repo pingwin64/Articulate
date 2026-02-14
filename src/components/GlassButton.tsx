@@ -53,23 +53,23 @@ export function GlassButton({
     return isColorDark(bgColor);
   }, [backgroundTheme, isDark]);
 
-  // Contrast-aware colors
+  // Contrast-aware colors that blend with the background theme
   const buttonColors = useMemo(() => {
     if (isDarkBackground) {
       return {
-        solidBg: '#FFFFFF',
-        solidText: '#000000',
-        outlineBorder: 'rgba(255,255,255,0.3)',
-        outlineText: '#FFFFFF',
+        solidBg: 'rgba(255,255,255,0.14)',
+        solidText: 'rgba(255,255,255,0.9)',
+        outlineBorder: 'rgba(255,255,255,0.2)',
+        outlineText: 'rgba(255,255,255,0.9)',
       };
     }
     return {
-      solidBg: colors.primary,
-      solidText: isDark ? '#000' : '#FFF',
+      solidBg: 'rgba(0,0,0,0.08)',
+      solidText: colors.primary,
       outlineBorder: glass.border,
       outlineText: colors.primary,
     };
-  }, [isDarkBackground, colors, glass, isDark]);
+  }, [isDarkBackground, colors, glass]);
 
   const handlePress = () => {
     if (hapticEnabled) {
@@ -130,11 +130,11 @@ export function GlassButton({
 const styles = StyleSheet.create({
   button: {
     height: 52,
+    paddingHorizontal: 24,
     borderRadius: Radius.lg,
     borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
   },
   text: {
     fontSize: 16,
