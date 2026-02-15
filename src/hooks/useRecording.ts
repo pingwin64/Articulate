@@ -59,12 +59,18 @@ export function useRecording(): Recorder {
   }, []);
 
   const cancel = useCallback((): void => {
-    try {
-      const { setAudioModeAsync } = getAudioModule();
-      recorderRef.current?.stop();
-      setAudioModeAsync({ allowsRecording: false });
-    } catch {}
+    const recorder = recorderRef.current;
     recorderRef.current = null;
+    if (recorder) {
+      recorder.stop()
+        .catch(() => {})
+        .finally(() => {
+          try {
+            const { setAudioModeAsync } = getAudioModule();
+            setAudioModeAsync({ allowsRecording: false }).catch(() => {});
+          } catch {}
+        });
+    }
   }, []);
 
   return { requestMicPermission, start, stop, cancel };

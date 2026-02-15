@@ -107,6 +107,7 @@ export function StreakAtRiskPopup({
         ]}
       >
         {/* DEV: Variant switcher */}
+        {__DEV__ && (
         <View style={styles.variantSwitcher}>
           {(['A', 'B', 'C', 'D'] as const).map((v) => (
             <Pressable
@@ -132,6 +133,7 @@ export function StreakAtRiskPopup({
             </Pressable>
           ))}
         </View>
+        )}
 
         {/* Variant A: Minimal countdown focus */}
         {variant === 'A' && (

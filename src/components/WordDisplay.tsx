@@ -35,7 +35,12 @@ function getWordColor(colorKey: WordColorKey, primaryColor: string): string {
 
 export function WordDisplay({ word, wordKey }: WordDisplayProps) {
   const { colors, windDownMode } = useTheme();
-  const { fontFamily, wordSize, wordBold, wordColor, breathingAnimation, reduceMotion } = useSettingsStore();
+  const fontFamily = useSettingsStore((s) => s.fontFamily);
+  const wordSize = useSettingsStore((s) => s.wordSize);
+  const wordBold = useSettingsStore((s) => s.wordBold);
+  const wordColor = useSettingsStore((s) => s.wordColor);
+  const breathingAnimation = useSettingsStore((s) => s.breathingAnimation);
+  const reduceMotion = useSettingsStore((s) => s.reduceMotion);
 
   // Check system reduce motion preference
   const [systemReduceMotion, setSystemReduceMotion] = useState(false);
@@ -67,7 +72,10 @@ export function WordDisplay({ word, wordKey }: WordDisplayProps) {
   const breatheHalfCycle = windDownMode ? 2000 : 1500;
 
   // Wind-down: slower entry spring for dreamy word appearance
-  const entrySpring = windDownMode ? { damping: 25, stiffness: 80 } : Springs.gentle;
+  const entrySpring = useMemo(
+    () => windDownMode ? { damping: 25, stiffness: 80 } : Springs.gentle,
+    [windDownMode]
+  );
 
   useEffect(() => {
     // Enter animation

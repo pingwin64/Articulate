@@ -16,7 +16,6 @@
     "@expo/metro-runtime": "^55.0.5",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-community/datetimepicker": "^8.6.0",
-    "@react-native-community/slider": "5.1.1",
     "expo": "55.0.0-preview.7",
     "expo-audio": "~55.0.5",
     "expo-blur": "~55.0.3",

@@ -1,4 +1,5 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
+import { useSettingsStore } from './store/settings';
 
 export interface WordDefinition {
   word: string;
@@ -25,11 +26,13 @@ export async function fetchDefinition(
   // Try Supabase first if configured
   if (SUPABASE_URL && SUPABASE_ANON_KEY) {
     try {
+      const userId = useSettingsStore.getState().deviceUserId || 'anonymous';
       const res = await fetch(`${SUPABASE_URL}/functions/v1/word-definition`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          'x-user-id': userId,
         },
         body: JSON.stringify({ word, context }),
       });

@@ -244,7 +244,7 @@ export default function LibraryScreen() {
   }, [isPremium, cleanupExpiredFreeTexts]);
 
   // Pro-only gate for Words and Favorites tabs (Texts tab is accessible to free users)
-  if (!isPremium && (resolvedTab === 'words' || resolvedTab === 'favorites')) {
+  if (!isPremium && (activeTab === 'words' || activeTab === 'favorites')) {
     return (
       <View style={[styles.container, { backgroundColor: colors.bg }]}>
         <View style={styles.lockedState}>
@@ -252,16 +252,16 @@ export default function LibraryScreen() {
             <View style={styles.lockedCard}>
               <Feather name="lock" size={32} color={colors.muted} />
               <Text style={[styles.lockedTitle, { color: colors.primary }]}>
-                {resolvedTab === 'words' ? 'Word Bank is a Pro feature' : 'Favorites is a Pro feature'}
+                {activeTab === 'words' ? 'Word Bank is a Pro feature' : 'Favorites is a Pro feature'}
               </Text>
               <Text style={[styles.lockedSubtitle, { color: colors.muted }]}>
-                {resolvedTab === 'words' ? 'Save words as you read. Build a vocabulary that grows with you.' :
+                {activeTab === 'words' ? 'Save words as you read. Build a vocabulary that grows with you.' :
                  'Save your favorites and pick up where you left off.'}
               </Text>
               <GlassButton
-                title={resolvedTab === 'words' ? 'Start Saving Words' : 'Save Your Favorites'}
+                title={activeTab === 'words' ? 'Start Saving Words' : 'Save Your Favorites'}
                 onPress={() => setPaywallContext(
-                  resolvedTab === 'words' ? 'locked_library_words' : 'locked_library_faves'
+                  activeTab === 'words' ? 'locked_library_words' : 'locked_library_faves'
                 )}
               />
             </View>

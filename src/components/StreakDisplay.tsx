@@ -18,7 +18,8 @@ interface StreakDisplayProps {
 
 export function StreakDisplay({ compact }: StreakDisplayProps) {
   const { colors } = useTheme();
-  const { currentStreak, lastReadDate } = useSettingsStore();
+  const currentStreak = useSettingsStore((s) => s.currentStreak);
+  const lastReadDate = useSettingsStore((s) => s.lastReadDate);
   const reduceMotion = useSettingsStore((s) => s.reduceMotion);
   const scale = useSharedValue(1);
 

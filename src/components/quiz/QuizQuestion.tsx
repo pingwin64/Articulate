@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, View, Text, Pressable } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -30,6 +30,13 @@ export function QuizQuestionCard({
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [answered, setAnswered] = useState(false);
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    };
+  }, []);
 
   const shakeX = useSharedValue(0);
 
@@ -63,7 +70,7 @@ export function QuizQuestionCard({
     }
 
     // Auto-advance after a short delay
-    setTimeout(() => onAnswer(isCorrect), 800);
+    advanceTimer.current = setTimeout(() => onAnswer(isCorrect), 800);
   };
 
   return (

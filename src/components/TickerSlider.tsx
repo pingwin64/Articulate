@@ -102,7 +102,7 @@ export function TickerSlider({
     runOnJS(playTick)();
   });
 
-  const composed = Gesture.Exclusive(tapGesture, gesture);
+  const composed = Gesture.Exclusive(gesture, tapGesture);
 
   const fillStyle = useAnimatedStyle(() => ({
     width: thumbX.value,

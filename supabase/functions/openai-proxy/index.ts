@@ -205,6 +205,18 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // ─── Payload size limits (10MB base64 ≈ 7.5MB file) ────
+    const MAX_PAYLOAD = 10 * 1024 * 1024;
+    if (body.fileData && typeof body.fileData === "string" && body.fileData.length > MAX_PAYLOAD) {
+      return json({ error: "File too large. Maximum 10MB." }, 413);
+    }
+    if (body.imageData && typeof body.imageData === "string" && body.imageData.length > MAX_PAYLOAD) {
+      return json({ error: "Image too large. Maximum 10MB." }, 413);
+    }
+    if (body.audioData && typeof body.audioData === "string" && body.audioData.length > MAX_PAYLOAD) {
+      return json({ error: "Audio too large. Maximum 10MB." }, 413);
+    }
+
     // ─── Route to handler ───────────────────────────────────
     let result: Response;
 
@@ -298,8 +310,12 @@ async function handleGenerateQuiz(text: string) {
     return json({ error: "Failed to parse quiz response" }, 502);
   }
 
-  const questions = JSON.parse(jsonMatch[0]);
-  return json({ questions });
+  try {
+    const questions = JSON.parse(jsonMatch[0]);
+    return json({ questions });
+  } catch {
+    return json({ error: "Failed to parse quiz response" }, 502);
+  }
 }
 
 async function handleParsePDF(fileData: string, model: string) {
@@ -411,8 +427,14 @@ async function handleGenerateText(
   category: string,
   wordCount: number
 ) {
-  if (!level || !category) {
+  if (typeof level !== 'number' || !category || typeof category !== 'string') {
     return json({ error: "Missing level or category" }, 400);
+  }
+
+  // Sanitize category to prevent prompt injection (alphanumeric, spaces, hyphens, max 100 chars)
+  const safeCategory = category.replace(/[^a-zA-Z0-9 \-&,]/g, '').slice(0, 100);
+  if (!safeCategory) {
+    return json({ error: "Invalid category" }, 400);
   }
 
   const safeWordCount = Math.max(100, Math.min(wordCount || 300, 1000));
@@ -441,7 +463,7 @@ async function handleGenerateText(
             ? "expert"
             : "master";
 
-  const prompt = `Generate a ${safeWordCount}-word reading passage about ${category}.
+  const prompt = `Generate a ${safeWordCount}-word reading passage about ${safeCategory}.
 Difficulty: Level ${level} (${tier}).
 ${tierDescriptions[tier] ?? tierDescriptions.master}
 The text should be engaging, coherent, and educational. Return a JSON object with exactly two fields: "title" (a short title for the passage) and "text" (the passage text). No markdown, no extra commentary.`;

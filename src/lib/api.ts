@@ -22,30 +22,40 @@ export class PremiumRequiredError extends Error {
   }
 }
 
+const FETCH_TIMEOUT_MS = 30000;
+
 export async function callEdgeFunction(
   action: string,
   payload: Record<string, unknown>
 ): Promise<Response> {
-  const userId = useSettingsStore.getState().deviceUserId ?? 'anonymous';
+  const userId = useSettingsStore.getState().deviceUserId || 'anonymous';
 
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/openai-proxy`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-      'x-user-id': userId,
-    },
-    body: JSON.stringify({ action, ...payload }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-  if (response.status === 429) {
-    const body = await response.json().catch(() => null);
-    throw new RateLimitError(body?.retryAfter ?? 3600);
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/openai-proxy`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'x-user-id': userId,
+      },
+      body: JSON.stringify({ action, ...payload }),
+      signal: controller.signal,
+    });
+
+    if (response.status === 429) {
+      const body = await response.json().catch(() => null);
+      throw new RateLimitError(body?.retryAfter ?? 3600);
+    }
+
+    if (response.status === 403) {
+      throw new PremiumRequiredError();
+    }
+
+    return response;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  if (response.status === 403) {
-    throw new PremiumRequiredError();
-  }
-
-  return response;
 }

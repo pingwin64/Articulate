@@ -158,10 +158,18 @@ export default function ReadingScreen() {
     });
   }, [backdropOpacity, cardScale, cardOpacity]);
 
+  // Stable callback for runOnJS usage (avoids detached method binding)
+  const navigateHome = useCallback(() => router.replace('/'), [router]);
+
   // Word bank reading mode
-  const wordBankWords = params.wordBankWords
-    ? JSON.parse(params.wordBankWords) as string[]
-    : null;
+  let wordBankWords: string[] | null = null;
+  if (params.wordBankWords) {
+    try {
+      wordBankWords = JSON.parse(params.wordBankWords) as string[];
+    } catch {
+      wordBankWords = null;
+    }
+  }
 
   const customText = params.customTextId
     ? (customTexts.find((t) => t.id === params.customTextId)
@@ -354,7 +362,7 @@ export default function ReadingScreen() {
       // Auto-dismiss after 5s → navigate home
       setTimeout(() => {
         goodnightOpacity.value = withTiming(0, { duration: 600 }, () => {
-          runOnJS(router.replace)('/');
+          runOnJS(navigateHome)();
         });
       }, 5000);
     }, remaining);
@@ -407,8 +415,8 @@ export default function ReadingScreen() {
         setPronunciationFeedback(null);
 
         // Auto-stop after 3 seconds
-        recordingTimerRef.current = setTimeout(() => {
-          handleStopRecording();
+        recordingTimerRef.current = setTimeout(async () => {
+          await handleStopRecording();
           setListenRepeatPhase('result');
         }, 3000);
       } catch {
@@ -666,7 +674,7 @@ export default function ReadingScreen() {
 
       // Track attempt + per-word history
       const store = useSettingsStore.getState();
-      store.totalPronunciationAttempts = (store.totalPronunciationAttempts || 0) + 1;
+      const newAttempts = (store.totalPronunciationAttempts || 0) + 1;
       const history = { ...store.pronunciationHistory };
       const wordKey = singleWord.toLowerCase();
       if (!history[wordKey]) {
@@ -680,9 +688,7 @@ export default function ReadingScreen() {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
         history[wordKey].perfects += 1;
-        // +5 level progress per perfect, tracked for badges
         store.incrementPerfectPronunciations();
-        // Weekly challenge progress
         store.incrementWeeklyChallengeProgress('pronunciation_perfect', 1);
       } else if (feedback.result === 'close') {
         if (hapticFeedback) {
@@ -690,7 +696,7 @@ export default function ReadingScreen() {
         }
       }
       // Persist pronunciation history
-      useSettingsStore.setState({ pronunciationHistory: history, totalPronunciationAttempts: store.totalPronunciationAttempts });
+      useSettingsStore.setState({ pronunciationHistory: history, totalPronunciationAttempts: newAttempts });
 
       pronunciationTimerRef.current = setTimeout(dismissPronunciationFeedback, 2500);
     } catch (err: any) {

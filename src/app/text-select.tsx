@@ -9,6 +9,7 @@ import { categories, TextEntry, TextDifficulty } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { GlassSegmentedControl } from '../components/GlassSegmentedControl';
+import { Paywall } from '../components/Paywall';
 import { Feather } from '@expo/vector-icons';
 import { Spacing } from '../design/theme';
 
@@ -43,6 +44,7 @@ export default function TextSelectScreen() {
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
   const isPremium = useSettingsStore((s) => s.isPremium);
   const setPaywallContext = useSettingsStore((s) => s.setPaywallContext);
+  const showPaywall = useSettingsStore((s) => s.showPaywall);
 
   const [lockedMessage, setLockedMessage] = useState<string | null>(null);
   const [difficultyFilter, setDifficultyFilter] = useState<DifficultyFilter>('all');
@@ -57,12 +59,7 @@ export default function TextSelectScreen() {
   const allTextsRead = useMemo(() => {
     if (!category) return false;
     // If user has read at least as many times as there are texts, they've likely read everything
-    return category.texts.every((t) => {
-      const required = t.requiredReads ?? 0;
-      // If the text is unlocked (user has enough reads), count it as readable
-      // If locked, skip it — user hasn't reached it yet
-      return userReadsInCategory < required || userReadsInCategory >= required;
-    }) && userReadsInCategory >= category.texts.length;
+    return userReadsInCategory >= category.texts.length;
   }, [category, userReadsInCategory]);
 
   // Filter texts by difficulty
@@ -133,6 +130,7 @@ export default function TextSelectScreen() {
   }
 
   return (
+    <>
     <ScrollView
       style={[styles.container, { backgroundColor: colors.bg }]}
       contentContainerStyle={styles.scrollContent}
@@ -279,6 +277,11 @@ export default function TextSelectScreen() {
         </Animated.View>
       )}
     </ScrollView>
+    <Paywall
+      visible={showPaywall}
+      onDismiss={() => setPaywallContext(null)}
+    />
+    </>
   );
 }
 

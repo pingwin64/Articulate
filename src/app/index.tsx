@@ -4,7 +4,6 @@ import {
   View,
   Text,
   ScrollView,
-  FlatList,
   Pressable,
   useWindowDimensions,
   Alert,
@@ -688,190 +687,8 @@ function SelectableCategoryCard({ category, isSelected, hasSelection, onSelect, 
   );
 }
 
-// ─── Step 3: Daily Goal ──────────────────────────────────────
+// ─── Step 3: Daily Goal (moved to complete.tsx journey step) ──
 
-const GOAL_OPTIONS = [50, 100, 150, 200, 300, 500];
-const GOAL_LABELS: Record<number, string> = {
-  50: 'A gentle start — build from here',
-  100: 'The sweet spot for habit-building',
-  150: 'Steady progress every day',
-  200: 'Ambitious — you\'re serious',
-  300: 'Dedicated learner mode',
-  500: 'Power reader — full commitment',
-};
-const GOAL_TIME: Record<number, string> = {
-  50: '~5 min/day',
-  100: '~10 min/day',
-  150: '~15 min/day',
-  200: '~20 min/day',
-  300: '~30 min/day',
-  500: '~50 min/day',
-};
-
-const ITEM_HEIGHT = 56;
-
-function OnboardingDailyGoal({ onNext }: { onNext: (goal: number) => void }) {
-  const { colors, glass, isDark } = useTheme();
-  const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
-  const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled);
-  const [notifyEnabled, setNotifyEnabled] = useState(true); // default ON
-
-  // Default to 100 (index 1)
-  const [selectedIndex, setSelectedIndex] = useState(1);
-  const selectedGoal = GOAL_OPTIONS[selectedIndex];
-  const flatListRef = React.useRef<FlatList>(null);
-  const lastSnappedIndex = React.useRef(1);
-
-  // Pad data so the first/last items can scroll to center
-  const paddedData = React.useMemo(() => [
-    { key: 'pad-top', value: 0 },
-    ...GOAL_OPTIONS.map((v) => ({ key: String(v), value: v })),
-    { key: 'pad-bottom', value: 0 },
-  ], []);
-
-  const handleScroll = React.useCallback((event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const index = Math.round(offsetY / ITEM_HEIGHT);
-    const clamped = Math.max(0, Math.min(index, GOAL_OPTIONS.length - 1));
-    if (clamped !== lastSnappedIndex.current) {
-      lastSnappedIndex.current = clamped;
-      setSelectedIndex(clamped);
-      if (hapticEnabled) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-    }
-  }, [hapticEnabled]);
-
-  // Scroll to default on mount
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      flatListRef.current?.scrollToOffset({ offset: 1 * ITEM_HEIGHT, animated: false });
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const renderItem = React.useCallback(({ item, index }: { item: { key: string; value: number }; index: number }) => {
-    if (item.value === 0) {
-      return <View style={{ height: ITEM_HEIGHT }} />;
-    }
-    const dataIndex = index - 1; // account for top padding
-    const isSelected = dataIndex === selectedIndex;
-    return (
-      <View style={[styles.goalItem, { height: ITEM_HEIGHT }]}>
-        <Text style={[
-          styles.goalItemText,
-          {
-            color: isSelected ? colors.primary : colors.muted,
-            fontSize: isSelected ? 48 : 24,
-            fontWeight: isSelected ? '700' : '400',
-            opacity: isSelected ? 1 : 0.3,
-          },
-        ]}>
-          {item.value}
-        </Text>
-      </View>
-    );
-  }, [selectedIndex, colors.primary, colors.muted]);
-
-  return (
-    <View style={styles.onboardingPage}>
-      <View style={styles.onboardingCenter}>
-        <Animated.Text
-          entering={FadeIn.duration(400)}
-          style={[styles.personalizeTitle, { color: colors.primary }]}
-        >
-          Set your daily habit.
-        </Animated.Text>
-        <Animated.Text
-          entering={FadeIn.delay(100).duration(400)}
-          style={[styles.goalSubtitle, { color: colors.secondary }]}
-        >
-          How much focus time feels right for you?
-        </Animated.Text>
-
-        {/* Wheel picker */}
-        <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.goalWheelContainer}>
-          {/* Center highlight band */}
-          <View style={[
-            styles.goalHighlightBand,
-            {
-              backgroundColor: glass.fill,
-              borderTopColor: glass.border,
-              borderBottomColor: glass.border,
-            },
-          ]} />
-          <FlatList
-            ref={flatListRef}
-            data={paddedData}
-            keyExtractor={(item) => item.key}
-            renderItem={renderItem}
-            showsVerticalScrollIndicator={false}
-            snapToInterval={ITEM_HEIGHT}
-            decelerationRate="fast"
-            onMomentumScrollEnd={handleScroll}
-            getItemLayout={(_, index) => ({
-              length: ITEM_HEIGHT,
-              offset: ITEM_HEIGHT * index,
-              index,
-            })}
-            style={{ height: ITEM_HEIGHT * 3 }}
-          />
-        </Animated.View>
-
-        {/* Time estimate */}
-        <Animated.Text
-          entering={FadeIn.delay(300).duration(400)}
-          style={[styles.goalTimeLabel, { color: colors.muted }]}
-        >
-          {GOAL_TIME[selectedGoal]}
-        </Animated.Text>
-
-        {/* Contextual description */}
-        <Animated.Text
-          entering={FadeIn.delay(350).duration(400)}
-          style={[styles.goalDescription, { color: colors.secondary }]}
-        >
-          {GOAL_LABELS[selectedGoal]}
-        </Animated.Text>
-      </View>
-      <View style={styles.onboardingBottom}>
-        {/* Notification opt-in toggle */}
-        <Pressable
-          onPress={() => setNotifyEnabled((v) => !v)}
-          style={[styles.notifyToggleRow, { borderColor: glass.border }]}
-        >
-          <View style={styles.notifyToggleLeft}>
-            <Feather name="bell" size={16} color={colors.secondary} />
-            <Text style={[styles.notifyToggleText, { color: colors.secondary }]}>
-              Daily reminder
-            </Text>
-          </View>
-          <View
-            style={[
-              styles.notifyToggleDot,
-              { backgroundColor: notifyEnabled ? colors.primary : glass.fill, borderColor: glass.border },
-            ]}
-          >
-            {notifyEnabled && <Feather name="check" size={10} color={colors.bg} />}
-          </View>
-        </Pressable>
-        <GlassButton
-          title="Continue"
-          onPress={async () => {
-            if (notifyEnabled) {
-              const granted = await requestNotificationPermissions();
-              if (granted) {
-                setNotificationsEnabled(true);
-                await scheduleStreakReminder(20, 0, 0);
-              }
-            }
-            onNext(selectedGoal);
-          }}
-        />
-      </View>
-    </View>
-  );
-}
 
 // ─── Step 4: Your First Reading (Launch) ─────────────────────
 
@@ -1622,8 +1439,6 @@ function Home() {
     try {
       const { getOrGenerateDailyText } = await import('../lib/ai-text-service');
       const text = await getOrGenerateDailyText();
-      const store = useSettingsStore.getState();
-      useSettingsStore.setState({ aiTextsRead: (store.aiTextsRead || 0) + 1 });
       router.push({
         pathname: '/reading',
         params: { customTextId: text.id },

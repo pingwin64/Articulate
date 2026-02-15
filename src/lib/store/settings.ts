@@ -51,11 +51,11 @@ export function getProgressToNextLevel(levelProgress: number): number {
   const level = getCurrentLevel(levelProgress);
   if (level >= 5) {
     // Endgame: show progress toward next 10K milestone (10K, 20K, 30K...)
-    const milestone = Math.ceil(levelProgress / 10000) * 10000;
-    if (milestone === levelProgress) return 100;
-    const prevMilestone = milestone - 10000;
-    const progressInMilestone = levelProgress - prevMilestone;
-    return Math.min(100, Math.round((progressInMilestone / 10000) * 100));
+    // At exact milestones (10K, 20K), show 0% (new cycle started)
+    const currentMilestone = Math.floor(levelProgress / 10000) * 10000;
+    const nextMilestone = currentMilestone + 10000;
+    const progressInMilestone = levelProgress - currentMilestone;
+    return Math.min(100, Math.round((progressInMilestone / (nextMilestone - currentMilestone)) * 100));
   }
   const currentThreshold = LEVEL_THRESHOLDS[level - 1];
   const nextThreshold = LEVEL_THRESHOLDS[level];
@@ -601,11 +601,9 @@ export const useSettingsStore = create<SettingsState>()(
         }
 
         // 50K words milestone: award 3-day Pro trial
-        // Note: totalWordsRead was already updated by incrementWordsRead before this runs
-        // So we check if it JUST crossed 50K (was below before adding these words)
-        // Badge ('words-50k') is unlocked separately via complete.tsx checkBadges
-        const prevTotalWords = state.totalWordsRead - words;
-        if (prevTotalWords < 50000 && state.totalWordsRead >= 50000) {
+        // Check using levelProgress (which tracks adjusted/XP words) crossing 50K
+        const prevLevelProgress = state.levelProgress;
+        if (prevLevelProgress < 50000 && newProgress >= 50000) {
           const currentState = get();
           if (!currentState.isPremium && !currentState.trialActive) {
             get().startTrial();
@@ -699,7 +697,7 @@ export const useSettingsStore = create<SettingsState>()(
         }
 
         const HOURS_24 = 24 * 60 * 60 * 1000;
-        const HOURS_48 = 24 * 60 * 60 * 1000;
+        const HOURS_48 = 48 * 60 * 60 * 1000;
         const elapsed = now - lastReadMs;
 
         if (elapsed < HOURS_24) {
@@ -729,15 +727,16 @@ export const useSettingsStore = create<SettingsState>()(
               lastReadDate: new Date(now).toISOString(),
             });
           } else {
-            // Streak broken — set pending restore (don't reset yet)
+            // Streak broken — set pending restore, reset to 1
             set({
               pendingStreakRestore: {
                 previousStreak: state.currentStreak,
                 breakDate: new Date(now).toISOString(),
               },
+              currentStreak: 1,
+              lastReadDate: new Date(now).toISOString(),
               streakFrozenTonight: false,
               streakFreezeActivatedDate: null,
-              // DON'T update currentStreak or lastReadDate yet
             });
           }
         }

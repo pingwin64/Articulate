@@ -17,7 +17,7 @@ try {
 }
 
 export async function initPurchases(): Promise<void> {
-  if (!Purchases || isInitialized) return;
+  if (!Purchases || isInitialized || !API_KEY) return;
 
   Purchases.setLogLevel(LOG_LEVEL.DEBUG);
   await Purchases.configure({ apiKey: API_KEY });
@@ -37,7 +37,7 @@ export async function initPurchases(): Promise<void> {
     const isPremium = !!info.entitlements.active[ENTITLEMENT_ID];
     const store = useSettingsStore.getState();
     if (store.isPremium !== isPremium) {
-      useSettingsStore.setState({ isPremium });
+      store.setIsPremium(isPremium);
     }
   });
 
@@ -49,7 +49,7 @@ export async function checkEntitlement(): Promise<boolean> {
   try {
     const info = await Purchases.getCustomerInfo();
     const isPremium = !!info.entitlements.active[ENTITLEMENT_ID];
-    useSettingsStore.setState({ isPremium });
+    useSettingsStore.getState().setIsPremium(isPremium);
     return isPremium;
   } catch {
     return false;
@@ -61,7 +61,7 @@ export async function purchasePackage(pkg: PurchasesPackage): Promise<boolean> {
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     const isPremium = !!customerInfo.entitlements.active[ENTITLEMENT_ID];
-    useSettingsStore.setState({ isPremium });
+    useSettingsStore.getState().setIsPremium(isPremium);
     return isPremium;
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'userCancelled' in error && error.userCancelled) {
@@ -76,7 +76,7 @@ export async function restorePurchases(): Promise<boolean> {
   try {
     const info = await Purchases.restorePurchases();
     const isPremium = !!info.entitlements.active[ENTITLEMENT_ID];
-    useSettingsStore.setState({ isPremium });
+    useSettingsStore.getState().setIsPremium(isPremium);
     return isPremium;
   } catch {
     return false;

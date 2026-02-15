@@ -7,7 +7,9 @@ const isLiquidGlass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
 
 export function useTheme() {
   const systemScheme = useColorScheme();
-  const { themeMode, backgroundTheme, windDownMode } = useSettingsStore();
+  const themeMode = useSettingsStore((s) => s.themeMode);
+  const backgroundTheme = useSettingsStore((s) => s.backgroundTheme);
+  const windDownMode = useSettingsStore((s) => s.windDownMode);
 
   let mode: ThemeMode = themeMode === 'system'
     ? (systemScheme === 'dark' ? 'dark' : 'light')

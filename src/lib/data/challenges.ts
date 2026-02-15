@@ -100,29 +100,21 @@ export const WEEKLY_CHALLENGES: WeeklyChallenge[] = [
   },
 ];
 
+import { getISOWeekId } from '../date';
+
 /**
  * Returns the ISO week identifier as "YYYY-WNN"
  */
 export function getCurrentWeekId(): string {
-  const now = new Date();
-  const jan1 = new Date(now.getFullYear(), 0, 1);
-  const dayOfYear = Math.floor(
-    (now.getTime() - jan1.getTime()) / (24 * 60 * 60 * 1000)
-  );
-  const weekNum = Math.ceil((dayOfYear + jan1.getDay() + 1) / 7);
-  return `${now.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+  return getISOWeekId(new Date());
 }
 
 /**
  * Returns the current week's challenge, deterministically rotating through the list.
  */
 export function getCurrentChallenge(): WeeklyChallenge {
-  const now = new Date();
-  const jan1 = new Date(now.getFullYear(), 0, 1);
-  const dayOfYear = Math.floor(
-    (now.getTime() - jan1.getTime()) / (24 * 60 * 60 * 1000)
-  );
-  const weekNum = Math.ceil((dayOfYear + jan1.getDay() + 1) / 7);
+  const weekId = getCurrentWeekId();
+  const weekNum = parseInt(weekId.split('-W')[1], 10);
   return WEEKLY_CHALLENGES[weekNum % WEEKLY_CHALLENGES.length];
 }
 
@@ -132,8 +124,8 @@ export function getCurrentChallenge(): WeeklyChallenge {
 export function getDaysRemainingInWeek(): number {
   const now = new Date();
   const day = now.getDay(); // 0 = Sun, 1 = Mon, ...
-  // Days until next Monday (day 1)
+  // Days until next Monday (day 1), not counting today
   if (day === 0) return 1;
-  if (day === 1) return 7; // If Monday, full week remaining
+  if (day === 1) return 6; // Monday = 6 days left (Tue-Sun)
   return 8 - day;
 }

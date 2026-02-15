@@ -1,16 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-  runOnJS,
   FadeIn,
   FadeOut,
 } from 'react-native-reanimated';
 import { useTheme } from '../hooks/useTheme';
-import { Springs } from '../design/theme';
 
 interface ConfirmationDialogProps {
   visible: boolean;
@@ -35,66 +29,101 @@ export function ConfirmationDialog({
 }: ConfirmationDialogProps) {
   const { colors, glass, isDark } = useTheme();
 
-  if (!visible) return null;
+  // Keep rendered while exit animation plays
+  const [mounted, setMounted] = useState(visible);
+  useEffect(() => {
+    if (visible) setMounted(true);
+  }, [visible]);
+
+  if (!mounted) return null;
 
   return (
     <View style={styles.overlay}>
-      <Animated.View
-        entering={FadeIn.duration(150)}
-        exiting={FadeOut.duration(150)}
-        style={styles.backdrop}
-      >
-        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
-      </Animated.View>
+      {visible && (
+        <Animated.View
+          entering={FadeIn.duration(150)}
+          exiting={FadeOut.duration(150).withCallback((finished) => {
+            if (finished) {
+              // Delay unmount until animation completes — handled by onAnimationEnd below
+            }
+          })}
+          style={styles.backdrop}
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
+        </Animated.View>
+      )}
 
-      <Animated.View
-        entering={FadeIn.duration(200)}
-        style={[
-          styles.card,
-          {
-            backgroundColor: isDark ? 'rgba(28,28,30,0.98)' : 'rgba(255,255,255,0.98)',
-            borderColor: glass.border,
-          },
-        ]}
-      >
-        <Text style={[styles.title, { color: colors.primary }]}>{title}</Text>
-        {message && (
-          <Text style={[styles.message, { color: colors.secondary }]}>{message}</Text>
-        )}
+      {visible ? (
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(150)}
+          onLayout={() => {}}
+          style={[
+            styles.card,
+            {
+              backgroundColor: isDark ? 'rgba(28,28,30,0.98)' : 'rgba(255,255,255,0.98)',
+              borderColor: glass.border,
+            },
+          ]}
+        >
+          <Text style={[styles.title, { color: colors.primary }]}>{title}</Text>
+          {message && (
+            <Text style={[styles.message, { color: colors.secondary }]}>{message}</Text>
+          )}
 
-        <View style={styles.buttons}>
-          <Pressable
-            onPress={onCancel}
-            style={[styles.button, styles.cancelButton]}
-          >
-            <Text style={[styles.cancelText, { color: colors.muted }]}>
-              {cancelLabel}
-            </Text>
-          </Pressable>
+          <View style={styles.buttons}>
+            <Pressable
+              onPress={onCancel}
+              style={[styles.button, styles.cancelButton]}
+            >
+              <Text style={[styles.cancelText, { color: colors.muted }]}>
+                {cancelLabel}
+              </Text>
+            </Pressable>
 
-          <Pressable
-            onPress={onConfirm}
-            style={[
-              styles.button,
-              styles.confirmButton,
-              {
-                backgroundColor: destructive
-                  ? (colors.error ?? '#FF3B30') + '15'
-                  : colors.primary + '15',
-              },
-            ]}
-          >
-            <Text
+            <Pressable
+              onPress={onConfirm}
               style={[
-                styles.confirmText,
-                { color: destructive ? (colors.error ?? '#FF3B30') : colors.primary },
+                styles.button,
+                styles.confirmButton,
+                {
+                  backgroundColor: destructive
+                    ? (colors.error ?? '#FF3B30') + '15'
+                    : colors.primary + '15',
+                },
               ]}
             >
-              {confirmLabel}
-            </Text>
-          </Pressable>
-        </View>
-      </Animated.View>
+              <Text
+                style={[
+                  styles.confirmText,
+                  { color: destructive ? (colors.error ?? '#FF3B30') : colors.primary },
+                ]}
+              >
+                {confirmLabel}
+              </Text>
+            </Pressable>
+          </View>
+        </Animated.View>
+      ) : (
+        <Animated.View
+          exiting={FadeOut.duration(150).withCallback(() => {
+            'worklet';
+          })}
+          onLayout={() => {
+            // After exit animation, unmount
+            setTimeout(() => setMounted(false), 200);
+          }}
+          style={[
+            styles.card,
+            {
+              backgroundColor: isDark ? 'rgba(28,28,30,0.98)' : 'rgba(255,255,255,0.98)',
+              borderColor: glass.border,
+            },
+          ]}
+        >
+          <Text style={[styles.title, { color: colors.primary }]}>{title}</Text>
+        </Animated.View>
+      )}
     </View>
   );
 }

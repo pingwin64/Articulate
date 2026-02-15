@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import {
   useSharedValue,
@@ -27,6 +27,7 @@ export function NumberRoll({
   const { colors } = useTheme();
   const animatedValue = useSharedValue(0);
   const [displayValue, setDisplayValue] = React.useState(0);
+  const lastRounded = useSharedValue(-1);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -40,7 +41,10 @@ export function NumberRoll({
 
   useDerivedValue(() => {
     const rounded = Math.round(animatedValue.value);
-    runOnJS(setDisplayValue)(rounded);
+    if (rounded !== lastRounded.value) {
+      lastRounded.value = rounded;
+      runOnJS(setDisplayValue)(rounded);
+    }
     return rounded;
   }, [animatedValue]);
 

@@ -21,11 +21,10 @@ const PREMIUM_EVENTS = new Set([
 const REVOKE_EVENTS = new Set([
   "EXPIRATION",
   "REFUND",
-  "BILLING_ISSUE",
 ]);
 
-// Cancellation: still premium until expires_at
-const CANCEL_EVENTS = new Set(["CANCELLATION"]);
+// Grace period: still premium until expires_at
+const GRACE_EVENTS = new Set(["CANCELLATION", "BILLING_ISSUE"]);
 
 Deno.serve(async (req: Request) => {
   // Only allow POST
@@ -37,13 +36,15 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Method not allowed" }, 405);
   }
 
-  // Verify webhook secret
-  if (REVENUECAT_WEBHOOK_SECRET) {
-    const authHeader = req.headers.get("authorization") ?? "";
-    const token = authHeader.replace(/^Bearer\s+/i, "");
-    if (token !== REVENUECAT_WEBHOOK_SECRET) {
-      return json({ error: "Unauthorized" }, 401);
-    }
+  // Verify webhook secret (required — reject all requests if not configured)
+  if (!REVENUECAT_WEBHOOK_SECRET) {
+    console.error("REVENUECAT_WEBHOOK_SECRET not configured");
+    return json({ error: "Webhook not configured" }, 500);
+  }
+  const authHeader = req.headers.get("authorization") ?? "";
+  const token = authHeader.replace(/^Bearer\s+/i, "");
+  if (token !== REVENUECAT_WEBHOOK_SECRET) {
+    return json({ error: "Unauthorized" }, 401);
   }
 
   try {
@@ -74,8 +75,8 @@ Deno.serve(async (req: Request) => {
       isPremium = true;
     } else if (REVOKE_EVENTS.has(eventType)) {
       isPremium = false;
-    } else if (CANCEL_EVENTS.has(eventType)) {
-      // Cancelled but still premium until expiration
+    } else if (GRACE_EVENTS.has(eventType)) {
+      // Cancelled/billing issue — still premium until expiration
       isPremium = expiresAt ? new Date(expiresAt) > new Date() : false;
     } else {
       // Unknown event type — log it but don't fail

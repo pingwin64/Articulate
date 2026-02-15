@@ -121,7 +121,7 @@ export function usePronunciationDrill(
 
       // Track in store
       const store = useSettingsStore.getState();
-      store.totalPronunciationAttempts = (store.totalPronunciationAttempts || 0) + 1;
+      const newAttempts = (store.totalPronunciationAttempts || 0) + 1;
       const history = { ...store.pronunciationHistory };
       const wordKey = word.toLowerCase();
       if (!history[wordKey]) {
@@ -144,7 +144,7 @@ export function usePronunciationDrill(
 
       useSettingsStore.setState({
         pronunciationHistory: history,
-        totalPronunciationAttempts: store.totalPronunciationAttempts,
+        totalPronunciationAttempts: newAttempts,
       });
 
       return result;

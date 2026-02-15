@@ -97,7 +97,7 @@ export function GlassSlider({
     runOnJS(handleValueChange)(newVal);
   });
 
-  const composed = Gesture.Exclusive(tapGesture, gesture);
+  const composed = Gesture.Exclusive(gesture, tapGesture);
 
   const fillStyle = useAnimatedStyle(() => ({
     width: thumbX.value,

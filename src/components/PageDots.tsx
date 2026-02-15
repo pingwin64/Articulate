@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
+  useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
 import { useTheme } from '../hooks/useTheme';
@@ -14,10 +15,17 @@ interface PageDotsProps {
 
 function Dot({ active }: { active: boolean }) {
   const { colors } = useTheme();
+  const width = useSharedValue(active ? 24 : 8);
+  const opacity = useSharedValue(active ? 1 : 0.3);
+
+  useEffect(() => {
+    width.value = withSpring(active ? 24 : 8, Springs.snappy);
+    opacity.value = withSpring(active ? 1 : 0.3, Springs.snappy);
+  }, [active, width, opacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    width: withSpring(active ? 24 : 8, Springs.snappy),
-    opacity: withSpring(active ? 1 : 0.3, Springs.snappy),
+    width: width.value,
+    opacity: opacity.value,
     backgroundColor: colors.primary,
   }));
 
