@@ -1660,7 +1660,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'articulate-settings',
-      version: 32,
+      version: 33,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -1984,13 +1984,12 @@ export const useSettingsStore = create<SettingsState>()(
           persisted.windDownReminderMinute = persisted.windDownReminderMinute ?? 30;
         }
         if (version < 32) {
-<<<<<<< HEAD
-          // v32: Device user ID for server-side rate limiting & analytics
-          persisted.deviceUserId = persisted.deviceUserId ?? crypto.randomUUID();
-=======
           // v32: Streak at risk popup dismissal tracking
           persisted.streakAtRiskDismissedDate = persisted.streakAtRiskDismissedDate ?? null;
->>>>>>> be1a9cd5d1d4731ca32c207b473dd3d9dba6677f
+        }
+        if (version < 33) {
+          // v33: Device user ID for server-side rate limiting & analytics
+          persisted.deviceUserId = persisted.deviceUserId ?? crypto.randomUUID();
         }
         return persisted;
       },

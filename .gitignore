@@ -42,6 +42,10 @@ yarn-error.*
 /ios
 /android
 
+# Next.js (web landing page)
+web/.next/
+web/out/
+
 # Supabase CLI temp
 supabase/.temp/
 
