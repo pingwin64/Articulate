@@ -1,6 +1,9 @@
 import { useColorScheme } from 'react-native';
 import { Colors, GlassStyles, BackgroundThemes, WindDownColors, type ThemeMode } from '../design/theme';
 import { useSettingsStore } from '../lib/store/settings';
+import { isLiquidGlassAvailable, isGlassEffectAPIAvailable } from 'expo-glass-effect';
+
+const isLiquidGlass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
 
 export function useTheme() {
   const systemScheme = useColorScheme();
@@ -38,6 +41,7 @@ export function useTheme() {
       },
       glass: { ...baseGlass, fill: warmGlass.fill, border: warmGlass.border },
       isDark: mode === 'dark',
+      isLiquidGlass,
       windDownMode: true as const,
     };
   }
@@ -47,6 +51,7 @@ export function useTheme() {
     colors: { ...baseColors, bg },
     glass: baseGlass,
     isDark: mode === 'dark',
+    isLiquidGlass,
     windDownMode: false as const,
   };
 }

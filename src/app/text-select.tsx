@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { StyleSheet, View, Text, ScrollView, Pressable } from 'react-native';
+import { StyleSheet, View, Text, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -8,10 +8,14 @@ import { useSettingsStore } from '../lib/store/settings';
 import { categories, TextEntry, TextDifficulty } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
+import { GlassSegmentedControl } from '../components/GlassSegmentedControl';
 import { Feather } from '@expo/vector-icons';
 import { Spacing } from '../design/theme';
 
 type DifficultyFilter = 'all' | TextDifficulty;
+
+const FILTER_OPTIONS = ['All', 'Beginner', 'Intermediate', 'Advanced'];
+const FILTER_KEYS: DifficultyFilter[] = ['all', 'beginner', 'intermediate', 'advanced'];
 
 // Difficulty badge colors - subtle glass aesthetic
 const DIFFICULTY_COLORS = {
@@ -30,7 +34,7 @@ const DIFFICULTY_COLORS = {
 };
 
 export default function TextSelectScreen() {
-  const { colors, glass, isDark } = useTheme();
+  const { colors } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ categoryKey: string }>();
   const selectedCategoryKey = useSettingsStore((s) => s.selectedCategoryKey);
@@ -79,9 +83,6 @@ export default function TextSelectScreen() {
   }, [category]);
 
   const handleFilterChange = (filter: DifficultyFilter) => {
-    if (hapticEnabled) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
     setDifficultyFilter(filter);
   };
 
@@ -147,74 +148,33 @@ export default function TextSelectScreen() {
 
       {/* Difficulty Filter Tabs */}
       <View style={styles.filterContainer}>
-        <Pressable
-          onPress={() => handleFilterChange('all')}
-          style={[
-            styles.filterChip,
-            { backgroundColor: difficultyFilter === 'all' ? glass.fill : 'transparent' },
-            difficultyFilter === 'all' && { borderColor: glass.border, borderWidth: 1 },
-          ]}
-        >
-          <Text style={[styles.filterChipText, { color: difficultyFilter === 'all' ? colors.primary : colors.muted }]}>
-            All
-          </Text>
-          {category && category.texts.length > 0 && (
-            <Text style={[styles.filterCount, { color: difficultyFilter === 'all' ? colors.primary : colors.muted }]}>
-              {category.texts.length}
-            </Text>
-          )}
-        </Pressable>
-        <Pressable
-          onPress={() => handleFilterChange('beginner')}
-          style={[
-            styles.filterChip,
-            { backgroundColor: difficultyFilter === 'beginner' ? DIFFICULTY_COLORS.beginner.bg : 'transparent' },
-            difficultyFilter === 'beginner' && { borderColor: DIFFICULTY_COLORS.beginner.text + '40', borderWidth: 1 },
-          ]}
-        >
-          <Text style={[styles.filterChipText, { color: difficultyFilter === 'beginner' ? DIFFICULTY_COLORS.beginner.text : colors.muted }]}>
-            Beginner
-          </Text>
-          {difficultyCounts.beginner > 0 && (
-            <Text style={[styles.filterCount, { color: difficultyFilter === 'beginner' ? DIFFICULTY_COLORS.beginner.text : colors.muted }]}>
-              {difficultyCounts.beginner}
-            </Text>
-          )}
-        </Pressable>
-        <Pressable
-          onPress={() => handleFilterChange('intermediate')}
-          style={[
-            styles.filterChip,
-            { backgroundColor: difficultyFilter === 'intermediate' ? DIFFICULTY_COLORS.intermediate.bg : 'transparent' },
-            difficultyFilter === 'intermediate' && { borderColor: DIFFICULTY_COLORS.intermediate.text + '40', borderWidth: 1 },
-          ]}
-        >
-          <Text style={[styles.filterChipText, { color: difficultyFilter === 'intermediate' ? DIFFICULTY_COLORS.intermediate.text : colors.muted }]}>
-            Intermediate
-          </Text>
-          {difficultyCounts.intermediate > 0 && (
-            <Text style={[styles.filterCount, { color: difficultyFilter === 'intermediate' ? DIFFICULTY_COLORS.intermediate.text : colors.muted }]}>
-              {difficultyCounts.intermediate}
-            </Text>
-          )}
-        </Pressable>
-        <Pressable
-          onPress={() => handleFilterChange('advanced')}
-          style={[
-            styles.filterChip,
-            { backgroundColor: difficultyFilter === 'advanced' ? DIFFICULTY_COLORS.advanced.bg : 'transparent' },
-            difficultyFilter === 'advanced' && { borderColor: DIFFICULTY_COLORS.advanced.text + '40', borderWidth: 1 },
-          ]}
-        >
-          <Text style={[styles.filterChipText, { color: difficultyFilter === 'advanced' ? DIFFICULTY_COLORS.advanced.text : colors.muted }]}>
-            Advanced
-          </Text>
-          {difficultyCounts.advanced > 0 && (
-            <Text style={[styles.filterCount, { color: difficultyFilter === 'advanced' ? DIFFICULTY_COLORS.advanced.text : colors.muted }]}>
-              {difficultyCounts.advanced}
-            </Text>
-          )}
-        </Pressable>
+        <GlassSegmentedControl
+          options={FILTER_OPTIONS}
+          selectedIndex={FILTER_KEYS.indexOf(difficultyFilter)}
+          onSelect={(i) => handleFilterChange(FILTER_KEYS[i])}
+          renderOption={(option, index, isSelected) => {
+            const filterKey = FILTER_KEYS[index];
+            const count = filterKey === 'all'
+              ? category.texts.length
+              : difficultyCounts[filterKey] ?? 0;
+            const activeColor = filterKey === 'all'
+              ? colors.primary
+              : DIFFICULTY_COLORS[filterKey as keyof typeof DIFFICULTY_COLORS]?.text ?? colors.primary;
+
+            return (
+              <View style={styles.filterOption}>
+                <Text style={[styles.filterOptionText, { color: isSelected ? activeColor : colors.muted }]}>
+                  {option}
+                </Text>
+                {count > 0 && (
+                  <Text style={[styles.filterCount, { color: isSelected ? activeColor : colors.muted }]}>
+                    {count}
+                  </Text>
+                )}
+              </View>
+            );
+          }}
+        />
       </View>
 
       {lockedMessage && (
@@ -397,19 +357,14 @@ const styles = StyleSheet.create({
   },
   // Filter tabs
   filterContainer: {
-    flexDirection: 'row',
-    gap: 4,
     marginBottom: Spacing.md,
   },
-  filterChip: {
+  filterOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 16,
     gap: 4,
   },
-  filterChipText: {
+  filterOptionText: {
     fontSize: 13,
     fontWeight: '500',
   },

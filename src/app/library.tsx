@@ -19,12 +19,16 @@ import { useSettingsStore } from '../lib/store/settings';
 import { categories } from '../lib/data/categories';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
+import { GlassSegmentedControl } from '../components/GlassSegmentedControl';
 import { Paywall } from '../components/Paywall';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import { Spacing } from '../design/theme';
 
 type SortMode = 'recent' | 'alpha' | 'mostRead';
 type TabMode = 'myTexts' | 'favorites' | 'words';
+
+const TAB_OPTIONS = ['My Texts', 'Favorites', 'My Words'];
+const TAB_KEYS: TabMode[] = ['myTexts', 'favorites', 'words'];
 
 const SOURCE_ICONS: Record<string, FeatherIconName> = {
   paste: 'clipboard',
@@ -285,81 +289,36 @@ export default function LibraryScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Tab selector */}
-        <Animated.View entering={FadeIn.duration(300)} style={styles.tabRow}>
-          <Pressable
-            onPress={() => {
-              setActiveTab('myTexts');
-              if (hapticFeedback) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-            style={[
-              styles.tabButton,
-              { borderColor: glass.border },
-              activeTab === 'myTexts' && styles.tabButtonActive,
-              activeTab === 'myTexts' && { borderColor: colors.primary },
-            ]}
-          >
-            <Feather name="edit-3" size={14} color={activeTab === 'myTexts' ? colors.primary : colors.muted} />
-            <Text style={[styles.tabButtonText, { color: activeTab === 'myTexts' ? colors.primary : colors.muted }]}>
-              My Texts
-            </Text>
-            {customTexts.length > 0 && (
-              <View style={[styles.tabBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' }]}>
-                <Text style={[styles.tabBadgeText, { color: colors.muted }]}>{customTexts.length}</Text>
-              </View>
-            )}
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              setActiveTab('favorites');
-              if (hapticFeedback) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-            style={[
-              styles.tabButton,
-              { borderColor: glass.border },
-              activeTab === 'favorites' && styles.tabButtonActive,
-              activeTab === 'favorites' && { borderColor: colors.primary },
-            ]}
-          >
-            <Feather name="heart" size={14} color={activeTab === 'favorites' ? colors.primary : colors.muted} />
-            <Text style={[styles.tabButtonText, { color: activeTab === 'favorites' ? colors.primary : colors.muted }]}>
-              Favorites
-            </Text>
-            {isPremium ? (
-              favoriteTexts.length > 0 && (
-                <View style={[styles.tabBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' }]}>
-                  <Text style={[styles.tabBadgeText, { color: colors.muted }]}>{favoriteTexts.length}</Text>
+        <Animated.View entering={FadeIn.duration(300)}>
+          <GlassSegmentedControl
+            options={TAB_OPTIONS}
+            selectedIndex={TAB_KEYS.indexOf(activeTab)}
+            onSelect={(i) => setActiveTab(TAB_KEYS[i])}
+            renderOption={(option, index, isSelected) => {
+              const icons: FeatherIconName[] = ['edit-3', 'heart', 'bookmark'];
+              const tabKey = TAB_KEYS[index];
+              const count = tabKey === 'myTexts' ? customTexts.length
+                : tabKey === 'favorites' ? favoriteTexts.length
+                : savedWords.length;
+              const showLock = !isPremium && tabKey !== 'myTexts';
+
+              return (
+                <View style={styles.tabOption}>
+                  <Feather name={icons[index]} size={14} color={isSelected ? colors.primary : colors.muted} />
+                  <Text style={[styles.tabOptionText, { color: isSelected ? colors.primary : colors.muted }]}>
+                    {option}
+                  </Text>
+                  {showLock ? (
+                    <Feather name="lock" size={12} color={colors.muted} />
+                  ) : count > 0 ? (
+                    <View style={[styles.tabBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' }]}>
+                      <Text style={[styles.tabBadgeText, { color: colors.muted }]}>{count}</Text>
+                    </View>
+                  ) : null}
                 </View>
-              )
-            ) : (
-              <Feather name="lock" size={14} color={colors.muted} />
-            )}
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              setActiveTab('words');
-              if (hapticFeedback) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              );
             }}
-            style={[
-              styles.tabButton,
-              { borderColor: glass.border },
-              activeTab === 'words' && styles.tabButtonActive,
-              activeTab === 'words' && { borderColor: colors.primary },
-            ]}
-          >
-            <Feather name="bookmark" size={14} color={activeTab === 'words' ? colors.primary : colors.muted} />
-            <Text style={[styles.tabButtonText, { color: activeTab === 'words' ? colors.primary : colors.muted }]}>
-              My Words
-            </Text>
-            {isPremium ? (
-              savedWords.length > 0 && (
-                <View style={[styles.tabBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' }]}>
-                  <Text style={[styles.tabBadgeText, { color: colors.muted }]}>{savedWords.length}</Text>
-                </View>
-              )
-            ) : (
-              <Feather name="lock" size={14} color={colors.muted} />
-            )}
-          </Pressable>
+          />
         </Animated.View>
 
         {/* Search bar */}
@@ -894,33 +853,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   // Tabs
-  tabRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  tabButton: {
-    flex: 1,
+  tabOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 4,
-    paddingVertical: 12,
-    paddingHorizontal: 6,
-    borderRadius: 12,
-    borderWidth: 0.5,
   },
-  tabButtonActive: {
-    borderWidth: 1.5,
-  },
-  tabButtonText: {
+  tabOptionText: {
     fontSize: 13,
     fontWeight: '600',
   },
   tabBadge: {
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 8,
-    minWidth: 22,
+    minWidth: 20,
     alignItems: 'center',
   },
   tabBadgeText: {

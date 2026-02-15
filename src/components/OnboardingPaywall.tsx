@@ -96,6 +96,12 @@ export function OnboardingPaywall({
   const chosePremiumBg = backgroundTheme !== 'default';
   const hasAnyPremiumChoice = chosePremiumFont || chosePremiumColor || chosePremiumBg;
 
+  // Helper to get price string from packages or fallback
+  const getPriceString = (type: string, fallback: string): string => {
+    const pkg = packages.find((p) => p.packageType === type);
+    return pkg?.product?.priceString ?? fallback;
+  };
+
   const handleSelectPlan = (plan: Plan) => {
     if (hapticFeedback) {
       Haptics.selectionAsync();
@@ -319,7 +325,7 @@ export function OnboardingPaywall({
               </View>
               <View style={[styles.planDetail, { backgroundColor: glass.fill, borderColor: glass.border }]}>
                 <Text style={[styles.planDetailPrice, { color: colors.primary }]}>
-                  {selectedPlan === 'monthly' ? '$9.99' : selectedPlan === 'weekly' ? '$2.99' : '$24.99'}
+                  {selectedPlan === 'monthly' ? getPriceString('MONTHLY', '$9.99') : selectedPlan === 'weekly' ? getPriceString('WEEKLY', '$2.99') : getPriceString('LIFETIME', '$24.99')}
                   <Text style={[styles.planDetailPeriod, { color: colors.muted }]}>
                     {selectedPlan === 'monthly' ? '/month' : selectedPlan === 'weekly' ? '/week' : ''}
                   </Text>
@@ -347,8 +353,8 @@ export function OnboardingPaywall({
                   },
                 ]}
               >
-                <Text style={[styles.planNameCompact, { color: colors.muted }]}>POPULAR</Text>
-                <Text style={[styles.planPriceCompact, { color: colors.primary }]} numberOfLines={1} adjustsFontSizeToFit>$9.99</Text>
+                <Text style={[styles.planNameCompact, { color: '#34C759' }]}>MOST POPULAR</Text>
+                <Text style={[styles.planPriceCompact, { color: colors.primary }]} numberOfLines={1} adjustsFontSizeToFit>{getPriceString('MONTHLY', '$9.99')}</Text>
                 <Text style={[styles.planLabelCompact, { color: colors.primary }]}>Monthly</Text>
               </Pressable>
               <Pressable
@@ -363,7 +369,7 @@ export function OnboardingPaywall({
                 ]}
               >
                 <Text style={[styles.planNameCompact, { color: 'transparent' }]}>.</Text>
-                <Text style={[styles.planPriceCompact, { color: colors.primary }]} numberOfLines={1} adjustsFontSizeToFit>$2.99</Text>
+                <Text style={[styles.planPriceCompact, { color: colors.primary }]} numberOfLines={1} adjustsFontSizeToFit>{getPriceString('WEEKLY', '$2.99')}</Text>
                 <Text style={[styles.planLabelCompact, { color: colors.primary }]}>Weekly</Text>
               </Pressable>
               <Pressable
@@ -377,8 +383,8 @@ export function OnboardingPaywall({
                   },
                 ]}
               >
-                <Text style={[styles.planNameCompact, { color: '#22C55E' }]}>BEST</Text>
-                <Text style={[styles.planPriceCompact, { color: colors.primary }]} numberOfLines={1} adjustsFontSizeToFit>$24.99</Text>
+                <Text style={[styles.planNameCompact, { color: colors.secondary }]}>BEST VALUE</Text>
+                <Text style={[styles.planPriceCompact, { color: colors.primary }]} numberOfLines={1} adjustsFontSizeToFit>{getPriceString('LIFETIME', '$24.99')}</Text>
                 <Text style={[styles.planLabelCompact, { color: colors.primary }]}>Lifetime</Text>
               </Pressable>
             </Animated.View>
@@ -388,9 +394,9 @@ export function OnboardingPaywall({
           {layoutVariant === 'C' && (
             <Animated.View entering={FadeIn.delay(300).duration(400)} style={styles.variantCContainer}>
               {[
-                { plan: 'monthly' as Plan, price: '$9.99', label: 'Monthly', badge: 'MOST POPULAR', badgeColor: colors.primary },
-                { plan: 'weekly' as Plan, price: '$2.99', label: 'Weekly', badge: null, badgeColor: null },
-                { plan: 'lifetime' as Plan, price: '$24.99', label: 'Lifetime', badge: 'BEST VALUE', badgeColor: '#22C55E' },
+                { plan: 'monthly' as Plan, price: getPriceString('MONTHLY', '$9.99'), label: 'Monthly', badge: 'MOST POPULAR', badgeColor: '#34C759', badgeTextColor: '#fff' },
+                { plan: 'weekly' as Plan, price: getPriceString('WEEKLY', '$2.99'), label: 'Weekly', badge: null, badgeColor: null, badgeTextColor: null },
+                { plan: 'lifetime' as Plan, price: getPriceString('LIFETIME', '$24.99'), label: 'Lifetime', badge: 'BEST VALUE', badgeColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.05)', badgeTextColor: colors.secondary },
               ].map((item) => (
                 <Pressable
                   key={item.plan}
@@ -408,7 +414,7 @@ export function OnboardingPaywall({
                     <Text style={[styles.planRowItemLabel, { color: colors.primary }]}>{item.label}</Text>
                     {item.badge && (
                       <View style={[styles.planRowItemBadge, { backgroundColor: item.badgeColor }]}>
-                        <Text style={styles.planRowItemBadgeText}>{item.badge}</Text>
+                        <Text style={[styles.planRowItemBadgeText, { color: item.badgeTextColor }]}>{item.badge}</Text>
                       </View>
                     )}
                   </View>
@@ -433,8 +439,8 @@ export function OnboardingPaywall({
                     },
                   ]}
                 >
-                  <Text style={[styles.planBadgeTextD, { color: colors.primary }]}>MOST POPULAR</Text>
-                  <Text style={[styles.planPriceD, { color: colors.primary }]}>$9.99</Text>
+                  <Text style={[styles.planBadgeTextD, { color: '#34C759' }]}>MOST POPULAR</Text>
+                  <Text style={[styles.planPriceD, { color: colors.primary }]}>{getPriceString('MONTHLY', '$9.99')}</Text>
                   <Text style={[styles.planLabelD, { color: colors.muted }]}>Monthly</Text>
                 </Pressable>
                 <Pressable
@@ -448,8 +454,8 @@ export function OnboardingPaywall({
                     },
                   ]}
                 >
-                  <Text style={[styles.planBadgeTextD, { color: '#22C55E' }]}>BEST VALUE</Text>
-                  <Text style={[styles.planPriceD, { color: colors.primary }]}>$24.99</Text>
+                  <Text style={[styles.planBadgeTextD, { color: colors.secondary }]}>BEST VALUE</Text>
+                  <Text style={[styles.planPriceD, { color: colors.primary }]}>{getPriceString('LIFETIME', '$24.99')}</Text>
                   <Text style={[styles.planLabelD, { color: colors.muted }]}>Lifetime</Text>
                 </Pressable>
               </View>
@@ -461,7 +467,7 @@ export function OnboardingPaywall({
                 ]}
               >
                 <Text style={[styles.weeklyLinkText, { color: selectedPlan === 'weekly' ? colors.primary : colors.muted }]}>
-                  {selectedPlan === 'weekly' ? '✓ Weekly selected · $2.99/week' : 'Or try weekly · $2.99/week'}
+                  {selectedPlan === 'weekly' ? `✓ Weekly selected · ${getPriceString('WEEKLY', '$2.99')}/week` : `Or try weekly · ${getPriceString('WEEKLY', '$2.99')}/week`}
                 </Text>
               </Pressable>
             </Animated.View>
@@ -481,8 +487,8 @@ export function OnboardingPaywall({
                   },
                 ]}
               >
-                <Text style={[styles.planBadgeE, { color: colors.primary }]}>POPULAR</Text>
-                <Text style={[styles.planPriceE, { color: colors.primary }]}>$9.99</Text>
+                <Text style={[styles.planBadgeE, { color: '#34C759' }]}>MOST POPULAR</Text>
+                <Text style={[styles.planPriceE, { color: colors.primary }]}>{getPriceString('MONTHLY', '$9.99')}</Text>
                 <Text style={[styles.planLabelE, { color: colors.muted }]}>Monthly</Text>
               </Pressable>
               <Pressable
@@ -497,7 +503,7 @@ export function OnboardingPaywall({
                 ]}
               >
                 <Text style={[styles.planBadgeE, { color: 'transparent' }]}>.</Text>
-                <Text style={[styles.planPriceE, { color: colors.primary }]}>$2.99</Text>
+                <Text style={[styles.planPriceE, { color: colors.primary }]}>{getPriceString('WEEKLY', '$2.99')}</Text>
                 <Text style={[styles.planLabelE, { color: colors.muted }]}>Weekly</Text>
               </Pressable>
               <Pressable
@@ -511,8 +517,8 @@ export function OnboardingPaywall({
                   },
                 ]}
               >
-                <Text style={[styles.planBadgeE, { color: '#22C55E' }]}>BEST</Text>
-                <Text style={[styles.planPriceE, { color: colors.primary }]}>$24.99</Text>
+                <Text style={[styles.planBadgeE, { color: colors.secondary }]}>BEST VALUE</Text>
+                <Text style={[styles.planPriceE, { color: colors.primary }]}>{getPriceString('LIFETIME', '$24.99')}</Text>
                 <Text style={[styles.planLabelE, { color: colors.muted }]}>Lifetime</Text>
               </Pressable>
             </Animated.View>
@@ -532,11 +538,11 @@ export function OnboardingPaywall({
                   },
                 ]}
               >
-                <View style={[styles.planBadgeF, { backgroundColor: colors.primary }]}>
-                  <Text style={[styles.planBadgeTextF, { color: colors.bg }]}>POPULAR</Text>
+                <View style={[styles.planBadgeF, { backgroundColor: '#34C759' }]}>
+                  <Text style={[styles.planBadgeTextF, { color: '#fff' }]}>MOST POPULAR</Text>
                 </View>
                 <Text style={[styles.planNameF, { color: colors.primary }]}>Monthly</Text>
-                <Text style={[styles.planPriceF, { color: colors.primary }]}>$9.99</Text>
+                <Text style={[styles.planPriceF, { color: colors.primary }]}>{getPriceString('MONTHLY', '$9.99')}</Text>
                 <Text style={[styles.planPeriodF, { color: colors.muted }]}>$0.33/day</Text>
               </Pressable>
               <Pressable
@@ -551,7 +557,7 @@ export function OnboardingPaywall({
                 ]}
               >
                 <Text style={[styles.planNameF, { color: colors.primary, marginTop: 18 }]}>Weekly</Text>
-                <Text style={[styles.planPriceF, { color: colors.primary }]}>$2.99</Text>
+                <Text style={[styles.planPriceF, { color: colors.primary }]}>{getPriceString('WEEKLY', '$2.99')}</Text>
                 <Text style={[styles.planPeriodF, { color: colors.muted }]}>$0.43/day</Text>
               </Pressable>
               <Pressable
@@ -565,11 +571,11 @@ export function OnboardingPaywall({
                   },
                 ]}
               >
-                <View style={[styles.planBadgeF, { backgroundColor: '#22C55E' }]}>
-                  <Text style={[styles.planBadgeTextF, { color: '#FFF' }]}>BEST</Text>
+                <View style={[styles.planBadgeF, { backgroundColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.05)' }]}>
+                  <Text style={[styles.planBadgeTextF, { color: colors.secondary }]}>BEST VALUE</Text>
                 </View>
                 <Text style={[styles.planNameF, { color: colors.primary }]}>Lifetime</Text>
-                <Text style={[styles.planPriceF, { color: colors.primary }]}>$24.99</Text>
+                <Text style={[styles.planPriceF, { color: colors.primary }]}>{getPriceString('LIFETIME', '$24.99')}</Text>
                 <Text style={[styles.planPeriodF, { color: colors.muted }]}>One-time</Text>
               </Pressable>
             </Animated.View>
@@ -594,10 +600,10 @@ export function OnboardingPaywall({
                   <Text style={[styles.planRowGSub, { color: colors.muted }]}>$0.33/day</Text>
                 </View>
                 <View style={styles.planRowGRight}>
-                  <View style={[styles.planRowGBadge, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.planRowGBadgeText}>POPULAR</Text>
+                  <View style={[styles.planRowGBadge, { backgroundColor: '#34C759' }]}>
+                    <Text style={styles.planRowGBadgeText}>MOST POPULAR</Text>
                   </View>
-                  <Text style={[styles.planRowGPrice, { color: colors.primary }]}>$9.99</Text>
+                  <Text style={[styles.planRowGPrice, { color: colors.primary }]}>{getPriceString('MONTHLY', '$9.99')}</Text>
                 </View>
               </Pressable>
               <Pressable
@@ -615,7 +621,7 @@ export function OnboardingPaywall({
                   <Text style={[styles.planRowGLabel, { color: colors.primary }]}>Weekly</Text>
                   <Text style={[styles.planRowGSub, { color: colors.muted }]}>$0.43/day</Text>
                 </View>
-                <Text style={[styles.planRowGPrice, { color: colors.primary }]}>$2.99</Text>
+                <Text style={[styles.planRowGPrice, { color: colors.primary }]}>{getPriceString('WEEKLY', '$2.99')}</Text>
               </Pressable>
               <Pressable
                 onPress={() => handleSelectPlan('lifetime')}
@@ -633,10 +639,10 @@ export function OnboardingPaywall({
                   <Text style={[styles.planRowGSub, { color: colors.muted }]}>One-time</Text>
                 </View>
                 <View style={styles.planRowGRight}>
-                  <View style={[styles.planRowGBadge, { backgroundColor: '#22C55E' }]}>
-                    <Text style={styles.planRowGBadgeText}>BEST</Text>
+                  <View style={[styles.planRowGBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.05)' }]}>
+                    <Text style={[styles.planRowGBadgeText, { color: colors.secondary }]}>BEST VALUE</Text>
                   </View>
-                  <Text style={[styles.planRowGPrice, { color: colors.primary }]}>$24.99</Text>
+                  <Text style={[styles.planRowGPrice, { color: colors.primary }]}>{getPriceString('LIFETIME', '$24.99')}</Text>
                 </View>
               </Pressable>
             </Animated.View>
@@ -666,16 +672,16 @@ export function OnboardingPaywall({
               </View>
               <View style={styles.pricesRowH}>
                 <View style={[styles.priceItemH, selectedPlan === 'monthly' && styles.priceItemHActive]}>
-                  <Text style={[styles.priceH, { color: selectedPlan === 'monthly' ? colors.primary : colors.muted }]}>$9.99</Text>
-                  <Text style={[styles.priceLabelH, { color: colors.muted }]}>POPULAR</Text>
+                  <Text style={[styles.priceH, { color: selectedPlan === 'monthly' ? colors.primary : colors.muted }]}>{getPriceString('MONTHLY', '$9.99')}</Text>
+                  <Text style={[styles.priceLabelH, { color: '#34C759' }]}>MOST POPULAR</Text>
                 </View>
                 <View style={[styles.priceItemH, selectedPlan === 'weekly' && styles.priceItemHActive]}>
-                  <Text style={[styles.priceH, { color: selectedPlan === 'weekly' ? colors.primary : colors.muted }]}>$2.99</Text>
+                  <Text style={[styles.priceH, { color: selectedPlan === 'weekly' ? colors.primary : colors.muted }]}>{getPriceString('WEEKLY', '$2.99')}</Text>
                   <Text style={[styles.priceLabelH, { color: colors.muted }]}> </Text>
                 </View>
                 <View style={[styles.priceItemH, selectedPlan === 'lifetime' && styles.priceItemHActive]}>
-                  <Text style={[styles.priceH, { color: selectedPlan === 'lifetime' ? colors.primary : colors.muted }]}>$24.99</Text>
-                  <Text style={[styles.priceLabelH, { color: '#22C55E' }]}>BEST</Text>
+                  <Text style={[styles.priceH, { color: selectedPlan === 'lifetime' ? colors.primary : colors.muted }]}>{getPriceString('LIFETIME', '$24.99')}</Text>
+                  <Text style={[styles.priceLabelH, { color: colors.secondary }]}>BEST VALUE</Text>
                 </View>
               </View>
             </Animated.View>

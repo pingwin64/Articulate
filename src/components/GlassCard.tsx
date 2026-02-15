@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { GlassView } from 'expo-glass-effect';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
@@ -29,7 +30,7 @@ interface GlassCardProps {
 }
 
 export const GlassCard = forwardRef<View, GlassCardProps>(function GlassCard({ children, style, onPress, disabled, accentBorder }, ref) {
-  const { colors, glass, isDark } = useTheme();
+  const { colors, glass, isDark, isLiquidGlass } = useTheme();
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
   const pressed = useSharedValue(0);
 
@@ -56,7 +57,16 @@ export const GlassCard = forwardRef<View, GlassCardProps>(function GlassCard({ c
     transform: [{ scale: interpolate(pressed.value, [0, 1], [1, 0.97]) }],
   }));
 
-  const cardContent = (
+  const cardContent = isLiquidGlass ? (
+    <View style={styles.inner}>
+      <GlassView
+        style={StyleSheet.absoluteFill}
+        glassEffectStyle="regular"
+        colorScheme={isDark ? 'dark' : 'light'}
+      />
+      <View style={styles.content}>{children}</View>
+    </View>
+  ) : (
     <View style={styles.inner}>
       <BlurView
         intensity={glass.blurIntensity}

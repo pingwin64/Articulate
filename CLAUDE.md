@@ -233,7 +233,7 @@ npx expo run:ios
 
 ## Animation Conventions
 
-- Use `Springs` from `theme.ts` (default, gentle, bouncy, snappy) — don't hardcode spring configs
+- Use `Springs` from `theme.ts` (default, gentle, snappy) — don't hardcode spring configs
 - Press feedback: scale 1 -> 0.96 with 80ms press, 150ms release
 - Entry animations: `FadeIn.delay(N).duration(300-400)` with staggered delays
 - **Prefer `withTiming` + `Easing` over `withSpring`** for selection/check animations. Bouncy springs (low damping, overshoot) feel gamified — not "liquid glass minimalism." Use `withTiming` with `Easing.out(Easing.ease)` or `Easing.out(Easing.cubic)` for smooth, controlled motion.

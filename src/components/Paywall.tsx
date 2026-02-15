@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../hooks/useTheme';
 import { useSettingsStore } from '../lib/store/settings';
@@ -516,9 +516,9 @@ export function Paywall({ visible, onDismiss, onSubscribe, context: propContext,
             {/* Social Proof */}
             <Animated.View entering={FadeIn.delay(50).duration(300)} style={styles.socialProofContainer}>
               <View style={[styles.socialProofPill, { backgroundColor: glass.fill }]}>
-                <Feather name="users" size={14} color={colors.secondary} />
+                <MaterialCommunityIcons name="brain" size={14} color={colors.secondary} />
                 <Text style={[styles.socialProofText, { color: colors.secondary }]}>
-                  Join 10,000+ focused readers
+                  Backed by cognitive science
                 </Text>
               </View>
             </Animated.View>

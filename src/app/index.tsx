@@ -230,11 +230,11 @@ function OnboardingSilentStart({ onNext }: { onNext: () => void }) {
       glowScale.value = 0;
       glowOpacity.value = 0;
       glowScale.value = withSequence(
-        withSpring(1.5, { damping: 10, stiffness: 80 }),
+        withTiming(1.5, { duration: 400, easing: Easing.out(Easing.cubic) }),
         withTiming(0, { duration: 1000 })
       );
       glowOpacity.value = withSequence(
-        withSpring(0.8, { damping: 10, stiffness: 80 }),
+        withTiming(0.8, { duration: 400, easing: Easing.out(Easing.cubic) }),
         withTiming(0, { duration: 1000 })
       );
     } else {
@@ -1019,7 +1019,7 @@ function CategoryTile({ category, index, onPress, textCount, isLocked = false }:
       scale.value = withSpring(0.95, { damping: 15, stiffness: 200 });
     })
     .onFinalize(() => {
-      scale.value = withSpring(1, { damping: 10, stiffness: 180 });
+      scale.value = withSpring(1, { damping: 18, stiffness: 250 });
     })
     .onEnd(() => {
       runOnJS(handlePress)();
@@ -1095,7 +1095,7 @@ function MoreTile({ count, onPress, index, expanded }: MoreTileProps) {
       scale.value = withSpring(0.95, { damping: 15, stiffness: 200 });
     })
     .onFinalize(() => {
-      scale.value = withSpring(1, { damping: 10, stiffness: 180 });
+      scale.value = withSpring(1, { damping: 18, stiffness: 250 });
     })
     .onEnd(() => {
       runOnJS(handlePress)();
@@ -1168,7 +1168,7 @@ function useBookAnimation(index: number) {
 
   useEffect(() => {
     const d = index * 100;
-    entryTranslateY.value = withDelay(d, withSpring(0, { damping: 12, stiffness: 100 }));
+    entryTranslateY.value = withDelay(d, withTiming(0, { duration: 350, easing: Easing.out(Easing.cubic) }));
     entryOpacity.value = withDelay(d, withTiming(1, { duration: 300 }));
   }, []);
 
@@ -1185,8 +1185,8 @@ function useBookAnimation(index: number) {
     scale.value = withSpring(1.04, { damping: 15, stiffness: 200 });
   };
   const handlePressOut = () => {
-    translateY.value = withSpring(0, { damping: 12, stiffness: 180 });
-    scale.value = withSpring(1, { damping: 12, stiffness: 180 });
+    translateY.value = withSpring(0, { damping: 18, stiffness: 250 });
+    scale.value = withSpring(1, { damping: 18, stiffness: 250 });
   };
   const handlePress = (onPress: (e: any) => void) => (e: any) => {
     if (hapticEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

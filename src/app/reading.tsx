@@ -1293,8 +1293,9 @@ const styles = StyleSheet.create({
   definitionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
     marginBottom: 2,
+    paddingRight: 36,
   },
   definitionWord: {
     fontSize: 28,

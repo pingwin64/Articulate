@@ -151,7 +151,6 @@ export const Radius = {
 export const Springs = {
   default: { damping: 15, stiffness: 150 },
   gentle: { damping: 20, stiffness: 120 },
-  bouncy: { damping: 12, stiffness: 180 },
   snappy: { damping: 18, stiffness: 250 },
 } as const;
 

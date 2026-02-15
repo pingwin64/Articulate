@@ -5,9 +5,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withTiming,
   withSequence,
+  Easing,
   FadeIn,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -462,8 +462,8 @@ export default function CompleteScreen() {
         // Animate badge fly-in
         setTimeout(() => {
           badgeScale.value = withSequence(
-            withSpring(1.2, { damping: 8, stiffness: 150 }),
-            withSpring(1, { damping: 12, stiffness: 200 })
+            withTiming(1.15, { duration: 250, easing: Easing.out(Easing.cubic) }),
+            withTiming(1, { duration: 200, easing: Easing.inOut(Easing.ease) })
           );
           badgeOpacity.value = withTiming(1, { duration: 300 });
         }, 1600);
