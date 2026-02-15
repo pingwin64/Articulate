@@ -25,6 +25,7 @@ import { GlassButton } from '../components/GlassButton';
 import { NumberRoll } from '../components/NumberRoll';
 import { Spacing } from '../design/theme';
 import { fetchDefinition, fetchEtymology } from '../lib/definitions';
+import { getWordMastery } from '../lib/spaced-repetition';
 
 type Phase = 'ready' | 'countdown' | 'review' | 'complete';
 type WordResult = 'perfect' | 'close' | 'missed';
@@ -827,6 +828,31 @@ export default function WordBankScreen() {
                     </View>
                   )}
 
+                  {(() => {
+                    const mastery = getWordMastery(currentWord, pronunciationHistory);
+                    if (mastery.dots === 0) return null;
+                    const levelName = mastery.level === 'learning' ? 'Learning'
+                      : mastery.level === 'familiar' ? 'Familiar' : 'Mastered';
+                    return (
+                      <View style={[styles.masterySection, { borderTopColor: glass.border }]}>
+                        <View style={styles.masteryDotsRowBank}>
+                          {[1, 2, 3].map((dot) => (
+                            <View
+                              key={dot}
+                              style={[
+                                styles.masteryDotBank,
+                                { backgroundColor: dot <= mastery.dots ? colors.secondary : `${colors.muted}33` },
+                              ]}
+                            />
+                          ))}
+                        </View>
+                        <Text style={[styles.masteryLevelLabel, { color: colors.muted }]}>
+                          {levelName}
+                        </Text>
+                      </View>
+                    );
+                  })()}
+
                   {drill.feedback && (
                     <View style={styles.pronunciationBadge}>
                       <Text style={[
@@ -1143,6 +1169,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontStyle: 'italic',
+  },
+  masterySection: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 0.5,
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  masteryDotsRowBank: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  masteryDotBank: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  masteryLevelLabel: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   pronunciationBadge: {
     marginTop: 12,

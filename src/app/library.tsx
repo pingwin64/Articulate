@@ -23,6 +23,7 @@ import { GlassSegmentedControl } from '../components/GlassSegmentedControl';
 import { Paywall } from '../components/Paywall';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import { Spacing } from '../design/theme';
+import { getWordMastery } from '../lib/spaced-repetition';
 
 type SortMode = 'recent' | 'alpha' | 'mostRead';
 type TabMode = 'myTexts' | 'favorites' | 'words';
@@ -737,6 +738,28 @@ export default function LibraryScreen() {
                               </Text>
                             )}
                           </View>
+                          {(() => {
+                            const mastery = getWordMastery(sw, pronunciationHistory);
+                            if (mastery.dots === 0) return null;
+                            return (
+                              <View style={styles.masteryDotsRow}>
+                                {[1, 2, 3].map((dot) => (
+                                  <View
+                                    key={dot}
+                                    style={[
+                                      styles.masteryDot,
+                                      { backgroundColor: dot <= mastery.dots ? colors.secondary : `${colors.muted}33` },
+                                    ]}
+                                  />
+                                ))}
+                                {mastery.showLabel && (
+                                  <Text style={[styles.masteryLabel, { color: colors.muted }]}>
+                                    Mastered
+                                  </Text>
+                                )}
+                              </View>
+                            );
+                          })()}
                           <Pressable
                             onPress={() => handleRemoveWord(sw.id, sw.word)}
                             style={styles.removeButton}
@@ -1071,6 +1094,23 @@ const styles = StyleSheet.create({
   wordSource: {
     fontSize: 11,
     fontWeight: '400',
+  },
+  masteryDotsRow: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 3,
+    marginRight: 4,
+    paddingTop: 2,
+  },
+  masteryDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  masteryLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 1,
   },
   removeButton: {
     width: 28,

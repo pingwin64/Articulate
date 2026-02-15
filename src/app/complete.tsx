@@ -23,9 +23,12 @@ import { Paywall } from '../components/Paywall';
 import { GoalScrollPicker } from '../components/GoalScrollPicker';
 import { OnboardingPaywall } from '../components/OnboardingPaywall';
 import { StreakCelebrationPopup } from '../components/StreakCelebrationPopup';
+import { StreakShareCard } from '../components/StreakShareCard';
+import { captureAndShare } from '../lib/share';
 import { Spacing } from '../design/theme';
 import { ALL_BADGES, getBadgeById, type Badge } from '../lib/data/badges';
 import { cancelStreakAtRiskReminder } from '../lib/notifications';
+import { getCurrentChallenge } from '../lib/data/challenges';
 import { fetchDefinition } from '../lib/definitions';
 import * as StoreReview from 'expo-store-review';
 
@@ -35,6 +38,14 @@ const DIFFICULTY_MULTIPLIERS: Record<TextDifficulty, number> = {
   intermediate: 1.5,
   advanced: 2.5,
 };
+
+function getShareStreakMessage(streak: number): string {
+  if (streak >= 30) return 'Unstoppable';
+  if (streak >= 14) return 'Consistency is key';
+  if (streak >= 7) return 'One week strong';
+  if (streak >= 3) return 'Building the habit';
+  return 'Every journey starts with a single step';
+}
 
 export default function CompleteScreen() {
   const { colors, glass } = useTheme();
@@ -246,6 +257,7 @@ export default function CompleteScreen() {
   const badgeScale = useSharedValue(0);
   const badgeOpacity = useSharedValue(0);
 
+  const shareCardRef = useRef<View>(null);
   const didRun = useRef(false);
   useEffect(() => {
     if (didRun.current) return;
@@ -573,19 +585,11 @@ export default function CompleteScreen() {
     }
 
     const streakText = currentStreak > 1 ? `${currentStreak}-day streak` : '';
-    const message = newBadge
+    const fallback = newBadge
       ? `I just earned the "${newBadge.name}" badge on Articulate! ${streakText ? `(${streakText})` : ''}\n\nImprove your reading skills one word at a time.`
       : `I just read ${wordsRead} words at ${wpm} WPM on Articulate! ${streakText ? `${streakText} and counting!` : ''}\n\nImprove your reading skills one word at a time.`;
 
-    try {
-      await Share.share({
-        message,
-        // URL would go here once app is in the App Store
-        // url: 'https://apps.apple.com/app/articulate',
-      });
-    } catch (error) {
-      // User cancelled or error occurred
-    }
+    await captureAndShare(shareCardRef, fallback, 'Share Progress');
   };
 
   const handleShareBadge = async () => {
@@ -895,8 +899,13 @@ export default function CompleteScreen() {
             {(() => {
               const milestones: Record<number, string> = {
                 1: 'Your reading habit starts here.',
+                3: '3 done. You\'re building momentum.',
                 5: '5 reads = habit forming. Keep it up.',
+                6: '6 reads. Consistency looks good on you.',
+                9: '9 done. Double digits are next.',
                 10: '10 done. You\'re in the top 5% of starters.',
+                12: '12 reads. You\'re a regular now.',
+                15: '15 done. This is who you are.',
                 25: '25 down. Your streak is real now.',
                 50: '50 completed! You\'ve read 10K+ words.',
                 100: '100 readings complete. You\'re a reading master.',
@@ -910,6 +919,32 @@ export default function CompleteScreen() {
                   </Text>
                 </Animated.View>
               );
+            })()}
+
+            {/* Weekly challenge progress nudge */}
+            {(() => {
+              const { weeklyChallengeProgress, weeklyChallengeCompleted } = useSettingsStore.getState();
+              const challenge = getCurrentChallenge();
+              const remaining = challenge.target - weeklyChallengeProgress;
+              if (weeklyChallengeCompleted) {
+                return (
+                  <Animated.View entering={FadeIn.delay(1700).duration(300)}>
+                    <Text style={[styles.milestoneText, { color: colors.secondary }]}>
+                      Weekly challenge complete!
+                    </Text>
+                  </Animated.View>
+                );
+              }
+              if (remaining > 0 && remaining < challenge.target) {
+                return (
+                  <Animated.View entering={FadeIn.delay(1700).duration(300)}>
+                    <Text style={[styles.milestoneText, { color: colors.secondary }]}>
+                      {remaining} more to finish this week's challenge
+                    </Text>
+                  </Animated.View>
+                );
+              }
+              return null;
             })()}
 
             {/* Words worth saving chips — replaces nudge text when applicable */}
@@ -1065,6 +1100,15 @@ export default function CompleteScreen() {
           setShowStreakCelebration(false);
         }}
       />
+
+      {/* Off-screen share card for capture */}
+      <View style={styles.offScreenContainer} pointerEvents="none">
+        <StreakShareCard
+          ref={shareCardRef}
+          streak={currentStreak}
+          message={getShareStreakMessage(currentStreak)}
+        />
+      </View>
     </View>
   );
 }
@@ -1072,6 +1116,12 @@ export default function CompleteScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  offScreenContainer: {
+    position: 'absolute',
+    left: -9999,
+    top: -9999,
+    opacity: 0,
   },
   flex: {
     flex: 1,

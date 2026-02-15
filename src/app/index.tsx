@@ -55,7 +55,10 @@ import {
 } from '../design/theme';
 import type { FontFamilyKey, WordColorKey } from '../design/theme';
 import { scheduleStreakAtRiskReminder, cleanupOrphanedNotifications, requestNotificationPermissions, scheduleStreakReminder } from '../lib/notifications';
+import { getDueWords, getReviewUrgency } from '../lib/spaced-repetition';
+import { getCurrentChallenge, getDaysRemainingInWeek } from '../lib/data/challenges';
 import { StreakRestoreSheet } from '../components/StreakRestoreSheet';
+import { useToastStore } from '../lib/store/toast';
 
 // ─── Onboarding Constants ────────────────────────────────────
 
@@ -816,10 +819,11 @@ interface CategoryTileProps {
   index: number;
   onPress: () => void;
   textCount: number;
+  readCount?: number;
   isLocked?: boolean;
 }
 
-function CategoryTile({ category, index, onPress, textCount, isLocked = false }: CategoryTileProps) {
+function CategoryTile({ category, index, onPress, textCount, readCount = 0, isLocked = false }: CategoryTileProps) {
   const { colors, glass, isDark } = useTheme();
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
   const scale = useSharedValue(1);
@@ -878,7 +882,7 @@ function CategoryTile({ category, index, onPress, textCount, isLocked = false }:
           {category.name}
         </Text>
         <Text style={[styles.categoryTileCount, { color: colors.muted }]}>
-          {textCount} texts
+          {readCount > 0 ? `${readCount} of ${textCount}` : `${textCount} texts`}
         </Text>
       </Animated.View>
     </GestureDetector>
@@ -1214,6 +1218,9 @@ function Home() {
   const windDownText = useSettingsStore((s) => s.windDownText);
   const windDownTextDate = useSettingsStore((s) => s.windDownTextDate);
   const lastWordReviewDate = useSettingsStore((s) => s.lastWordReviewDate);
+  const pronunciationHistory = useSettingsStore((s) => s.pronunciationHistory);
+  const weeklyChallengeProgress = useSettingsStore((s) => s.weeklyChallengeProgress);
+  const weeklyChallengeCompleted = useSettingsStore((s) => s.weeklyChallengeCompleted);
 
   // Stable action references — these don't trigger re-renders
   const checkTrialExpired = useSettingsStore((s) => s.checkTrialExpired);
@@ -1224,6 +1231,9 @@ function Home() {
   const checkWeeklyChallenge = useSettingsStore((s) => s.checkWeeklyChallenge);
 
   const hapticEnabled = useSettingsStore((s) => s.hapticFeedback);
+  const streakFreezes = useSettingsStore((s) => s.streakFreezes);
+  const activateStreakFreeze = useSettingsStore((s) => s.activateStreakFreeze);
+  const showToast = useToastStore((s) => s.showToast);
 
   // Breathing border animation for "Your Text" hero card
   const heroBorderOpacity = useSharedValue(0.25);
@@ -1546,17 +1556,7 @@ function Home() {
       {/* Streak at risk sticky banner */}
       {showStreakAtRiskPopup && (
         <Animated.View entering={FadeIn.duration(300)} style={[styles.stickyBannerC, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderLeftColor: colors.primary + '60' }]}>
-          <Pressable
-            style={styles.stickyBannerTap}
-            onPress={() => {
-              dismissStreakAtRisk();
-              const firstCat = CORE_CATEGORIES[0];
-              if (firstCat) {
-                setSelectedCategoryKey(firstCat.key);
-                router.push({ pathname: '/text-select', params: { categoryKey: firstCat.key } });
-              }
-            }}
-          >
+          <View style={styles.stickyBannerTap}>
             <View style={styles.bannerCRow}>
               <Feather name="zap" size={16} color={colors.primary} />
               <View style={styles.bannerCText}>
@@ -1568,7 +1568,52 @@ function Home() {
                 </Text>
               </View>
             </View>
-          </Pressable>
+            <View style={styles.bannerActions}>
+              <Pressable
+                style={[styles.bannerActionBtn, { backgroundColor: colors.primary }]}
+                hitSlop={HitTargets.hitSlop}
+                onPress={() => {
+                  dismissStreakAtRisk();
+                  const firstCat = CORE_CATEGORIES[0];
+                  if (firstCat) {
+                    setSelectedCategoryKey(firstCat.key);
+                    router.push({ pathname: '/text-select', params: { categoryKey: firstCat.key } });
+                  }
+                }}
+              >
+                <Text style={styles.bannerActionText}>Read Now</Text>
+              </Pressable>
+              {isPremium && streakFreezes > 0 ? (
+                <Pressable
+                  style={[styles.bannerActionBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}
+                  hitSlop={HitTargets.hitSlop}
+                  onPress={() => {
+                    const success = activateStreakFreeze();
+                    if (success) {
+                      if (hapticEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      showToast('Streak frozen until tomorrow', 'shield');
+                      dismissStreakAtRisk();
+                    }
+                  }}
+                >
+                  <Feather name="shield" size={12} color={colors.secondary} />
+                  <Text style={[styles.bannerActionText, { color: colors.secondary }]}>Freeze</Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  style={[styles.bannerActionBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}
+                  hitSlop={HitTargets.hitSlop}
+                  onPress={() => {
+                    if (hapticEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setPaywallContext('streak_freeze');
+                  }}
+                >
+                  <Feather name="shield" size={12} color={colors.muted} />
+                  <Text style={[styles.bannerActionText, { color: colors.muted }]}>Freeze (Pro)</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
           <Pressable onPress={() => dismissStreakAtRisk()} hitSlop={HitTargets.hitSlop} style={styles.stickyBannerClose}>
             <Feather name="x" size={14} color={colors.muted} />
           </Pressable>
@@ -1783,27 +1828,73 @@ function Home() {
           )}
         </Animated.View>
 
-        {/* Word bank review nudge — 5+ saved words, 3+ days since review */}
-        {savedWords.length >= 5 && (() => {
-          const daysSinceReview = lastWordReviewDate
-            ? Math.floor((Date.now() - new Date(lastWordReviewDate).getTime()) / (1000 * 60 * 60 * 24))
-            : 999;
-          return daysSinceReview >= 3;
-        })() && (
-          <Animated.View entering={FadeIn.delay(160).duration(400)}>
-            <Pressable
-              onPress={() => router.push('/word-bank')}
-              style={({ pressed }) => [
-                styles.reviewNudge,
-                { borderColor: glass.border, opacity: pressed ? 0.7 : 1 },
-              ]}
-            >
-              <Feather name="book-open" size={16} color={colors.secondary} />
-              <Text style={[styles.reviewNudgeText, { color: colors.secondary }]}>
-                You have {savedWords.length} saved words. Review them?
-              </Text>
-              <Feather name="chevron-right" size={14} color={colors.muted} />
-            </Pressable>
+        {/* Word bank review nudge — spaced repetition based */}
+        {(() => {
+          const dueWords = getDueWords(savedWords, pronunciationHistory);
+          if (dueWords.length === 0) return null;
+          const urgency = getReviewUrgency(dueWords, pronunciationHistory);
+          const isCritical = urgency === 'critical';
+          const icon: FeatherIconName = isCritical ? 'alert-circle' : 'book-open';
+          const iconColor = isCritical ? '#EAB308' : colors.secondary;
+          const subtitle = isCritical ? "Don't let them slip away" : undefined;
+          return (
+            <Animated.View entering={FadeIn.delay(160).duration(400)}>
+              <Pressable
+                onPress={() => router.push('/word-bank')}
+                style={({ pressed }) => [
+                  styles.reviewNudge,
+                  { borderColor: glass.border, opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                <Feather name={icon} size={16} color={iconColor} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.reviewNudgeText, { color: colors.secondary }]}>
+                    {dueWords.length} {dueWords.length === 1 ? 'word is' : 'words are'} due for review
+                  </Text>
+                  {subtitle && (
+                    <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
+                      {subtitle}
+                    </Text>
+                  )}
+                </View>
+                <Feather name="chevron-right" size={14} color={colors.muted} />
+              </Pressable>
+            </Animated.View>
+          );
+        })()}
+
+        {/* Weekly challenge card */}
+        {!weeklyChallengeCompleted && (() => {
+          const challenge = getCurrentChallenge();
+          const daysLeft = getDaysRemainingInWeek();
+          const progress = Math.min(weeklyChallengeProgress, challenge.target);
+          const progressPct = Math.round((progress / challenge.target) * 100);
+          return (
+            <Animated.View entering={FadeIn.delay(180).duration(400)}>
+              <View style={[styles.reviewNudge, { borderColor: glass.border }]}>
+                <Feather name={challenge.icon as FeatherIconName} size={16} color={colors.secondary} />
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={[styles.reviewNudgeText, { color: colors.secondary }]}>
+                    {challenge.description} ({progress}/{challenge.target})
+                  </Text>
+                  <View style={[styles.challengeProgressBar, { backgroundColor: `${colors.muted}22` }]}>
+                    <View style={[styles.challengeProgressFill, { width: `${progressPct}%`, backgroundColor: colors.secondary }]} />
+                  </View>
+                </View>
+                <Text style={[styles.challengeProgressText, { color: colors.muted }]}>
+                  {daysLeft}d left
+                </Text>
+              </View>
+            </Animated.View>
+          );
+        })()}
+
+        {/* Streak inline */}
+        {currentStreak > 0 && (
+          <Animated.View entering={FadeIn.delay(200).duration(400)}>
+            <Text style={[styles.streakInline, { color: colors.secondary }]}>
+              {currentStreak}-day streak · Keep it alive
+            </Text>
           </Animated.View>
         )}
 
@@ -1816,6 +1907,7 @@ function Home() {
               category={cat}
               index={index}
               textCount={cat.texts.length}
+              readCount={categoryReadCounts[cat.key] ?? 0}
               onPress={() => handleCategoryPress(cat)}
             />
           ))}
@@ -1829,6 +1921,7 @@ function Home() {
                 category={cat}
                 index={index + 3}
                 textCount={cat.texts.length}
+                readCount={categoryReadCounts[cat.key] ?? 0}
                 onPress={() => handleCategoryPress(cat)}
                 isLocked={isLocked}
               />
@@ -2321,6 +2414,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
   },
+  bannerActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+    marginLeft: 26,
+  },
+  bannerActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: Radius.sm,
+  },
+  bannerActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#fff',
+  },
   heroSection: {
     marginBottom: Spacing.xl, // Increased for better visual separation
   },
@@ -2657,6 +2769,12 @@ const styles = StyleSheet.create({
   challengeProgressText: {
     fontSize: 11,
     fontVariant: ['tabular-nums'],
+  },
+  streakInline: {
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 4,
   },
   // Shuffle / My Words card
   shuffleContent: {

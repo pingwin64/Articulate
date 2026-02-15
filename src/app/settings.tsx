@@ -50,6 +50,7 @@ import { StatsDashboard } from '../components/profile/StatsDashboard';
 import { AchievementShowcase } from '../components/profile/AchievementShowcase';
 import { QuickActionCards } from '../components/profile/QuickActionCards';
 import { ReadingHistorySection } from '../components/profile/ReadingHistorySection';
+import { TopCategoriesSection } from '../components/profile/TopCategoriesSection';
 import { AppearanceSection } from '../components/profile/AppearanceSection';
 import { ProfileZoneDivider } from '../components/profile/ProfileZoneDivider';
 
@@ -444,6 +445,8 @@ export default function SettingsScreen() {
         />
 
         <ReadingHistorySection reduceMotion={reduceMotion} />
+
+        <TopCategoriesSection reduceMotion={reduceMotion} />
 
         {/* Upgrade CTA for free users */}
         {!isPremium && !trialActive && (

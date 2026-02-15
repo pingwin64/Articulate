@@ -104,6 +104,7 @@ export type PaywallContext =
   | 'locked_pronunciation'
   | 'locked_ai_practice'
   | 'locked_wind_down'
+  | 'streak_freeze'
   | 'generic';
 
 export interface SavedWord {
@@ -931,7 +932,8 @@ export const useSettingsStore = create<SettingsState>()(
           // Skip frequency limiting for intentional upgrade actions
           // All locked_* contexts are intentional taps; also settings_upgrade, custom_text_limit, trial_expired, generic
           const isIntentional = ctx.startsWith('locked_') || ctx === 'settings_upgrade'
-            || ctx === 'custom_text_limit' || ctx === 'trial_expired' || ctx === 'generic';
+            || ctx === 'custom_text_limit' || ctx === 'trial_expired' || ctx === 'generic'
+            || ctx === 'streak_freeze';
           // Frequency limiting only for passive/proactive paywalls
           if (!isIntentional && !state.canShowPaywall()) return;
           set({ paywallContext: ctx, showPaywall: true, lastPaywallShown: new Date().toISOString() });

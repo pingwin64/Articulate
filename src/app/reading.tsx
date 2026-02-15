@@ -556,7 +556,12 @@ export default function ReadingScreen() {
       setDefinitionError(null);
       openDefinitionCard();
       // Consume free use on cache hit too
-      if (!isPremium) useSettingsStore.getState().useFreeDefinition();
+      if (!isPremium) {
+        useSettingsStore.getState().useFreeDefinition();
+        if (useSettingsStore.getState().freeDefinitionsUsedToday === 1) {
+          showToast('1 free definition left today', 'info');
+        }
+      }
       // Load etymology in background if not cached
       if (!definitionCache.current[cacheKey].etymology) {
         loadEtymology(singleWord, cacheKey);
@@ -574,7 +579,12 @@ export default function ReadingScreen() {
       definitionCache.current[cacheKey] = data;
       setDefinitionData(data);
       // Consume free use only after successful fetch
-      if (!isPremium) useSettingsStore.getState().useFreeDefinition();
+      if (!isPremium) {
+        useSettingsStore.getState().useFreeDefinition();
+        if (useSettingsStore.getState().freeDefinitionsUsedToday === 1) {
+          showToast('1 free definition left today', 'info');
+        }
+      }
       // Load etymology in background
       loadEtymology(singleWord, cacheKey);
     } catch (err: unknown) {
