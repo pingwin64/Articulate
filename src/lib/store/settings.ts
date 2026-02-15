@@ -112,6 +112,7 @@ export interface SavedWord {
   syllables?: string;
   partOfSpeech?: string;
   definition?: string;
+  etymology?: string;
   savedAt: string;
   sourceText?: string;
   sourceCategory?: string;
@@ -409,7 +410,7 @@ export interface SettingsState {
   savedWords: SavedWord[];
   addSavedWord: (word: SavedWord) => void;
   removeSavedWord: (id: string) => void;
-  enrichSavedWord: (word: string, data: { syllables?: string; partOfSpeech?: string; definition?: string }) => void;
+  enrichSavedWord: (word: string, data: { syllables?: string; partOfSpeech?: string; definition?: string; etymology?: string }) => void;
 
   // Favorite Texts (Bundled texts saved to library)
   favoriteTexts: FavoriteText[];
@@ -1293,11 +1294,18 @@ export const useSettingsStore = create<SettingsState>()(
         set((s) => {
           const idx = s.savedWords.findIndex((w) => w.word === word);
           if (idx < 0) return s;
-          // Don't overwrite existing data
           const existing = s.savedWords[idx];
-          if (existing.definition) return s;
+          // Skip if nothing new to add
+          const hasNewDefinition = data.definition && !existing.definition;
+          const hasNewEtymology = data.etymology && !existing.etymology;
+          if (!hasNewDefinition && !hasNewEtymology && existing.definition) return s;
           const updated = [...s.savedWords];
-          updated[idx] = { ...existing, ...data };
+          const merged = { ...existing };
+          if (!existing.definition && data.definition) merged.definition = data.definition;
+          if (!existing.syllables && data.syllables) merged.syllables = data.syllables;
+          if (!existing.partOfSpeech && data.partOfSpeech) merged.partOfSpeech = data.partOfSpeech;
+          if (!existing.etymology && data.etymology) merged.etymology = data.etymology;
+          updated[idx] = merged;
           return { savedWords: updated };
         }),
 
@@ -1670,7 +1678,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'articulate-settings',
-      version: 33,
+      version: 34,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -2000,6 +2008,9 @@ export const useSettingsStore = create<SettingsState>()(
         if (version < 33) {
           // v33: Device user ID for server-side rate limiting & analytics
           persisted.deviceUserId = persisted.deviceUserId ?? generateDeviceUserId();
+        }
+        if (version < 34) {
+          // v34: Etymology field on SavedWord (optional, no-op migration)
         }
         return persisted;
       },

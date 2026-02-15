@@ -16,6 +16,7 @@ const RATE_LIMITS: Record<string, { free: number; premium: number }> = {
   "generate-personalized-text": { free: 3, premium: 30 },
   "generate-wind-down-text": { free: 3, premium: 30 },
   "transcribe-audio": { free: 10, premium: 100 },
+  "fetch-etymology": { free: 5, premium: 50 },
 };
 
 // Actions that require premium (server-side gate as safety net)
@@ -234,6 +235,8 @@ Deno.serve(async (req: Request) => {
       result = await handleGeneratePersonalizedText(body.payload);
     } else if (action === "transcribe-audio") {
       result = await handleTranscribeAudio(body.audioData);
+    } else if (action === "fetch-etymology") {
+      result = await handleFetchEtymology(body.word);
     } else {
       return json({ error: "Unknown action" }, 400);
     }
@@ -678,6 +681,54 @@ async function handleTranscribeAudio(audioData: string) {
 
   const data = await response.json();
   return json({ text: data.text ?? "" });
+}
+
+async function handleFetchEtymology(word: string) {
+  if (!word || typeof word !== "string" || word.length < 1) {
+    return json({ error: "Missing word" }, 400);
+  }
+
+  const safeWord = word.replace(/[^a-zA-Z'-]/g, "").slice(0, 50);
+  if (!safeWord) {
+    return json({ error: "Invalid word" }, 400);
+  }
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a concise etymologist. Give the etymology of the requested word in one sentence. Include the language of origin (Latin, Greek, Old English, Old French, etc.) and original meaning. No preamble, no quotes around the word.",
+        },
+        { role: "user", content: safeWord },
+      ],
+      temperature: 0.3,
+      max_tokens: 150,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    return json(
+      { error: err?.error?.message ?? `OpenAI error: ${response.status}` },
+      response.status === 429 ? 429 : 502
+    );
+  }
+
+  const data = await response.json();
+  const etymology = (data.choices?.[0]?.message?.content ?? "").trim();
+  if (!etymology) {
+    return json({ error: "No etymology found" }, 404);
+  }
+
+  return json({ etymology });
 }
 
 function json(data: unknown, status = 200) {

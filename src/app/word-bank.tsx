@@ -24,7 +24,7 @@ import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
 import { NumberRoll } from '../components/NumberRoll';
 import { Spacing } from '../design/theme';
-import { fetchDefinition } from '../lib/definitions';
+import { fetchDefinition, fetchEtymology } from '../lib/definitions';
 
 type Phase = 'ready' | 'countdown' | 'review' | 'complete';
 type WordResult = 'perfect' | 'close' | 'missed';
@@ -263,26 +263,48 @@ export default function WordBankScreen() {
   useEffect(() => {
     if (!showDefinition || phase !== 'review') return;
     const currentWord = reviewOrder[reviewIndex];
-    if (!currentWord || currentWord.definition) return;
-    setDefinitionLoading(true);
-    fetchDefinition(currentWord.word)
-      .then((data) => {
-        useSettingsStore.getState().enrichSavedWord(currentWord.word, {
-          syllables: data.syllables,
-          partOfSpeech: data.partOfSpeech,
-          definition: data.definition,
-        });
-        setReviewOrder((prev) => {
-          const updated = [...prev];
-          const idx = updated.findIndex((w) => w.id === currentWord.id);
-          if (idx >= 0) {
-            updated[idx] = { ...updated[idx], syllables: data.syllables, partOfSpeech: data.partOfSpeech, definition: data.definition };
-          }
-          return updated;
-        });
-      })
-      .catch(() => {})
-      .finally(() => setDefinitionLoading(false));
+    if (!currentWord) return;
+
+    // Fetch definition if missing
+    if (!currentWord.definition) {
+      setDefinitionLoading(true);
+      fetchDefinition(currentWord.word)
+        .then((data) => {
+          useSettingsStore.getState().enrichSavedWord(currentWord.word, {
+            syllables: data.syllables,
+            partOfSpeech: data.partOfSpeech,
+            definition: data.definition,
+          });
+          setReviewOrder((prev) => {
+            const updated = [...prev];
+            const idx = updated.findIndex((w) => w.id === currentWord.id);
+            if (idx >= 0) {
+              updated[idx] = { ...updated[idx], syllables: data.syllables, partOfSpeech: data.partOfSpeech, definition: data.definition };
+            }
+            return updated;
+          });
+        })
+        .catch(() => {})
+        .finally(() => setDefinitionLoading(false));
+    }
+
+    // Fetch etymology if missing
+    if (!currentWord.etymology) {
+      fetchEtymology(currentWord.word)
+        .then((etymology) => {
+          if (!etymology) return;
+          useSettingsStore.getState().enrichSavedWord(currentWord.word, { etymology });
+          setReviewOrder((prev) => {
+            const updated = [...prev];
+            const idx = updated.findIndex((w) => w.id === currentWord.id);
+            if (idx >= 0) {
+              updated[idx] = { ...updated[idx], etymology };
+            }
+            return updated;
+          });
+        })
+        .catch(() => {});
+    }
   }, [showDefinition, phase, reviewOrder, reviewIndex]);
 
   // Auto-flip after pronunciation result (only on perfect)
@@ -796,6 +818,15 @@ export default function WordBankScreen() {
                     </Text>
                   )}
 
+                  {currentWord.etymology && (
+                    <View style={styles.etymologySection}>
+                      <Text style={[styles.etymologyLabel, { color: colors.muted }]}>Etymology</Text>
+                      <Text style={[styles.etymologyText, { color: colors.secondary }]}>
+                        {currentWord.etymology}
+                      </Text>
+                    </View>
+                  )}
+
                   {drill.feedback && (
                     <View style={styles.pronunciationBadge}>
                       <Text style={[
@@ -877,6 +908,7 @@ export default function WordBankScreen() {
             partOfSpeech={currentWord.partOfSpeech}
             syllables={currentWord.syllables}
             definition={currentWord.definition}
+            etymology={currentWord.etymology}
           />
         </View>
       )}
@@ -1095,6 +1127,22 @@ const styles = StyleSheet.create({
   flashcardLoadingContainer: {
     marginTop: 24,
     alignItems: 'center',
+  },
+  etymologySection: {
+    marginTop: 8,
+    width: '100%',
+  },
+  etymologyLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  etymologyText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontStyle: 'italic',
   },
   pronunciationBadge: {
     marginTop: 12,

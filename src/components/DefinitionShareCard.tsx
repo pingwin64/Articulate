@@ -7,6 +7,7 @@ interface DefinitionShareCardProps {
   partOfSpeech?: string;
   syllables?: string;
   definition: string;
+  etymology?: string;
 }
 
 // Instagram Story format: 9:16 aspect ratio
@@ -15,7 +16,7 @@ const CARD_HEIGHT = 1920;
 const SCALE = 0.3;
 
 export const DefinitionShareCard = forwardRef<View, DefinitionShareCardProps>(
-  ({ word, partOfSpeech, syllables, definition }, ref) => {
+  ({ word, partOfSpeech, syllables, definition, etymology }, ref) => {
     const hasSyllableBreaks = syllables && /[·\-]/.test(syllables);
 
     return (
@@ -78,6 +79,13 @@ export const DefinitionShareCard = forwardRef<View, DefinitionShareCardProps>(
             <Text style={styles.definition} numberOfLines={6}>
               {definition}
             </Text>
+
+            {/* Etymology */}
+            {etymology ? (
+              <Text style={styles.etymology} numberOfLines={3}>
+                {etymology}
+              </Text>
+            ) : null}
           </View>
 
           {/* Bottom section — branding */}
@@ -199,6 +207,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 52 * S,
     paddingHorizontal: 20 * S,
+  },
+  etymology: {
+    fontSize: 26 * S,
+    fontWeight: '400',
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    lineHeight: 40 * S,
+    marginTop: 16 * S,
   },
   // ─── Bottom ───────────────────────────────────
   bottomSection: {

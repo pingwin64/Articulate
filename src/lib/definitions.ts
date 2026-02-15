@@ -6,6 +6,7 @@ export interface WordDefinition {
   syllables: string;
   partOfSpeech: string;
   definition: string;
+  etymology?: string;
 }
 
 interface DefinitionCandidate {
@@ -101,6 +102,34 @@ export async function fetchDefinition(
     partOfSpeech: best.partOfSpeech,
     definition: best.definition,
   };
+}
+
+/**
+ * Fetch etymology for a word from the OpenAI proxy edge function.
+ * Returns the etymology string or null on failure.
+ */
+export async function fetchEtymology(word: string): Promise<string | null> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+
+  try {
+    const userId = useSettingsStore.getState().deviceUserId || 'anonymous';
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/openai-proxy`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'x-user-id': userId,
+      },
+      body: JSON.stringify({ action: 'fetch-etymology', word }),
+    });
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    return data.etymology || null;
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -35,7 +35,7 @@ import { ArticulateProgress } from '../components/ArticulateProgress';
 import { SentenceTrail } from '../components/SentenceTrail';
 import { Paywall } from '../components/Paywall';
 import { speakWord, stopSpeaking } from '../lib/tts';
-import { fetchDefinition, type WordDefinition } from '../lib/definitions';
+import { fetchDefinition, fetchEtymology, type WordDefinition } from '../lib/definitions';
 import {
   transcribeAudio,
   scoreWord,
@@ -126,6 +126,7 @@ export default function ReadingScreen() {
   const [definitionData, setDefinitionData] = useState<WordDefinition | null>(null);
   const [definitionLoading, setDefinitionLoading] = useState(false);
   const [definitionError, setDefinitionError] = useState<string | null>(null);
+  const [etymologyLoading, setEtymologyLoading] = useState(false);
   const definitionCache = useRef<Record<string, WordDefinition>>({});
   const definitionShareRef = useRef<View>(null);
 
@@ -556,6 +557,10 @@ export default function ReadingScreen() {
       openDefinitionCard();
       // Consume free use on cache hit too
       if (!isPremium) useSettingsStore.getState().useFreeDefinition();
+      // Load etymology in background if not cached
+      if (!definitionCache.current[cacheKey].etymology) {
+        loadEtymology(singleWord, cacheKey);
+      }
       return;
     }
 
@@ -570,6 +575,8 @@ export default function ReadingScreen() {
       setDefinitionData(data);
       // Consume free use only after successful fetch
       if (!isPremium) useSettingsStore.getState().useFreeDefinition();
+      // Load etymology in background
+      loadEtymology(singleWord, cacheKey);
     } catch (err: unknown) {
       setDefinitionError(err instanceof Error ? err.message : 'Failed to fetch definition');
     } finally {
@@ -594,6 +601,33 @@ export default function ReadingScreen() {
       setDefinitionLoading(false);
     }
   };
+
+  // Lazy-load etymology when definition card is shown
+  const loadEtymology = useCallback(async (word: string, cacheKey: string) => {
+    // Check if saved word already has etymology
+    const saved = useSettingsStore.getState().savedWords.find((w) => w.word === word);
+    if (saved?.etymology) {
+      setDefinitionData((prev) => prev ? { ...prev, etymology: saved.etymology } : prev);
+      definitionCache.current[cacheKey] = { ...definitionCache.current[cacheKey], etymology: saved.etymology };
+      return;
+    }
+    // Check if cache already has it
+    if (definitionCache.current[cacheKey]?.etymology) {
+      setDefinitionData((prev) => prev ? { ...prev, etymology: definitionCache.current[cacheKey].etymology } : prev);
+      return;
+    }
+
+    setEtymologyLoading(true);
+    const etymology = await fetchEtymology(word);
+    setEtymologyLoading(false);
+
+    if (etymology) {
+      setDefinitionData((prev) => prev ? { ...prev, etymology } : prev);
+      definitionCache.current[cacheKey] = { ...definitionCache.current[cacheKey], etymology };
+      // Cache in saved word if it exists
+      useSettingsStore.getState().enrichSavedWord(word, { etymology });
+    }
+  }, []);
 
   const handleShareDefinition = async () => {
     if (!definitionData) return;
@@ -622,6 +656,7 @@ export default function ReadingScreen() {
         syllables: definitionData.syllables,
         partOfSpeech: definitionData.partOfSpeech,
         definition: definitionData.definition,
+        etymology: definitionData.etymology,
         savedAt: new Date().toISOString(),
         sourceText: text?.title ?? customText?.title,
         sourceCategory: category?.name,
@@ -1060,6 +1095,20 @@ export default function ReadingScreen() {
                     {definitionData.definition}
                   </Text>
 
+                  {/* Etymology */}
+                  {definitionData.etymology ? (
+                    <Animated.View entering={FadeIn.duration(300)} style={styles.etymologySection}>
+                      <Text style={[styles.etymologyLabel, { color: colors.muted }]}>Etymology</Text>
+                      <Text style={[styles.etymologyText, { color: colors.secondary }]}>
+                        {definitionData.etymology}
+                      </Text>
+                    </Animated.View>
+                  ) : etymologyLoading ? (
+                    <View style={styles.etymologySection}>
+                      <ActivityIndicator size="small" color={colors.muted} style={{ marginTop: 4 }} />
+                    </View>
+                  ) : null}
+
                   {/* Save + Share row */}
                   <View style={styles.definitionActionsRow}>
                     <Pressable
@@ -1104,6 +1153,7 @@ export default function ReadingScreen() {
               partOfSpeech={definitionData.partOfSpeech}
               syllables={definitionData.syllables}
               definition={definitionData.definition}
+              etymology={definitionData.etymology}
             />
           </View>
         )}
@@ -1351,6 +1401,21 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: 15,
     fontWeight: '600',
+  },
+  etymologySection: {
+    marginTop: 12,
+  },
+  etymologyLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  etymologyText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontStyle: 'italic',
   },
   definitionActionsRow: {
     flexDirection: 'row',
