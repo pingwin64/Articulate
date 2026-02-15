@@ -16,9 +16,17 @@ const mmkvStorage = {
     storage.set(name, value);
   },
   removeItem: (name: string) => {
-    storage.remove(name);
+    storage.delete(name);
   },
 };
+
+function generateDeviceUserId(): string {
+  const randomUUID = globalThis.crypto?.randomUUID;
+  if (typeof randomUUID === 'function') {
+    return randomUUID.call(globalThis.crypto);
+  }
+  return `dev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 export type TTSSpeed = 'slow' | 'normal' | 'fast';
 export type VoiceGender = 'male' | 'female';
@@ -48,6 +56,8 @@ export function getLevelName(levelProgress: number): LevelName {
 // Get progress toward next level (0-100)
 // After Level 5, shows progress toward next 10K milestone
 export function getProgressToNextLevel(levelProgress: number): number {
+  if (!Number.isFinite(levelProgress) || levelProgress <= 0) return 0;
+
   const level = getCurrentLevel(levelProgress);
   if (level >= 5) {
     // Endgame: show progress toward next 10K milestone (10K, 20K, 30K...)
@@ -55,13 +65,13 @@ export function getProgressToNextLevel(levelProgress: number): number {
     const currentMilestone = Math.floor(levelProgress / 10000) * 10000;
     const nextMilestone = currentMilestone + 10000;
     const progressInMilestone = levelProgress - currentMilestone;
-    return Math.min(100, Math.round((progressInMilestone / (nextMilestone - currentMilestone)) * 100));
+    return Math.min(100, Math.max(0, Math.round((progressInMilestone / (nextMilestone - currentMilestone)) * 100)));
   }
   const currentThreshold = LEVEL_THRESHOLDS[level - 1];
   const nextThreshold = LEVEL_THRESHOLDS[level];
   const progressInLevel = levelProgress - currentThreshold;
   const levelRange = nextThreshold - currentThreshold;
-  return Math.min(100, Math.round((progressInLevel / levelRange) * 100));
+  return Math.min(100, Math.max(0, Math.round((progressInLevel / levelRange) * 100)));
 }
 
 // Get words needed for next level (or next 10K milestone after Level 5)
@@ -1138,6 +1148,7 @@ export const useSettingsStore = create<SettingsState>()(
       useStreakRestore: () => {
         const state = get();
         if (!state.pendingStreakRestore) return;
+        if (state.streakRestores <= 0) return;
         set({
           streakRestores: Math.max(0, state.streakRestores - 1),
           currentStreak: state.pendingStreakRestore.previousStreak,
@@ -1525,7 +1536,7 @@ export const useSettingsStore = create<SettingsState>()(
       },
 
       // Device User ID (for server-side rate limiting & analytics)
-      deviceUserId: crypto.randomUUID(),
+      deviceUserId: generateDeviceUserId(),
 
       // Computed helper
       trialDaysRemaining: () => {
@@ -1654,7 +1665,7 @@ export const useSettingsStore = create<SettingsState>()(
         discoveredFeatures: { definition: false, pronunciation: false, wordSave: false, tts: false },
         lastWordReviewDate: null,
         reviewSessions: [],
-        deviceUserId: crypto.randomUUID(),
+        deviceUserId: generateDeviceUserId(),
       }),
     }),
     {
@@ -1988,7 +1999,7 @@ export const useSettingsStore = create<SettingsState>()(
         }
         if (version < 33) {
           // v33: Device user ID for server-side rate limiting & analytics
-          persisted.deviceUserId = persisted.deviceUserId ?? crypto.randomUUID();
+          persisted.deviceUserId = persisted.deviceUserId ?? generateDeviceUserId();
         }
         return persisted;
       },

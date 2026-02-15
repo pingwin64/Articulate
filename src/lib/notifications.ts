@@ -11,7 +11,7 @@ function setDailyReminderId(id: string | null) {
   if (id) {
     notifStorage.set('dailyReminderId', id);
   } else {
-    notifStorage.remove('dailyReminderId');
+    notifStorage.delete('dailyReminderId');
   }
 }
 
@@ -22,7 +22,7 @@ function setStreakAtRiskId(id: string | null) {
   if (id) {
     notifStorage.set('streakAtRiskId', id);
   } else {
-    notifStorage.remove('streakAtRiskId');
+    notifStorage.delete('streakAtRiskId');
   }
 }
 
@@ -33,7 +33,7 @@ function setWindDownReminderId(id: string | null) {
   if (id) {
     notifStorage.set('windDownReminderId', id);
   } else {
-    notifStorage.remove('windDownReminderId');
+    notifStorage.delete('windDownReminderId');
   }
 }
 

@@ -19,7 +19,7 @@ try {
 export async function initPurchases(): Promise<void> {
   if (!Purchases || isInitialized || !API_KEY) return;
 
-  Purchases.setLogLevel(LOG_LEVEL.DEBUG);
+  Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.ERROR);
   await Purchases.configure({ apiKey: API_KEY });
   isInitialized = true;
 

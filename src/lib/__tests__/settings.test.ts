@@ -2,7 +2,6 @@ import {
   getCurrentLevel,
   getProgressToNextLevel,
   getWordsToNextLevel,
-  LEVEL_THRESHOLDS,
 } from '../store/settings';
 
 describe('getCurrentLevel', () => {
@@ -72,13 +71,21 @@ describe('getProgressToNextLevel', () => {
     expect(getProgressToNextLevel(15000)).toBe(50);
   });
 
-  it('returns 100% at exact milestone', () => {
-    expect(getProgressToNextLevel(20000)).toBe(100);
+  it('returns 0% at exact endgame milestone (new cycle)', () => {
+    expect(getProgressToNextLevel(20000)).toBe(0);
   });
 
   it('returns 0% just past milestone', () => {
     // 20001: milestone = 30000, prev = 20000, progress = 1/10000 ~ 0%
     expect(getProgressToNextLevel(20001)).toBe(0);
+  });
+
+  it('clamps invalid negative progress to 0%', () => {
+    expect(getProgressToNextLevel(-250)).toBe(0);
+  });
+
+  it('clamps non-finite progress to 0%', () => {
+    expect(getProgressToNextLevel(Number.NaN)).toBe(0);
   });
 });
 

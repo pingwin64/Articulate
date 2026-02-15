@@ -170,10 +170,8 @@ describe('updateStreak', () => {
   });
 
   it('increments streak for consecutive day read (at exactly 24h boundary)', () => {
-    // Note: HOURS_48 in the store is actually set to 24h (same as HOURS_24)
-    // So the "consecutive day" window is: elapsed > 24h AND elapsed <= 24h (HOURS_48)
-    // Which means only exactly 24h would increment. In practice this means
-    // the real window is very tight. Set to exactly 24h (in ms):
+    // Consecutive-day window in the store is 24h < elapsed <= 48h.
+    // Use exactly 24h to verify the lower boundary increments.
     const exactly24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     useSettingsStore.setState({
       currentStreak: 5,
@@ -181,7 +179,7 @@ describe('updateStreak', () => {
     });
     useSettingsStore.getState().updateStreak();
     // At exactly 24h, elapsed === HOURS_24 so first check (< 24h) is false,
-    // second check (<= HOURS_48 which is 24h) is true → increment
+    // second check (<= HOURS_48) is true -> increment
     expect(useSettingsStore.getState().currentStreak).toBe(6);
   });
 
@@ -197,5 +195,43 @@ describe('updateStreak', () => {
     const state = useSettingsStore.getState();
     expect(state.pendingStreakRestore).not.toBeNull();
     expect(state.pendingStreakRestore?.previousStreak).toBe(10);
+  });
+});
+
+describe('useStreakRestore', () => {
+  it('does not restore when no restores are available', () => {
+    useSettingsStore.setState({
+      streakRestores: 0,
+      currentStreak: 1,
+      pendingStreakRestore: {
+        previousStreak: 12,
+        breakDate: new Date().toISOString(),
+      },
+    });
+
+    useSettingsStore.getState().useStreakRestore();
+
+    const state = useSettingsStore.getState();
+    expect(state.currentStreak).toBe(1);
+    expect(state.streakRestores).toBe(0);
+    expect(state.pendingStreakRestore).not.toBeNull();
+  });
+
+  it('restores streak and consumes one allowance when available', () => {
+    useSettingsStore.setState({
+      streakRestores: 2,
+      currentStreak: 1,
+      pendingStreakRestore: {
+        previousStreak: 9,
+        breakDate: new Date().toISOString(),
+      },
+    });
+
+    useSettingsStore.getState().useStreakRestore();
+
+    const state = useSettingsStore.getState();
+    expect(state.currentStreak).toBe(9);
+    expect(state.streakRestores).toBe(1);
+    expect(state.pendingStreakRestore).toBeNull();
   });
 });

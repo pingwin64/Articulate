@@ -49,7 +49,8 @@ export function getReadingQueue(limit = 5): QueueItem[] {
 
   // 1. Continue current category — next unread in the last-read category
   if (readingHistory.length > 0) {
-    const lastRead = readingHistory[readingHistory.length - 1];
+    // readingHistory is stored newest-first.
+    const lastRead = readingHistory[0];
     if (lastRead.categoryKey && lastRead.categoryKey !== 'custom') {
       const cat = availableCategories.find((c) => c.key === lastRead.categoryKey);
       if (cat) {
@@ -86,21 +87,7 @@ export function getReadingQueue(limit = 5): QueueItem[] {
     usedTextIds.add(text.id);
   }
 
-  // 3. Least-read categories — variety from underexplored
-  const sortedByReads = [...availableCategories].sort(
-    (a, b) => (categoryReadCounts[a.key] ?? 0) - (categoryReadCounts[b.key] ?? 0)
-  );
-
-  for (const cat of sortedByReads) {
-    if (queue.length >= limit) break;
-    const next = getNextUnread(cat);
-    if (next && !usedTextIds.has(next.id)) {
-      queue.push({ category: cat, text: next, reason: 'explore' });
-      usedTextIds.add(next.id);
-    }
-  }
-
-  // 4. New unlocks — texts that just became available
+  // 3. New unlocks — prioritize texts that just became available
   for (const cat of availableCategories) {
     if (queue.length >= limit) break;
     const readCount = categoryReadCounts[cat.key] ?? 0;
@@ -113,6 +100,20 @@ export function getReadingQueue(limit = 5): QueueItem[] {
     if (justUnlocked) {
       queue.push({ category: cat, text: justUnlocked, reason: 'new_unlock' });
       usedTextIds.add(justUnlocked.id);
+    }
+  }
+
+  // 4. Least-read categories — variety from underexplored
+  const sortedByReads = [...availableCategories].sort(
+    (a, b) => (categoryReadCounts[a.key] ?? 0) - (categoryReadCounts[b.key] ?? 0)
+  );
+
+  for (const cat of sortedByReads) {
+    if (queue.length >= limit) break;
+    const next = getNextUnread(cat);
+    if (next && !usedTextIds.has(next.id)) {
+      queue.push({ category: cat, text: next, reason: 'explore' });
+      usedTextIds.add(next.id);
     }
   }
 

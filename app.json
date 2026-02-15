@@ -19,6 +19,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.articulate.app",
       "buildNumber": "1",
+      "deploymentTarget": "15.1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
