@@ -37,21 +37,45 @@ function setWindDownReminderId(id: string | null) {
   }
 }
 
-const STREAK_MESSAGES = [
-  "Don't lose your {streak}-day streak! A quick read keeps it alive.",
-  'Your streak is at {streak} days. Keep the momentum going!',
-  "You've been consistent for {streak} days. Time to read!",
+// ── Streak-tier message pools ──
+
+const NEW_STREAK_MESSAGES = [
+  'Day {streak} — the habit is forming. Keep it going!',
+  "You're building something. Day {streak} of reading daily.",
+  '{streak} days in. A few more and it becomes automatic.',
+  "Day {streak}! You're off to a great start.",
   'Your reading habit is growing. Day {streak} awaits!',
-  'A few minutes of reading is all it takes. Protect your {streak}-day streak.',
+];
+
+const ESTABLISHED_STREAK_MESSAGES = [
+  'Day {streak}. Readers like you don\'t skip.',
+  '{streak} days of consistent reading. That\'s discipline.',
+  "You've built a real habit. Day {streak} is waiting.",
+  '{streak}-day streak. You read more than most people.',
+  'Day {streak} — this is who you are now.',
+];
+
+const VETERAN_STREAK_MESSAGES = [
+  '{streak} days. That\'s not a streak, that\'s a lifestyle.',
+  'Day {streak}. At this point, reading is just what you do.',
+  '{streak} days strong. You\'re in rare company.',
+  'Day {streak} — most people quit by day 7. You didn\'t.',
+  '{streak}-day streak. Your future self thanks you.',
 ];
 
 const GENERIC_MESSAGES = [
-  'Time for your daily reading practice.',
-  'Your words are waiting. Start a quick read.',
-  'Build your reading muscles — one session a day.',
-  'Focused reading time. Open Articulate.',
-  'A few minutes now, sharper reading skills forever.',
+  'Your words miss you. Just a 2-minute read.',
+  'Start a new streak today. One read is all it takes.',
+  'Time for a fresh start. Open Articulate.',
+  'A quick read today could be day 1 of something great.',
+  'Pick up where you left off. Your words are waiting.',
 ];
+
+function getStreakMessages(streak: number): string[] {
+  if (streak >= 30) return VETERAN_STREAK_MESSAGES;
+  if (streak >= 7) return ESTABLISHED_STREAK_MESSAGES;
+  return NEW_STREAK_MESSAGES;
+}
 
 const WIND_DOWN_MESSAGES = [
   'Your wind-down reading is ready.',
@@ -59,6 +83,29 @@ const WIND_DOWN_MESSAGES = [
   'A few quiet minutes before sleep.',
   'Time to unwind with a calm read.',
   'Your bedtime reading is waiting.',
+];
+
+const WORD_OF_DAY_MESSAGES = [
+  'Word of the Day: ephemeral — lasting for a very short time. From Greek ephēmeros, "lasting only a day."',
+  'Word of the Day: serendipity — finding something good by chance. Coined by Horace Walpole in 1754.',
+  'Word of the Day: eloquent — fluent or persuasive in speaking or writing. From Latin eloquens.',
+  'Word of the Day: ubiquitous — found everywhere. From Latin ubique, meaning "everywhere."',
+  'Word of the Day: mellifluous — sweet-sounding, pleasant to hear. From Latin mel (honey) + fluere (to flow).',
+  'Word of the Day: sanguine — optimistic, especially in a difficult situation. From Latin sanguis, "blood."',
+  'Word of the Day: perspicacious — having keen mental perception and understanding. From Latin perspicax.',
+  'Word of the Day: loquacious — tending to talk a great deal. From Latin loquax, from loqui, "to speak."',
+  'Word of the Day: ineffable — too great to be expressed in words. From Latin ineffabilis.',
+  'Word of the Day: resilient — able to recover quickly from difficulty. From Latin resilire, "to rebound."',
+  'Word of the Day: equanimity — calmness and composure under stress. From Latin aequus (equal) + animus (mind).',
+  'Word of the Day: luminous — giving off light; brilliant. From Latin luminosus, from lumen, "light."',
+  'Word of the Day: petrichor — the pleasant earthy smell after rain. Coined in 1964 from Greek petra + ichor.',
+  'Word of the Day: tenacious — holding firmly to something. From Latin tenax, from tenere, "to hold."',
+  'Word of the Day: vivacious — attractively lively and animated. From Latin vivax, from vivere, "to live."',
+  'Word of the Day: sonorous — deep and full in sound. From Latin sonorus, from sonare, "to sound."',
+  'Word of the Day: incandescent — emitting light as a result of being heated; brilliant. From Latin candere.',
+  'Word of the Day: verisimilitude — the appearance of being true. From Latin verisimilitudo.',
+  'Word of the Day: ebullient — cheerful and full of energy. From Latin ebullire, "to bubble out."',
+  'Word of the Day: quintessential — representing the perfect example. From medieval Latin quinta essentia.',
 ];
 
 const STREAK_AT_RISK_MESSAGES = [
@@ -113,11 +160,17 @@ export async function scheduleStreakReminder(
     setDailyReminderId(null);
   }
 
-  const messages = currentStreak > 0 ? STREAK_MESSAGES : GENERIC_MESSAGES;
-  const message = messages[Math.floor(Math.random() * messages.length)].replace(
-    '{streak}',
-    String(currentStreak)
-  );
+  let message: string;
+  if (Math.random() < 0.5) {
+    // Word of the Day — deliver value even without opening the app
+    message = WORD_OF_DAY_MESSAGES[Math.floor(Math.random() * WORD_OF_DAY_MESSAGES.length)];
+  } else {
+    const messages = currentStreak > 0 ? getStreakMessages(currentStreak) : GENERIC_MESSAGES;
+    message = messages[Math.floor(Math.random() * messages.length)].replace(
+      '{streak}',
+      String(currentStreak)
+    );
+  }
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
