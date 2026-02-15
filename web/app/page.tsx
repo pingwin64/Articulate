@@ -81,9 +81,8 @@ function AppStoreBadge({ className = '' }: { className?: string }) {
       <img
         src="/app-store-badge.svg"
         alt="Download on the App Store"
-        width={150}
-        height={50}
-        className="dark:invert"
+        width={180}
+        height={60}
       />
     </a>
   );
