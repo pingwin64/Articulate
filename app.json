@@ -8,7 +8,9 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "articulate",
-    "platforms": ["ios"],
+    "platforms": [
+      "ios"
+    ],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -17,7 +19,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.articulate.app",
+      "bundleIdentifier": "net.ordco.articulate",
       "buildNumber": "1",
       "deploymentTarget": "15.1",
       "infoPlist": {
@@ -27,7 +29,9 @@
         "NSPrivacyAccessedAPITypes": [
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
-            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
           }
         ],
         "NSPrivacyCollectedDataTypes": []
@@ -38,7 +42,12 @@
       "bundler": "metro"
     },
     "plugins": [
-      ["expo-router", { "root": "./src/app" }],
+      [
+        "expo-router",
+        {
+          "root": "./src/app"
+        }
+      ],
       "expo-font",
       [
         "expo-notifications",
@@ -60,7 +69,18 @@
           "microphonePermission": "Allow Articulate to use your microphone to practice pronunciation."
         }
       ],
-      ["./plugins/withMetroPort", 47000]
-    ]
+      [
+        "./plugins/withMetroPort",
+        47000
+      ]
+    ],
+    "extra": {
+      "router": {
+        "root": "./src/app"
+      },
+      "eas": {
+        "projectId": "de8718f9-5174-4054-ba4b-6c66df98ba78"
+      }
+    }
   }
 }
