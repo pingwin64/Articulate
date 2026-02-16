@@ -72,6 +72,12 @@
       [
         "./plugins/withMetroPort",
         47000
+      ],
+      [
+        "expo-dev-launcher",
+        {
+          "launchMode": "most-recent"
+        }
       ]
     ],
     "extra": {

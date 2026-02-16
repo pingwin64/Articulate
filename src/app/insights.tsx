@@ -1,7 +1,7 @@
 import React, { useMemo, useRef } from 'react';
 import { StyleSheet, View, Text, ScrollView, Pressable } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import Svg, { Rect, Path, Line } from 'react-native-svg';
+import Svg, { Rect, Path, Line, Text as SvgText } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
@@ -14,6 +14,26 @@ import { WeeklySummaryShareCard } from '../components/WeeklySummaryShareCard';
 import { captureAndShare } from '../lib/share';
 import { Paywall } from '../components/Paywall';
 import { Spacing } from '../design/theme';
+
+function formatCompact(n: number): string {
+  if (n >= 1000) {
+    const k = n / 1000;
+    return k % 1 === 0 ? `${k}k` : `${k.toFixed(1)}k`;
+  }
+  return String(n);
+}
+
+function niceMax(value: number): number {
+  if (value <= 0) return 100;
+  const mag = Math.pow(10, Math.floor(Math.log10(value)));
+  const norm = value / mag;
+  if (norm <= 1) return mag;
+  if (norm <= 2) return 2 * mag;
+  if (norm <= 5) return 5 * mag;
+  return 10 * mag;
+}
+
+const Y_AXIS_WIDTH = 35;
 
 function getLast8Weeks(): string[] {
   const weeks: string[] = [];
@@ -53,6 +73,11 @@ export default function InsightsScreen() {
     showPaywall,
     setPaywallContext,
     paywallContext,
+    totalQuizzesTaken,
+    perfectQuizzes,
+    avgComprehension,
+    perfectPronunciations,
+    totalPronunciationAttempts,
   } = useSettingsStore();
 
   const readingHistory = useSettingsStore((s) => s.readingHistory);
@@ -165,19 +190,32 @@ export default function InsightsScreen() {
 
   const chartWidth = 280;
   const chartHeight = 120;
+  const plotWidth = chartWidth - Y_AXIS_WIDTH;
   const barWidth = 24;
-  const barGap = (chartWidth - barWidth * weeklyData.length) / (weeklyData.length - 1 || 1);
+  const barGap = (plotWidth - barWidth * weeklyData.length) / (weeklyData.length - 1 || 1);
+  const niceMaxWords = niceMax(maxWeeklyWords);
+  const yTicksWords = [0, Math.round(niceMaxWords / 2), niceMaxWords];
+
+  // WPM trend — compute min/max for Y-axis
+  const minWPM = useMemo(() => {
+    const nonZero = wpmData.filter((v) => v > 0);
+    return nonZero.length > 0 ? Math.min(...nonZero) : 0;
+  }, [wpmData]);
+
+  const wpmPadding = 10; // top/bottom padding in SVG
+  const wpmPlotHeight = chartHeight - wpmPadding * 2;
 
   // WPM trend path
   const wpmPath = useMemo(() => {
     if (wpmData.every((v) => v === 0)) return '';
+    const range = maxWPM - minWPM || 1;
     const points = wpmData.map((v, i) => {
-      const x = (i / (wpmData.length - 1 || 1)) * chartWidth;
-      const y = chartHeight - (v / maxWPM) * (chartHeight - 10);
+      const x = Y_AXIS_WIDTH + (i / (wpmData.length - 1 || 1)) * plotWidth;
+      const y = wpmPadding + wpmPlotHeight - ((v - minWPM) / range) * wpmPlotHeight;
       return `${x},${y}`;
     });
     return 'M' + points.join(' L');
-  }, [wpmData, maxWPM]);
+  }, [wpmData, maxWPM, minWPM, plotWidth, wpmPlotHeight]);
 
   const renderBlurOverlay = () => (
     <View style={styles.blurOverlayContainer}>
@@ -237,24 +275,40 @@ export default function InsightsScreen() {
               </Text>
               <View style={styles.chartContainer}>
                 <Svg width={chartWidth} height={chartHeight}>
-                  {weeklyData.map((d, i) => {
-                    const x = i * (barWidth + barGap);
-                    const barHeight = (d.words / maxWeeklyWords) * (chartHeight - 20);
+                  {/* Y-axis labels */}
+                  {yTicksWords.map((tick) => {
+                    const y = chartHeight - (tick / niceMaxWords) * (chartHeight - 20);
                     return (
-                      <React.Fragment key={d.week}>
-                        <Rect
-                          x={x}
-                          y={chartHeight - barHeight}
-                          width={barWidth}
-                          height={Math.max(2, barHeight)}
-                          rx={4}
-                          fill={isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'}
-                        />
-                      </React.Fragment>
+                      <SvgText
+                        key={tick}
+                        x={Y_AXIS_WIDTH - 6}
+                        y={y + 3}
+                        fontSize={9}
+                        fill={colors.muted}
+                        textAnchor="end"
+                      >
+                        {formatCompact(tick)}
+                      </SvgText>
+                    );
+                  })}
+                  {/* Bars */}
+                  {weeklyData.map((d, i) => {
+                    const x = Y_AXIS_WIDTH + i * (barWidth + barGap);
+                    const barHeight = (d.words / niceMaxWords) * (chartHeight - 20);
+                    return (
+                      <Rect
+                        key={d.week}
+                        x={x}
+                        y={chartHeight - barHeight}
+                        width={barWidth}
+                        height={Math.max(2, barHeight)}
+                        rx={4}
+                        fill={isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'}
+                      />
                     );
                   })}
                 </Svg>
-                <View style={styles.chartLabels}>
+                <View style={[styles.chartLabels, { paddingLeft: Y_AXIS_WIDTH }]}>
                   {weeklyData.map((d) => (
                     <Text
                       key={d.week}
@@ -277,17 +331,56 @@ export default function InsightsScreen() {
               <View style={styles.chartContainer}>
                 <Svg width={chartWidth} height={chartHeight}>
                   {wpmPath ? (
-                    <Path
-                      d={wpmPath}
-                      fill="none"
-                      stroke={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.15)'}
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+                    <>
+                      {/* Y-axis labels: min and max WPM */}
+                      <SvgText
+                        x={Y_AXIS_WIDTH - 6}
+                        y={wpmPadding + 3}
+                        fontSize={9}
+                        fill={colors.muted}
+                        textAnchor="end"
+                      >
+                        {maxWPM}
+                      </SvgText>
+                      <SvgText
+                        x={Y_AXIS_WIDTH - 6}
+                        y={wpmPadding + wpmPlotHeight + 3}
+                        fontSize={9}
+                        fill={colors.muted}
+                        textAnchor="end"
+                      >
+                        {minWPM}
+                      </SvgText>
+                      {/* Faint gridlines at min and max */}
+                      <Line
+                        x1={Y_AXIS_WIDTH}
+                        y1={wpmPadding}
+                        x2={chartWidth}
+                        y2={wpmPadding}
+                        stroke={isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}
+                        strokeWidth={0.5}
+                      />
+                      <Line
+                        x1={Y_AXIS_WIDTH}
+                        y1={wpmPadding + wpmPlotHeight}
+                        x2={chartWidth}
+                        y2={wpmPadding + wpmPlotHeight}
+                        stroke={isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}
+                        strokeWidth={0.5}
+                      />
+                      {/* Trend line */}
+                      <Path
+                        d={wpmPath}
+                        fill="none"
+                        stroke={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.15)'}
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </>
                   ) : (
                     <Line
-                      x1={0}
+                      x1={Y_AXIS_WIDTH}
                       y1={chartHeight / 2}
                       x2={chartWidth}
                       y2={chartHeight / 2}
@@ -297,6 +390,16 @@ export default function InsightsScreen() {
                     />
                   )}
                 </Svg>
+                <View style={[styles.chartLabels, { paddingLeft: Y_AXIS_WIDTH }]}>
+                  {weeks.map((wk) => (
+                    <Text
+                      key={wk}
+                      style={[styles.chartLabel, { color: colors.muted, width: plotWidth / weeks.length }]}
+                    >
+                      W{wk.split('-W')[1]}
+                    </Text>
+                  ))}
+                </View>
               </View>
             </GlassCard>
           </Animated.View>
@@ -393,9 +496,65 @@ export default function InsightsScreen() {
             </GlassCard>
           </Animated.View>
 
+          {/* Quiz insights */}
+          {totalQuizzesTaken > 0 && (
+            <Animated.View entering={FadeIn.delay(600).duration(300)}>
+              <GlassCard>
+                <Text style={[styles.chartTitle, { color: colors.secondary }]}>
+                  QUIZZES
+                </Text>
+                <View style={styles.streakRow}>
+                  <View style={styles.streakItem}>
+                    <Text style={[styles.streakValue, { color: colors.primary }]}>
+                      {totalQuizzesTaken}
+                    </Text>
+                    <Text style={[styles.streakLabel, { color: colors.muted }]}>taken</Text>
+                  </View>
+                  <View style={styles.streakItem}>
+                    <Text style={[styles.streakValue, { color: colors.primary }]}>
+                      {perfectQuizzes}
+                    </Text>
+                    <Text style={[styles.streakLabel, { color: colors.muted }]}>perfect</Text>
+                  </View>
+                  <View style={styles.streakItem}>
+                    <Text style={[styles.streakValue, { color: colors.primary }]}>
+                      {avgComprehension}%
+                    </Text>
+                    <Text style={[styles.streakLabel, { color: colors.muted }]}>comprehension</Text>
+                  </View>
+                </View>
+              </GlassCard>
+            </Animated.View>
+          )}
+
+          {/* Pronunciation insights */}
+          {totalPronunciationAttempts > 0 && (
+            <Animated.View entering={FadeIn.delay(700).duration(300)}>
+              <GlassCard>
+                <Text style={[styles.chartTitle, { color: colors.secondary }]}>
+                  PRONUNCIATION
+                </Text>
+                <View style={styles.streakRow}>
+                  <View style={styles.streakItem}>
+                    <Text style={[styles.streakValue, { color: colors.primary }]}>
+                      {perfectPronunciations}
+                    </Text>
+                    <Text style={[styles.streakLabel, { color: colors.muted }]}>perfect</Text>
+                  </View>
+                  <View style={styles.streakItem}>
+                    <Text style={[styles.streakValue, { color: colors.primary }]}>
+                      {Math.round((perfectPronunciations / totalPronunciationAttempts) * 100)}%
+                    </Text>
+                    <Text style={[styles.streakLabel, { color: colors.muted }]}>accuracy</Text>
+                  </View>
+                </View>
+              </GlassCard>
+            </Animated.View>
+          )}
+
           {/* Share Your Week */}
           {isPremium && (
-            <Animated.View entering={FadeIn.delay(600).duration(300)}>
+            <Animated.View entering={FadeIn.delay(800).duration(300)}>
               <Pressable
                 onPress={handleShareWeek}
                 style={({ pressed }) => [

@@ -800,6 +800,17 @@ function Onboarding() {
       {page === 1 && <OnboardingPersonalize onNext={handlePersonalizeDone} />}
       {page === 2 && <OnboardingLaunch onNext={handleLaunch} />}
       <PageDots total={3} current={page} />
+      {__DEV__ && (
+        <Pressable
+          testID="skip-onboarding"
+          onPress={() => {
+            useSettingsStore.getState().seedScreenshotData();
+          }}
+          style={{ position: 'absolute', top: 60, right: 16, backgroundColor: 'rgba(139,92,246,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
+        >
+          <Text style={{ fontSize: 12, color: '#8B5CF6', fontWeight: '700' }}>SKIP</Text>
+        </Pressable>
+      )}
     </SafeAreaView>
   );
 }
@@ -1495,26 +1506,22 @@ function Home() {
   const formatNumber = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
   const insightsCount = textsCompleted;
 
+  // Standalone dueWords memo — used by priority cascade and review nudge JSX
+  const dueWords = useMemo(
+    () => getDueWords(savedWords, pronunciationHistory),
+    [savedWords, pronunciationHistory]
+  );
+
+  // Daily read: ready (slim row) vs needs generation (full card)
+  const dailyReadReady = windDownMode ? hasTodayWindDownText : hasTodayAIText;
+  const showDailyReadGenerate = !dailyReadReady && isPremium;
+
   return (
     <SafeAreaView style={styles.flex}>
       {/* Header */}
       <View style={styles.homeHeader}>
         {/* Icons row - at top */}
         <View style={styles.headerIconsTop}>
-          {__DEV__ && (
-            <>
-              <Pressable onPress={() => setIsPremium(!isPremium)}>
-                <Text style={[styles.devReplay, { color: isPremium ? colors.primary : colors.muted }]}>
-                  {isPremium ? 'Pro' : 'Free'}
-                </Text>
-              </Pressable>
-              <Pressable onPress={() => resetAll()}>
-                <Text style={[styles.devReplay, { color: colors.muted }]}>
-                  Replay
-                </Text>
-              </Pressable>
-            </>
-          )}
           <Pressable onPress={() => router.push('/achievements')} style={styles.headerButton} accessibilityLabel="Open achievements" accessibilityRole="button">
             <Feather name="award" size={18} color={colors.primary} />
           </Pressable>
@@ -1716,8 +1723,8 @@ function Home() {
           </Pressable>
         </Animated.View>
 
-        {/* Continue card */}
-        {resumeData && (
+        {/* Continue card — temporarily hidden to reduce clutter */}
+        {/* {resumeData && (
           <View style={styles.resumeSection}>
             <Link
               href={{
@@ -1736,53 +1743,12 @@ function Home() {
               </Link.AppleZoom>
             </Link>
           </View>
-        )}
+        )} */}
 
-        {/* Tonight's Reading (wind-down) OR Your Daily Read */}
-        <Animated.View entering={FadeIn.delay(120).duration(400)} style={styles.dailyReadSection}>
-          {windDownMode ? (
-            <Pressable
-              onPress={handleTonightsReading}
-              style={({ pressed }) => [
-                styles.dailyReadCard,
-                {
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
-                  borderColor: glass.border,
-                  transform: [{ scale: pressed ? 0.98 : 1 }],
-                },
-              ]}
-            >
-              {hasTodayWindDownText && (
-                <View style={[styles.dailyReadAccent, { backgroundColor: '#D4A574' }]} />
-              )}
-              <View style={styles.dailyReadRow}>
-                <Feather name="moon" size={18} color="#D4A574" />
-                <View style={styles.dailyReadText}>
-                  <Text style={[styles.dailyReadTitle, { color: colors.primary }]}>
-                    {hasTodayWindDownText ? "Tonight's Reading" : "Generate Tonight's Reading"}
-                  </Text>
-                  <Text style={[styles.dailyReadSub, { color: colors.muted }]} numberOfLines={1}>
-                    {hasTodayWindDownText && windDownText
-                      ? windDownText.title
-                      : isPremium
-                        ? 'A calming passage for bedtime'
-                        : 'Unlock with Pro'}
-                  </Text>
-                </View>
-                {windDownTextLoading ? (
-                  <View style={styles.dailyReadArrow}>
-                    <Text style={[styles.dailyReadArrowText, { color: colors.muted }]}>...</Text>
-                  </View>
-                ) : !isPremium ? (
-                  <Feather name="lock" size={14} color={colors.muted} />
-                ) : (
-                  <Feather name="chevron-right" size={16} color={colors.muted} />
-                )}
-              </View>
-            </Pressable>
-          ) : (
+        {/* Generate card — shown when no daily text exists yet */}
+        {showDailyReadGenerate && (
           <Pressable
-            onPress={handleDailyRead}
+            onPress={windDownMode ? handleTonightsReading : handleDailyRead}
             style={({ pressed }) => [
               styles.dailyReadCard,
               {
@@ -1792,111 +1758,53 @@ function Home() {
               },
             ]}
           >
-            {hasTodayAIText && (
-              <View style={[styles.dailyReadAccent, { backgroundColor: colors.primary }]} />
-            )}
             <View style={styles.dailyReadRow}>
-              <Feather name="book-open" size={18} color={colors.primary} />
-              <View style={styles.dailyReadText}>
+              <Feather
+                name={windDownMode ? 'moon' : 'book-open'}
+                size={18}
+                color={windDownMode ? '#D4A574' : colors.primary}
+              />
+              <View style={styles.dailyReadTextCol}>
                 <Text style={[styles.dailyReadTitle, { color: colors.primary }]}>
-                  {hasTodayAIText ? 'Your Daily Read' : 'Generate Your Daily Read'}
+                  {windDownMode ? "Generate Tonight's Reading" : 'Generate Your Daily Read'}
                 </Text>
                 <Text style={[styles.dailyReadSub, { color: colors.muted }]} numberOfLines={1}>
-                  {hasTodayAIText && dailyAIText
-                    ? dailyAIText.title
-                    : isPremium
-                      ? 'Personalized to your reading taste'
-                      : 'Unlock with Pro'}
+                  {windDownMode ? 'A calming passage for bedtime' : 'Personalized to your reading taste'}
                 </Text>
-                {hasTodayAIText && dailyAITextReason ? (
-                  <Text style={[styles.dailyReadReason, { color: colors.muted }]} numberOfLines={1}>
-                    {dailyAITextReason}
-                  </Text>
-                ) : null}
               </View>
-              {aiTextLoading ? (
-                <View style={styles.dailyReadArrow}>
-                  <Text style={[styles.dailyReadArrowText, { color: colors.muted }]}>...</Text>
-                </View>
-              ) : !isPremium ? (
-                <Feather name="lock" size={14} color={colors.muted} />
+              {(windDownMode ? windDownTextLoading : aiTextLoading) ? (
+                <Text style={{ fontSize: 14, color: colors.muted }}>...</Text>
               ) : (
                 <Feather name="chevron-right" size={16} color={colors.muted} />
               )}
             </View>
           </Pressable>
-          )}
-        </Animated.View>
-
-        {/* Word bank review nudge — spaced repetition based */}
-        {(() => {
-          const dueWords = getDueWords(savedWords, pronunciationHistory);
-          if (dueWords.length === 0) return null;
-          const urgency = getReviewUrgency(dueWords, pronunciationHistory);
-          const isCritical = urgency === 'critical';
-          const icon: FeatherIconName = isCritical ? 'alert-circle' : 'book-open';
-          const iconColor = isCritical ? '#EAB308' : colors.secondary;
-          const subtitle = isCritical ? "Don't let them slip away" : undefined;
-          return (
-            <Animated.View entering={FadeIn.delay(160).duration(400)}>
-              <Pressable
-                onPress={() => router.push('/word-bank')}
-                style={({ pressed }) => [
-                  styles.reviewNudge,
-                  { borderColor: glass.border, opacity: pressed ? 0.7 : 1 },
-                ]}
-              >
-                <Feather name={icon} size={16} color={iconColor} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.reviewNudgeText, { color: colors.secondary }]}>
-                    {dueWords.length} {dueWords.length === 1 ? 'word is' : 'words are'} due for review
-                  </Text>
-                  {subtitle && (
-                    <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
-                      {subtitle}
-                    </Text>
-                  )}
-                </View>
-                <Feather name="chevron-right" size={14} color={colors.muted} />
-              </Pressable>
-            </Animated.View>
-          );
-        })()}
-
-        {/* Weekly challenge card */}
-        {!weeklyChallengeCompleted && (() => {
-          const challenge = getCurrentChallenge();
-          const daysLeft = getDaysRemainingInWeek();
-          const progress = Math.min(weeklyChallengeProgress, challenge.target);
-          const progressPct = Math.round((progress / challenge.target) * 100);
-          return (
-            <Animated.View entering={FadeIn.delay(180).duration(400)}>
-              <View style={[styles.reviewNudge, { borderColor: glass.border }]}>
-                <Feather name={challenge.icon as FeatherIconName} size={16} color={colors.secondary} />
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={[styles.reviewNudgeText, { color: colors.secondary }]}>
-                    {challenge.description} ({progress}/{challenge.target})
-                  </Text>
-                  <View style={[styles.challengeProgressBar, { backgroundColor: `${colors.muted}22` }]}>
-                    <View style={[styles.challengeProgressFill, { width: `${progressPct}%`, backgroundColor: colors.secondary }]} />
-                  </View>
-                </View>
-                <Text style={[styles.challengeProgressText, { color: colors.muted }]}>
-                  {daysLeft}d left
-                </Text>
-              </View>
-            </Animated.View>
-          );
-        })()}
-
-        {/* Streak inline */}
-        {currentStreak > 0 && (
-          <Animated.View entering={FadeIn.delay(200).duration(400)}>
-            <Text style={[styles.streakInline, { color: colors.secondary }]}>
-              {currentStreak}-day streak · Keep it alive
-            </Text>
-          </Animated.View>
         )}
+
+        {/* Contextual rows: daily read (ready) + review nudge + weekly challenge */}
+        <View style={styles.contextualGroup}>
+          {/* Daily read — slim row when text is already generated */}
+          {dailyReadReady && (
+            <Pressable
+              onPress={windDownMode ? handleTonightsReading : handleDailyRead}
+              style={({ pressed }) => [
+                styles.reviewNudge,
+                { borderColor: glass.border, opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              <Feather
+                name={windDownMode ? 'moon' : 'book-open'}
+                size={16}
+                color={windDownMode ? '#D4A574' : colors.secondary}
+              />
+              <Text style={[styles.reviewNudgeText, { color: colors.secondary }]} numberOfLines={1}>
+                {windDownMode ? "Tonight's Reading" : 'Your Daily Read'}
+              </Text>
+              <Feather name="chevron-right" size={14} color={colors.muted} />
+            </Pressable>
+          )}
+
+        </View>
 
         {/* Categories Grid */}
         <Animated.View entering={FadeIn.delay(140).duration(400)} style={styles.categoriesGrid}>
@@ -1963,7 +1871,7 @@ function Home() {
 
         {/* Bookshelf Library - Variant Design System */}
         <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.bookshelfContainer}>
-          {/* Variant Switcher - DEV ONLY */}
+          {/* Variant Switcher + Seed - DEV ONLY */}
           {__DEV__ && (
             <View style={styles.variantSwitcher}>
               {(['A', 'D'] as const).map((v) => (
@@ -1988,6 +1896,25 @@ function Home() {
                   }}>{v}</Text>
                 </Pressable>
               ))}
+              <Pressable
+                testID="seed-screenshots"
+                onPress={() => {
+                  useSettingsStore.getState().seedScreenshotData();
+                  if (hapticEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                }}
+                style={[styles.variantBtn, { backgroundColor: 'rgba(139,92,246,0.15)', borderColor: 'rgba(139,92,246,0.3)' }]}
+              >
+                <Text style={{ fontSize: 13, letterSpacing: 0.5, color: '#8B5CF6', fontWeight: '700' }}>SEED</Text>
+              </Pressable>
+              <Pressable
+                testID="dev-quiz"
+                onPress={() => {
+                  router.push({ pathname: '/quiz', params: { categoryKey: 'story', textId: 'story-village' } });
+                }}
+                style={[styles.variantBtn, { backgroundColor: 'rgba(34,197,94,0.15)', borderColor: 'rgba(34,197,94,0.3)' }]}
+              >
+                <Text style={{ fontSize: 13, letterSpacing: 0.5, color: '#22C55E', fontWeight: '700' }}>QUIZ</Text>
+              </Pressable>
             </View>
           )}
 
@@ -2366,11 +2293,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
-  devReplay: {
-    fontSize: 10,
-    fontWeight: '500',
-    letterSpacing: 0.2,
-  },
   headerButton: {
     width: 44, // Apple HIG minimum touch target
     height: 44,
@@ -2441,7 +2363,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   statsLeft: {
     flexDirection: 'row',
@@ -2462,10 +2384,7 @@ const styles = StyleSheet.create({
   resumeSection: {
     marginBottom: Spacing.lg,
   },
-  // Your Daily Read
-  dailyReadSection: {
-    marginTop: Spacing.sm,
-  },
+  // Daily read generate card
   dailyReadCard: {
     borderRadius: 14,
     borderCurve: 'continuous',
@@ -2473,21 +2392,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     overflow: 'hidden',
-  },
-  dailyReadAccent: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    opacity: 0.3,
+    marginBottom: Spacing.xs,
   },
   dailyReadRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  dailyReadText: {
+  dailyReadTextCol: {
     flex: 1,
     gap: 2,
   },
@@ -2499,25 +2411,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '400',
   },
-  dailyReadReason: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    fontWeight: '400',
-    marginTop: 1,
-  },
-  dailyReadArrow: {
-    width: 20,
-    alignItems: 'center',
-  },
-  dailyReadArrowText: {
-    fontSize: 14,
+  // Contextual group (daily read ready + review nudge + weekly challenge)
+  contextualGroup: {
+    gap: 6,
   },
   // Categories Grid
   categoriesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
-    marginTop: Spacing.lg,
+    marginTop: Spacing.md,
   },
   categoryTile: {
     width: (SCREEN_WIDTH - 48 - 12) / 2,
@@ -2770,12 +2673,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontVariant: ['tabular-nums'],
   },
-  streakInline: {
-    fontSize: 13,
-    fontWeight: '500',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
   // Shuffle / My Words card
   shuffleContent: {
     flexDirection: 'row',
@@ -2812,7 +2709,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 10,
     borderWidth: 0.5,
-    marginBottom: 4,
   },
   reviewNudgeText: {
     flex: 1,

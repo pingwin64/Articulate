@@ -196,6 +196,7 @@ export default function SettingsScreen() {
     profileColor, setProfileColor,
     sentenceRecap, setSentenceRecap,
     hapticFeedback, setHapticFeedback,
+    soundEffects, setSoundEffects,
     breathingAnimation, setBreathingAnimation,
     windDownMode, setWindDownMode,
     ttsSpeed, setTtsSpeed,
@@ -223,6 +224,7 @@ export default function SettingsScreen() {
     profileColor: s.profileColor, setProfileColor: s.setProfileColor,
     sentenceRecap: s.sentenceRecap, setSentenceRecap: s.setSentenceRecap,
     hapticFeedback: s.hapticFeedback, setHapticFeedback: s.setHapticFeedback,
+    soundEffects: s.soundEffects, setSoundEffects: s.setSoundEffects,
     breathingAnimation: s.breathingAnimation, setBreathingAnimation: s.setBreathingAnimation,
     windDownMode: s.windDownMode, setWindDownMode: s.setWindDownMode,
     ttsSpeed: s.ttsSpeed, setTtsSpeed: s.setTtsSpeed,
@@ -543,10 +545,16 @@ export default function SettingsScreen() {
               onValueChange={setSentenceRecap}
             />
           </SettingRow>
-          <SettingRow label="Haptic Feedback" noBorder>
+          <SettingRow label="Haptic Feedback">
             <GlassToggle
               value={hapticFeedback}
               onValueChange={setHapticFeedback}
+            />
+          </SettingRow>
+          <SettingRow label="Tap Sound" noBorder>
+            <GlassToggle
+              value={soundEffects}
+              onValueChange={setSoundEffects}
             />
           </SettingRow>
         </GlassCard>

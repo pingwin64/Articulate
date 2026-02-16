@@ -224,6 +224,8 @@ export interface SettingsState {
   setSentenceRecap: (v: boolean) => void;
   hapticFeedback: boolean;
   setHapticFeedback: (v: boolean) => void;
+  soundEffects: boolean;
+  setSoundEffects: (v: boolean) => void;
   breathingAnimation: boolean;
   setBreathingAnimation: (v: boolean) => void;
   windDownMode: boolean;
@@ -500,6 +502,9 @@ export interface SettingsState {
 
   // Reset
   resetAll: () => void;
+
+  // Dev-only: seed power-user data for App Store screenshots
+  seedScreenshotData: () => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -648,6 +653,8 @@ export const useSettingsStore = create<SettingsState>()(
       setSentenceRecap: (v) => set({ sentenceRecap: v }),
       hapticFeedback: true,
       setHapticFeedback: (v) => set({ hapticFeedback: v }),
+      soundEffects: true,
+      setSoundEffects: (v) => set({ soundEffects: v }),
       breathingAnimation: true,
       setBreathingAnimation: (v) => set({ breathingAnimation: v }),
       windDownMode: false,
@@ -1558,6 +1565,341 @@ export const useSettingsStore = create<SettingsState>()(
         return Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000)));
       },
 
+      // Dev-only: seed power-user data for App Store screenshots
+      seedScreenshotData: () => {
+        if (!__DEV__) return;
+
+        const now = new Date();
+        const today = now.toISOString().slice(0, 10);
+        const todayStr = now.toDateString();
+
+        // Generate dates going back N days
+        const daysAgo = (n: number) => {
+          const d = new Date(now);
+          d.setDate(d.getDate() - n);
+          return d.toISOString();
+        };
+        const dayKey = (n: number) => {
+          const d = new Date(now);
+          d.setDate(d.getDate() - n);
+          return d.toISOString().slice(0, 10);
+        };
+
+        // 25+ beautiful vocabulary words for word bank
+        const seedWords: SavedWord[] = [
+          { id: 'sw-1', word: 'ephemeral', syllables: 'e-phem-er-al', partOfSpeech: 'adjective', definition: 'Lasting for a very short time', etymology: 'Greek ephemeros "lasting only a day"', savedAt: daysAgo(11), sourceCategory: 'philosophy' },
+          { id: 'sw-2', word: 'luminescence', syllables: 'lu-mi-nes-cence', partOfSpeech: 'noun', definition: 'Light produced by chemical or biological means', etymology: 'Latin lumen "light"', savedAt: daysAgo(10), sourceCategory: 'science' },
+          { id: 'sw-3', word: 'serendipity', syllables: 'ser-en-dip-i-ty', partOfSpeech: 'noun', definition: 'The occurrence of finding pleasant things by chance', etymology: 'Coined by Horace Walpole in 1754', savedAt: daysAgo(10), sourceCategory: 'story' },
+          { id: 'sw-4', word: 'melancholy', syllables: 'mel-an-chol-y', partOfSpeech: 'noun', definition: 'A deep, persistent sadness', etymology: 'Greek melankolia "black bile"', savedAt: daysAgo(9), sourceCategory: 'poetry' },
+          { id: 'sw-5', word: 'ethereal', syllables: 'e-the-re-al', partOfSpeech: 'adjective', definition: 'Extremely delicate and light, heavenly', etymology: 'Latin aethereus "of the upper air"', savedAt: daysAgo(9), sourceCategory: 'poetry' },
+          { id: 'sw-6', word: 'solitude', syllables: 'sol-i-tude', partOfSpeech: 'noun', definition: 'The state of being alone', etymology: 'Latin solitudo "loneliness"', savedAt: daysAgo(8), sourceCategory: 'philosophy' },
+          { id: 'sw-7', word: 'wanderlust', syllables: 'wan-der-lust', partOfSpeech: 'noun', definition: 'A strong desire to travel and explore', etymology: 'German wandern "to wander" + Lust "desire"', savedAt: daysAgo(8), sourceCategory: 'essay' },
+          { id: 'sw-8', word: 'resilience', syllables: 're-sil-ience', partOfSpeech: 'noun', definition: 'The capacity to recover quickly from difficulties', etymology: 'Latin resilire "to leap back"', savedAt: daysAgo(7), sourceCategory: 'speech' },
+          { id: 'sw-9', word: 'eloquence', syllables: 'el-o-quence', partOfSpeech: 'noun', definition: 'Fluent or persuasive speaking or writing', etymology: 'Latin eloquentia "speaking out"', savedAt: daysAgo(7), sourceCategory: 'speech' },
+          { id: 'sw-10', word: 'petrichor', syllables: 'pet-ri-chor', partOfSpeech: 'noun', definition: 'The pleasant earthy smell after rain', etymology: 'Greek petra "stone" + ichor "fluid of the gods"', savedAt: daysAgo(6), sourceCategory: 'science' },
+          { id: 'sw-11', word: 'sonder', syllables: 'son-der', partOfSpeech: 'noun', definition: 'The realization that each passerby has a life as vivid as your own', etymology: 'Coined by John Koenig, Dictionary of Obscure Sorrows', savedAt: daysAgo(6), sourceCategory: 'philosophy' },
+          { id: 'sw-12', word: 'ineffable', syllables: 'in-ef-fa-ble', partOfSpeech: 'adjective', definition: 'Too great or extreme to be expressed in words', etymology: 'Latin ineffabilis "unutterable"', savedAt: daysAgo(5), sourceCategory: 'poetry' },
+          { id: 'sw-13', word: 'verisimilitude', syllables: 've-ri-si-mil-i-tude', partOfSpeech: 'noun', definition: 'The appearance of being true or real', etymology: 'Latin verisimilitudo "likeness to truth"', savedAt: daysAgo(5), sourceCategory: 'fiction' },
+          { id: 'sw-14', word: 'cadence', syllables: 'ca-dence', partOfSpeech: 'noun', definition: 'A modulation or inflection of the voice', etymology: 'Latin cadentia "a falling"', savedAt: daysAgo(4), sourceCategory: 'poetry' },
+          { id: 'sw-15', word: 'reverie', syllables: 'rev-er-ie', partOfSpeech: 'noun', definition: 'A state of being pleasantly lost in one\'s thoughts', etymology: 'French r\u00eaverie "dreaming"', savedAt: daysAgo(4), sourceCategory: 'fiction' },
+          { id: 'sw-16', word: 'quintessence', syllables: 'quin-tes-sence', partOfSpeech: 'noun', definition: 'The most perfect embodiment of something', etymology: 'Latin quinta essentia "fifth essence"', savedAt: daysAgo(3), sourceCategory: 'philosophy' },
+          { id: 'sw-17', word: 'iridescent', syllables: 'ir-i-des-cent', partOfSpeech: 'adjective', definition: 'Showing luminous colors that change with angle', etymology: 'Latin iris "rainbow"', savedAt: daysAgo(3), sourceCategory: 'science' },
+          { id: 'sw-18', word: 'labyrinthine', syllables: 'lab-y-rin-thine', partOfSpeech: 'adjective', definition: 'Like a labyrinth; irregular and twisting', etymology: 'Greek labyrinthos "maze"', savedAt: daysAgo(2), sourceCategory: 'history' },
+          { id: 'sw-19', word: 'palimpsest', syllables: 'pal-imp-sest', partOfSpeech: 'noun', definition: 'Something bearing visible traces of an earlier form', etymology: 'Greek palimpsestos "scraped again"', savedAt: daysAgo(2), sourceCategory: 'history' },
+          { id: 'sw-20', word: 'sublime', syllables: 'sub-lime', partOfSpeech: 'adjective', definition: 'Of outstanding spiritual or intellectual worth', etymology: 'Latin sublimis "uplifted, exalted"', savedAt: daysAgo(2), sourceCategory: 'philosophy' },
+          { id: 'sw-21', word: 'diaphanous', syllables: 'di-aph-a-nous', partOfSpeech: 'adjective', definition: 'Light, delicate, and translucent', etymology: 'Greek diaphanes "transparent"', savedAt: daysAgo(1), sourceCategory: 'poetry' },
+          { id: 'sw-22', word: 'sonorous', syllables: 'so-no-rous', partOfSpeech: 'adjective', definition: 'Imposingly deep and full in sound', etymology: 'Latin sonorus "sounding"', savedAt: daysAgo(1), sourceCategory: 'speech' },
+          { id: 'sw-23', word: 'penumbra', syllables: 'pe-num-bra', partOfSpeech: 'noun', definition: 'The partially shaded outer region of a shadow', etymology: 'Latin paene "almost" + umbra "shadow"', savedAt: daysAgo(1), sourceCategory: 'science' },
+          { id: 'sw-24', word: 'halcyon', syllables: 'hal-cy-on', partOfSpeech: 'adjective', definition: 'Denoting a period of time that was idyllically happy', etymology: 'Greek halkyon, a mythical bird', savedAt: daysAgo(0), sourceCategory: 'story' },
+          { id: 'sw-25', word: 'unconquerable', syllables: 'un-con-quer-a-ble', partOfSpeech: 'adjective', definition: 'Not able to be defeated or overcome', etymology: 'Latin conquirere "to seek out"', savedAt: daysAgo(0), sourceCategory: 'poetry' },
+          { id: 'sw-26', word: 'transcendence', syllables: 'tran-scen-dence', partOfSpeech: 'noun', definition: 'Existence beyond the normal physical level', etymology: 'Latin transcendere "to climb beyond"', savedAt: daysAgo(0), sourceCategory: 'philosophy' },
+        ];
+
+        // 28 reading history entries across categories
+        const historyEntries: ReadingHistoryEntry[] = [
+          { id: 'rh-1', categoryKey: 'story', title: 'The Last Leaf', wordsRead: 420, completedAt: daysAgo(11), wpm: 245 },
+          { id: 'rh-2', categoryKey: 'story', title: 'The Gift of the Magi', wordsRead: 380, completedAt: daysAgo(11), wpm: 232 },
+          { id: 'rh-3', categoryKey: 'essay', title: 'On the Shortness of Life', wordsRead: 510, completedAt: daysAgo(10), wpm: 258 },
+          { id: 'rh-4', categoryKey: 'philosophy', title: 'The Allegory of the Cave', wordsRead: 490, completedAt: daysAgo(10), wpm: 241 },
+          { id: 'rh-5', categoryKey: 'speech', title: 'I Have a Dream', wordsRead: 440, completedAt: daysAgo(9), wpm: 267 },
+          { id: 'rh-6', categoryKey: 'poetry', title: 'The Road Not Taken', wordsRead: 120, completedAt: daysAgo(9), wpm: 198 },
+          { id: 'rh-7', categoryKey: 'story', title: 'The Velveteen Rabbit', wordsRead: 350, completedAt: daysAgo(8), wpm: 275 },
+          { id: 'rh-8', categoryKey: 'fiction', title: 'The Yellow Wallpaper', wordsRead: 460, completedAt: daysAgo(8), wpm: 251 },
+          { id: 'rh-9', categoryKey: 'essay', title: 'Self-Reliance', wordsRead: 530, completedAt: daysAgo(7), wpm: 239 },
+          { id: 'rh-10', categoryKey: 'speech', title: 'The Man in the Arena', wordsRead: 280, completedAt: daysAgo(7), wpm: 261 },
+          { id: 'rh-11', categoryKey: 'story', title: 'The Necklace', wordsRead: 390, completedAt: daysAgo(6), wpm: 284 },
+          { id: 'rh-12', categoryKey: 'philosophy', title: 'Meditations', wordsRead: 470, completedAt: daysAgo(6), wpm: 228 },
+          { id: 'rh-13', categoryKey: 'science', title: 'Pale Blue Dot', wordsRead: 360, completedAt: daysAgo(5), wpm: 253 },
+          { id: 'rh-14', categoryKey: 'poetry', title: 'Sonnet 18', wordsRead: 110, completedAt: daysAgo(5), wpm: 205 },
+          { id: 'rh-15', categoryKey: 'story', title: 'The Secret Life of Walter Mitty', wordsRead: 410, completedAt: daysAgo(5), wpm: 291 },
+          { id: 'rh-16', categoryKey: 'history', title: 'The Gettysburg Address', wordsRead: 270, completedAt: daysAgo(4), wpm: 247 },
+          { id: 'rh-17', categoryKey: 'essay', title: 'Walden', wordsRead: 480, completedAt: daysAgo(4), wpm: 263 },
+          { id: 'rh-18', categoryKey: 'speech', title: 'We Shall Fight on the Beaches', wordsRead: 520, completedAt: daysAgo(3), wpm: 274 },
+          { id: 'rh-19', categoryKey: 'philosophy', title: 'On Solitude', wordsRead: 440, completedAt: daysAgo(3), wpm: 236 },
+          { id: 'rh-20', categoryKey: 'story', title: 'An Occurrence at Owl Creek Bridge', wordsRead: 400, completedAt: daysAgo(3), wpm: 255 },
+          { id: 'rh-21', categoryKey: 'fiction', title: '1984 (Excerpt)', wordsRead: 380, completedAt: daysAgo(2), wpm: 268 },
+          { id: 'rh-22', categoryKey: 'poetry', title: 'Still I Rise', wordsRead: 150, completedAt: daysAgo(2), wpm: 212 },
+          { id: 'rh-23', categoryKey: 'essay', title: 'A Room of One\'s Own', wordsRead: 500, completedAt: daysAgo(2), wpm: 246 },
+          { id: 'rh-24', categoryKey: 'story', title: 'The Tell-Tale Heart', wordsRead: 340, completedAt: daysAgo(1), wpm: 278 },
+          { id: 'rh-25', categoryKey: 'philosophy', title: 'The Myth of Sisyphus', wordsRead: 460, completedAt: daysAgo(1), wpm: 241 },
+          { id: 'rh-26', categoryKey: 'speech', title: 'Ain\'t I a Woman?', wordsRead: 310, completedAt: daysAgo(1), wpm: 259 },
+          { id: 'rh-27', categoryKey: 'story', title: 'The Lottery', wordsRead: 370, completedAt: daysAgo(0), wpm: 287 },
+          { id: 'rh-28', categoryKey: 'poetry', title: 'Invictus', wordsRead: 53, completedAt: daysAgo(0), wpm: 195 },
+        ];
+
+        // Weekly reading data — hand-crafted for App Store quality visuals
+        // Curated values: steady upward progression with natural dips
+        const weeklyWordCounts: Record<string, number> = {};
+        const weeklyReadingDays: Record<string, string[]> = {};
+        const weeklyAvgWPM: Record<string, number> = {};
+        const dailyReadingLog: Record<string, number> = {};
+
+        // Target weekly totals (organic growth curve — not a straight line)
+        const weeklyTargets = [1850, 2100, 2450, 2300, 2900, 3200, 3650, 4100];
+        // Target WPM per week (gradual improvement with a small plateau)
+        const wpmTargets =    [228,  234,  239,  241,  248,  253,  261,  268];
+        // Reading days per week (fewer early on, more consistent recently)
+        const daysPerWeek =   [5,    5,    6,    5,    6,    6,    7,    7];
+
+        // Generate week IDs matching getLast8Weeks() logic in insights.tsx
+        const seedWeeks: string[] = [];
+        for (let wi = 7; wi >= 0; wi--) {
+          const wd = new Date(now);
+          wd.setDate(wd.getDate() - wi * 7);
+          const wk = getISOWeekId(wd);
+          if (!seedWeeks.includes(wk)) seedWeeks.push(wk);
+        }
+
+        // Fill each week with daily data that sums to the curated target
+        for (let wi = 0; wi < seedWeeks.length; wi++) {
+          const wk = seedWeeks[wi];
+          const targetWords = weeklyTargets[wi] ?? 2500;
+          weeklyAvgWPM[wk] = wpmTargets[wi] ?? 245;
+          weeklyReadingDays[wk] = [];
+
+          const readDays = daysPerWeek[wi] ?? 6;
+          const weeksFromEnd = seedWeeks.length - 1 - wi;
+          let remaining = targetWords;
+
+          for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+            if (dayIdx >= readDays) continue; // skip rest days
+            const dayDate = new Date(now);
+            dayDate.setDate(dayDate.getDate() - weeksFromEnd * 7 - (6 - dayIdx));
+            const dk = dayDate.toISOString().slice(0, 10);
+
+            const isLast = dayIdx === readDays - 1;
+            const share = remaining / (readDays - dayIdx);
+            const dayWords = isLast
+              ? remaining
+              : Math.max(200, Math.floor(share * (0.8 + Math.random() * 0.4)));
+            dailyReadingLog[dk] = Math.min(dayWords, remaining);
+            remaining -= dailyReadingLog[dk];
+            weeklyReadingDays[wk].push(dk);
+          }
+
+          weeklyWordCounts[wk] = targetWords;
+        }
+
+        // Unlocked badges (~20)
+        const unlockedBadges = [
+          'first-steps',
+          'reached-intermediate', 'reached-advanced', 'reached-expert',
+          'streak-7',
+          'texts-10',
+          'words-1k', 'words-5k',
+          'quiz-first', 'quiz-perfect', 'quiz-10',
+          'quiz-scholar',
+          'word-bank-25',
+          'daily-goal-7',
+          'pronunciation-50',
+          'category-story-bronze', 'category-story-silver',
+          'category-essay-bronze',
+          'category-speech-bronze',
+          'category-philosophy-bronze',
+          'category-poetry-bronze',
+          'vocab-1000', 'vocab-2500',
+          'listener',
+          'custom-creator',
+        ];
+
+        // Custom texts — psychologically resonating titles
+        const seedCustomTexts: CustomText[] = [
+          {
+            id: 'ct-1', title: 'My Morning Ritual', wordCount: 280, createdAt: daysAgo(9),
+            lastReadAt: daysAgo(1), timesRead: 6, source: 'paste',
+            text: 'The alarm is not the start of the day. The first breath is.',
+            preview: 'The alarm is not the start of the day. The first breath is...',
+          },
+          {
+            id: 'ct-2', title: 'Wind-Down Routine', wordCount: 210, createdAt: daysAgo(8),
+            lastReadAt: daysAgo(2), timesRead: 5, source: 'paste',
+            text: 'The screen dims. The thoughts slow. Tonight you rest without rehearsing tomorrow.',
+            preview: 'The screen dims. The thoughts slow. Tonight you rest without rehearsing tomorrow...',
+          },
+          {
+            id: 'ct-3', title: 'Letter to My Future Self', wordCount: 350, createdAt: daysAgo(7),
+            lastReadAt: daysAgo(3), timesRead: 3, source: 'paste',
+            text: 'You are reading this because the version of you that wrote it believed you would become someone worth writing to.',
+            preview: 'You are reading this because the version of you that wrote it believed you would become...',
+          },
+          {
+            id: 'ct-4', title: 'The Art of Doing Nothing', wordCount: 190, createdAt: daysAgo(5),
+            lastReadAt: daysAgo(4), timesRead: 2, source: 'paste',
+            text: 'Stillness is not the absence of motion. It is the presence of intention.',
+            preview: 'Stillness is not the absence of motion. It is the presence of intention...',
+          },
+          {
+            id: 'ct-5', title: 'Why I Walk Alone', wordCount: 320, createdAt: daysAgo(4),
+            lastReadAt: daysAgo(0), timesRead: 4, source: 'paste',
+            text: 'There is a kind of thinking that only happens when your feet are moving and no one is watching.',
+            preview: 'There is a kind of thinking that only happens when your feet are moving...',
+          },
+          {
+            id: 'ct-6', title: 'On Losing Track of Time', wordCount: 260, createdAt: daysAgo(3),
+            timesRead: 1, source: 'scan',
+            text: 'The hours you cannot account for are often the ones you lived most fully.',
+            preview: 'The hours you cannot account for are often the ones you lived most fully...',
+          },
+          {
+            id: 'ct-7', title: 'Things I Stopped Apologizing For', wordCount: 240, createdAt: daysAgo(1),
+            timesRead: 1, source: 'paste',
+            text: 'Needing silence. Leaving early. Choosing the long way home.',
+            preview: 'Needing silence. Leaving early. Choosing the long way home...',
+          },
+        ];
+
+        // Favorite bundled texts
+        const seedFavorites: FavoriteText[] = [
+          { categoryKey: 'philosophy', textId: 'philosophy-meditations', savedAt: daysAgo(8) },
+          { categoryKey: 'speech', textId: 'speech-mlk-dream', savedAt: daysAgo(6) },
+          { categoryKey: 'story', textId: 'story-selfish-giant', savedAt: daysAgo(5) },
+          { categoryKey: 'philosophy', textId: 'philosophy-seneca', savedAt: daysAgo(3) },
+          { categoryKey: 'story', textId: 'story-gift-magi', savedAt: daysAgo(1) },
+        ];
+
+        // Resume data: mid-read in a story
+        const resumeData: ResumeData = {
+          categoryKey: 'story',
+          textId: 'story-last-leaf',
+          wordIndex: 287,
+          totalWords: 487,
+          startTime: Date.now() - 120000,
+        };
+
+        set({
+          // Core user identity
+          isPremium: true,
+          hasOnboarded: true,
+          isFirstReading: false,
+          displayName: 'Alex',
+          profileColor: '#8B5CF6',
+          profileImage: null,
+          themeMode: 'light',
+
+          // Reading display
+          fontFamily: 'sourceSerif',
+          wordSize: 48,
+          wordBold: false,
+          wordColor: 'default',
+          backgroundTheme: 'default',
+
+          // Level & progress
+          levelProgress: 6800,
+          totalWordsRead: 6800,
+          textsCompleted: 28,
+
+          // Streak
+          currentStreak: 12,
+          longestStreak: 12,
+          lastReadDate: now.toISOString(),
+
+          // Daily goal
+          dailyWordGoal: 150,
+          dailyWordsToday: 87,
+          lastDailyResetDate: todayStr,
+          dailyGoalStreak: 5,
+          lastDailyGoalMetDate: new Date(now.getTime() - 86400000).toDateString(),
+
+          // Quiz stats
+          totalQuizzesTaken: 12,
+          perfectQuizzes: 3,
+          avgComprehension: 82,
+
+          // Vocabulary
+          uniqueWordsEncountered: 2400,
+          uniqueWordSet: [], // Don't bloat state with 2400 words
+
+          // Pronunciation
+          perfectPronunciations: 45,
+          totalPronunciationAttempts: 68,
+          hasUsedPronunciation: true,
+          hasUsedTTS: true,
+
+          // Difficulty
+          beginnerTextsCompleted: 10,
+          intermediateTextsCompleted: 12,
+          advancedTextsCompleted: 6,
+
+          // Word bank
+          savedWords: seedWords,
+
+          // Reading history
+          readingHistory: historyEntries,
+
+          // Category read counts
+          categoryReadCounts: {
+            story: 8, essay: 5, speech: 4, philosophy: 4,
+            poetry: 3, fiction: 2, science: 1, history: 1,
+          },
+
+          // Badges
+          unlockedBadges,
+          unlockedRewards: [],
+
+          // Resume
+          resumeData,
+          resumePoints: {
+            'story:story-last-leaf': resumeData,
+          },
+
+          // Weekly data
+          weeklyWordCounts,
+          weeklyReadingDays,
+          weeklyAvgWPM,
+          dailyReadingLog,
+
+          // Weekly challenge (partially complete)
+          weeklyChallengeWeek: getISOWeekId(now),
+          weeklyChallengeProgress: 3,
+          weeklyChallengeCompleted: false,
+          weeklyChallengesCompleted: 2,
+          weeklyCategoriesRead: ['story', 'essay', 'poetry'],
+
+          // Feature discovery (all discovered)
+          discoveredFeatures: { definition: true, pronunciation: true, wordSave: true, tts: true },
+          hasRequestedReview: true,
+
+          // Misc
+          hapticFeedback: true,
+          breathingAnimation: true,
+          reduceMotion: false,
+          notificationsEnabled: true,
+          listenRepeatSessionsCompleted: 8,
+          wordsReviewed: 15,
+          aiTextsRead: 3,
+
+          // Library content
+          customTexts: seedCustomTexts,
+          favoriteTexts: seedFavorites,
+
+          // Clear paywall state
+          showPaywall: false,
+          paywallContext: null,
+          lastUnlockedBadgeId: null,
+          pendingStreakRestore: null,
+        });
+      },
+
       // Reset
       resetAll: () => set({
         hasOnboarded: false,
@@ -1575,6 +1917,7 @@ export const useSettingsStore = create<SettingsState>()(
         levelProgress: 0,
         sentenceRecap: false,
         hapticFeedback: true,
+        soundEffects: true,
         breathingAnimation: true,
         windDownMode: false,
         sleepTimerMinutes: 10,
@@ -1680,7 +2023,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'articulate-settings',
-      version: 34,
+      version: 35,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -2013,6 +2356,10 @@ export const useSettingsStore = create<SettingsState>()(
         }
         if (version < 34) {
           // v34: Etymology field on SavedWord (optional, no-op migration)
+        }
+        if (version < 35) {
+          // v35: Tap sound effects toggle
+          persisted.soundEffects = persisted.soundEffects ?? true;
         }
         return persisted;
       },

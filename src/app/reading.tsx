@@ -42,6 +42,7 @@ import {
   type PronunciationFeedback,
 } from '../lib/pronunciation-service';
 import { useRecording } from '../hooks/useRecording';
+import { preloadTickSound, playTick } from '../lib/sound';
 
 export default function ReadingScreen() {
   const { colors, glass, isDark } = useTheme();
@@ -57,6 +58,7 @@ export default function ReadingScreen() {
   const {
     sentenceRecap,
     hapticFeedback,
+    soundEffects,
     autoPlay,
     autoPlayWPM,
     ttsSpeed,
@@ -225,6 +227,13 @@ export default function ReadingScreen() {
   const showHint = currentIndex < 3;
 
   // Feature discovery tooltip (one-time, staggered by textsCompleted)
+  // Preload tick sound pool on mount
+  useEffect(() => {
+    if (soundEffects) {
+      preloadTickSound();
+    }
+  }, [soundEffects]);
+
   const [featureTooltip, setFeatureTooltip] = useState<string | null>(null);
   const tooltipDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -300,9 +309,12 @@ export default function ReadingScreen() {
     if (hapticFeedback) {
       Haptics.selectionAsync();
     }
+    if (soundEffects) {
+      playTick();
+    }
 
     setCurrentIndex((prev) => Math.min(prev + chunkSize, totalWords - 1));
-  }, [currentIndex, totalWords, chunkSize, hapticFeedback, setResumeData, router, params.categoryKey, params.textId, params.customTextId]);
+  }, [currentIndex, totalWords, chunkSize, hapticFeedback, soundEffects, setResumeData, router, params.categoryKey, params.textId, params.customTextId]);
 
   // Auto-play (only enable after user has completed onboarding)
   useEffect(() => {
@@ -1028,7 +1040,7 @@ export default function ReadingScreen() {
           <View style={styles.definitionOverlay}>
             {/* Animated backdrop */}
             <Animated.View style={[styles.definitionBackdrop, backdropAnimStyle]}>
-              <Pressable style={StyleSheet.absoluteFill} onPress={closeDefinitionCard} />
+              <Pressable style={StyleSheet.absoluteFill} onPress={closeDefinitionCard} testID="definition-backdrop" accessibilityLabel="Dismiss definition" />
             </Animated.View>
 
             {/* Animated card */}
@@ -1047,7 +1059,7 @@ export default function ReadingScreen() {
               ]}
             >
               {/* Close button */}
-              <Pressable onPress={closeDefinitionCard} style={styles.definitionClose} hitSlop={12}>
+              <Pressable onPress={closeDefinitionCard} style={styles.definitionClose} hitSlop={12} accessibilityLabel="Close definition">
                 <Feather name="x" size={18} color={colors.muted} />
               </Pressable>
 

@@ -672,7 +672,7 @@ When adding new icon references:
 
 ### 39. Store Version & Migration Pattern (v27+)
 
-Current store version: **27**. When adding new persisted fields:
+Current store version: **35**. When adding new persisted fields:
 1. Add to `SettingsState` interface
 2. Add default value in the `set`/`get` creation block
 3. Add to `resetAll` defaults
