@@ -9,6 +9,7 @@ import FAQItem from '@/components/FAQItem';
 import HeroHeadline from '@/components/HeroHeadline';
 import InteractiveWordCard from '@/components/InteractiveWordCard';
 import PronunciationMock from '@/components/PronunciationMock';
+import WaitlistForm from '@/components/WaitlistForm';
 
 /* ─── Data ─── */
 
@@ -105,25 +106,6 @@ const FAQS = [
 ];
 
 /* ─── Inline Visuals ─── */
-
-function AppStoreBadge({ className = '' }: { className?: string }) {
-  return (
-    <a
-      href="https://apps.apple.com/app/articulate-one-word-reader/id6740211626"
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`inline-block hover:opacity-80 transition-opacity ${className}`}
-      aria-label="Download on the App Store"
-    >
-      <img
-        src="/app-store-badge.svg"
-        alt="Download on the App Store"
-        width={180}
-        height={60}
-      />
-    </a>
-  );
-}
 
 function QuizCardMock() {
   const options = [
@@ -249,9 +231,9 @@ export default function Home() {
           </Reveal>
 
           <Reveal delay={1300} className="flex flex-col items-center gap-3.5">
-            <AppStoreBadge />
+            <WaitlistForm />
             <p className="text-[13px] text-[var(--muted)]">
-              Free to start. No account needed.
+              Launching soon on iOS. Join the waitlist.
             </p>
           </Reveal>
 
@@ -413,32 +395,16 @@ export default function Home() {
           <div className="max-w-5xl mx-auto text-center relative z-10">
             <Reveal animation="blur">
               <h2 className="font-[family-name:var(--font-serif)] text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4">
-                Your next read starts here.
+                Your next chapter starts here.
               </h2>
             </Reveal>
             <Reveal delay={200}>
               <p className="text-[var(--secondary)] text-lg mb-10">
-                Free to start. No account needed.
+                Be the first to know when we launch.
               </p>
             </Reveal>
             <Reveal animation="scale" delay={400}>
-              <div className="flex flex-col items-center gap-8">
-                <AppStoreBadge />
-                <div className="hidden md:flex flex-col items-center gap-3">
-                  <div className="w-28 h-28 rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-fill)] backdrop-blur-sm p-3 flex items-center justify-center">
-                    <img
-                      src="/qr-code.svg"
-                      alt="QR code to download Articulate"
-                      width={88}
-                      height={88}
-                      className="opacity-60"
-                    />
-                  </div>
-                  <p className="text-[12px] text-[var(--muted)]">
-                    Scan to download
-                  </p>
-                </div>
-              </div>
+              <WaitlistForm showPill={false} />
             </Reveal>
           </div>
         </section>

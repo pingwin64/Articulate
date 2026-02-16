@@ -18,6 +18,14 @@ export default function Header() {
           >
             Privacy
           </Link>
+          <a
+            href="https://x.com/m4lph"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[13px] text-[var(--muted)] hover:text-[var(--primary)] transition-colors"
+          >
+            X
+          </a>
           <Link
             href="/terms"
             className="text-[13px] text-[var(--muted)] hover:text-[var(--primary)] transition-colors"
