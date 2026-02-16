@@ -3,10 +3,14 @@
 import { useEffect, useState, useCallback } from 'react';
 
 const WORDS = ['One', 'word.', 'Nothing', 'else.', 'Pure', 'focus.'];
-const INTERVAL = 700;
+const DEFAULT_INTERVAL = 700;
 const PAUSE_AT_END = 1500;
 
-export default function WordDemo() {
+interface WordDemoProps {
+  interval?: number;
+}
+
+export default function WordDemo({ interval = DEFAULT_INTERVAL }: WordDemoProps) {
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
 
@@ -24,10 +28,10 @@ export default function WordDemo() {
     ).matches;
     if (prefersReduced) return;
 
-    const delay = index === WORDS.length - 1 ? PAUSE_AT_END : INTERVAL;
+    const delay = index === WORDS.length - 1 ? PAUSE_AT_END : interval;
     const timer = setTimeout(advance, delay);
     return () => clearTimeout(timer);
-  }, [index, advance]);
+  }, [index, advance, interval]);
 
   return (
     <div className="h-28 flex items-center justify-center" aria-live="polite">
