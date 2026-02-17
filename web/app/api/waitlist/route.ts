@@ -38,6 +38,8 @@ async function fetchExistingUser(email: string) {
   return { referral_code: user.referral_code, position, referral_count: user.referral_count };
 }
 
+const POSITION_OFFSET = 100;
+
 /** Count how many rows were created at or before this timestamp = position. */
 async function getPosition(createdAt: string): Promise<number> {
   const params = new URLSearchParams({
@@ -53,10 +55,10 @@ async function getPosition(createdAt: string): Promise<number> {
   const range = res.headers.get('content-range');
   if (range) {
     const total = range.split('/')[1];
-    if (total && total !== '*') return parseInt(total, 10);
+    if (total && total !== '*') return parseInt(total, 10) + POSITION_OFFSET;
   }
 
-  return 1;
+  return 1 + POSITION_OFFSET;
 }
 
 /** Increment referrer's referral_count via Supabase RPC or PATCH. */

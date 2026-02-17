@@ -13,6 +13,8 @@ function supabaseHeaders(prefer?: string) {
   return h;
 }
 
+const POSITION_OFFSET = 100;
+
 async function getPosition(createdAt: string): Promise<number> {
   const params = new URLSearchParams({
     created_at: `lte.${createdAt}`,
@@ -26,10 +28,10 @@ async function getPosition(createdAt: string): Promise<number> {
   const range = res.headers.get('content-range');
   if (range) {
     const total = range.split('/')[1];
-    if (total && total !== '*') return parseInt(total, 10);
+    if (total && total !== '*') return parseInt(total, 10) + POSITION_OFFSET;
   }
 
-  return 1;
+  return 1 + POSITION_OFFSET;
 }
 
 export async function POST(request: Request) {
