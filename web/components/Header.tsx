@@ -13,6 +13,12 @@ export default function Header() {
         </Link>
         <nav className="flex items-center gap-6">
           <Link
+            href="/status"
+            className="text-[13px] text-[var(--muted)] hover:text-[var(--primary)] transition-colors"
+          >
+            Status
+          </Link>
+          <Link
             href="/privacy"
             className="text-[13px] text-[var(--muted)] hover:text-[var(--primary)] transition-colors"
           >
