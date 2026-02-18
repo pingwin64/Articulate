@@ -29,7 +29,6 @@ import { Spacing } from '../design/theme';
 import { ALL_BADGES, getBadgeById, type Badge } from '../lib/data/badges';
 import { cancelStreakAtRiskReminder } from '../lib/notifications';
 import { getCurrentChallenge } from '../lib/data/challenges';
-import { fetchDefinition } from '../lib/definitions';
 import * as StoreReview from 'expo-store-review';
 
 // Difficulty multipliers for level progress — wider spread so difficulty choice matters
@@ -195,46 +194,6 @@ export default function CompleteScreen() {
   const [showBadgeUpsell, setShowBadgeUpsell] = React.useState(false);
   // Streak celebration popup
   const [showStreakCelebration, setShowStreakCelebration] = React.useState(false);
-
-  // Words worth saving — interesting words from the text for quick save
-  const [savedChipIds, setSavedChipIds] = React.useState<Set<string>>(new Set());
-  const wordsWorthSaving = React.useMemo(() => {
-    if (!textEntry) return [];
-    const savedWordSet = new Set(savedWords.map((w) => w.word.toLowerCase()));
-    const seen = new Set<string>();
-    return textEntry.words
-      .filter((w) => {
-        const lower = w.toLowerCase().replace(/[^a-z]/g, '');
-        if (lower.length < 6 || savedWordSet.has(lower) || seen.has(lower)) return false;
-        seen.add(lower);
-        return true;
-      })
-      .slice(0, 3);
-  }, [textEntry, savedWords]);
-
-  const handleSaveChip = (word: string) => {
-    if (savedChipIds.has(word)) return;
-    const { addSavedWord } = useSettingsStore.getState();
-    addSavedWord({
-      id: `${Date.now().toString(36)}-${word}`,
-      word,
-      savedAt: new Date().toISOString(),
-      sourceText: displayName,
-      sourceCategory: params.categoryKey,
-    });
-    setSavedChipIds((prev) => new Set(prev).add(word));
-    if (hapticFeedback) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    // Background fetch definition data
-    fetchDefinition(word).then((data) => {
-      useSettingsStore.getState().enrichSavedWord(word, {
-        syllables: data.syllables,
-        partOfSpeech: data.partOfSpeech,
-        definition: data.definition,
-      });
-    }).catch(() => {}); // Silent fail — word bank review will retry
-  };
 
   // Smart CTA: should we suggest practice?
   const showPracticeInstead = savedWords.length >= 1;
@@ -947,41 +906,8 @@ export default function CompleteScreen() {
               return null;
             })()}
 
-            {/* Words worth saving chips — replaces nudge text when applicable */}
-            {wordsWorthSaving.length > 0 && (isPremium || savedWords.length > 0) ? (
-              <Animated.View entering={FadeIn.delay(1800).duration(300)} style={styles.wordChipsContainer}>
-                <Text style={[styles.wordChipsLabel, { color: colors.muted }]}>
-                  Words worth saving
-                </Text>
-                <View style={styles.wordChipsRow}>
-                  {wordsWorthSaving.map((word) => {
-                    const isSaved = savedChipIds.has(word);
-                    return (
-                      <Pressable
-                        key={word}
-                        onPress={() => handleSaveChip(word)}
-                        style={[
-                          styles.wordChip,
-                          {
-                            backgroundColor: isSaved ? colors.primary : glass.fill,
-                            borderColor: isSaved ? colors.primary : glass.border,
-                          },
-                        ]}
-                      >
-                        <Feather
-                          name={isSaved ? 'check' : 'plus'}
-                          size={12}
-                          color={isSaved ? colors.bg : colors.secondary}
-                        />
-                        <Text style={[styles.wordChipText, { color: isSaved ? colors.bg : colors.primary }]}>
-                          {word}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </Animated.View>
-            ) : !isPremium && textsCompleted >= 3 && !hasShownThirdReadingNudge ? (
+            {/* Nudge text for free users */}
+            {!isPremium && textsCompleted >= 3 && !hasShownThirdReadingNudge ? (
               <Animated.View entering={FadeIn.delay(1800).duration(300)}>
                 <Pressable onPress={() => {
                   setHasShownThirdReadingNudge(true);
@@ -1446,33 +1372,5 @@ const styles = StyleSheet.create({
   upgradeBannerSubtitle: {
     fontSize: 13,
     fontWeight: '400',
-  },
-  // Words worth saving chips
-  wordChipsContainer: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  wordChipsLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  wordChipsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  wordChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 0.5,
-  },
-  wordChipText: {
-    fontSize: 13,
-    fontWeight: '500',
   },
 });
