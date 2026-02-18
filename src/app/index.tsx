@@ -58,6 +58,8 @@ import { scheduleStreakAtRiskReminder, cleanupOrphanedNotifications, requestNoti
 import { getDueWords, getReviewUrgency } from '../lib/spaced-repetition';
 import { getCurrentChallenge, getDaysRemainingInWeek } from '../lib/data/challenges';
 import { StreakRestoreSheet } from '../components/StreakRestoreSheet';
+import { SpotlightGuide } from '../components/SpotlightGuide';
+import type { SpotlightTarget } from '../components/SpotlightGuide';
 import { useToastStore } from '../lib/store/toast';
 
 // ─── Onboarding Constants ────────────────────────────────────
@@ -1165,6 +1167,26 @@ function Home() {
   const activateStreakFreeze = useSettingsStore((s) => s.activateStreakFreeze);
   const showToast = useToastStore((s) => s.showToast);
 
+  // Spotlight Guide
+  const hasSeenSpotlightGuide = useSettingsStore((s) => s.hasSeenSpotlightGuide);
+  const setHasSeenSpotlightGuide = useSettingsStore((s) => s.setHasSeenSpotlightGuide);
+  const shouldShowSpotlight = textsCompleted >= 1 && !hasSeenSpotlightGuide;
+
+  const [spotlightReady, setSpotlightReady] = useState(false);
+  useEffect(() => {
+    if (shouldShowSpotlight && !spotlightReady) {
+      const timer = setTimeout(() => setSpotlightReady(true), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldShowSpotlight, spotlightReady]);
+
+  const customizeButtonRef = useRef<View>(null);
+  const heroCardRef = useRef<View>(null);
+  const categoriesGridRef = useRef<View>(null);
+  const bookshelfRef = useRef<View>(null);
+  const homeScrollViewRef = useRef<ScrollView>(null);
+  const scrollOffsetRef = useRef(0);
+
   // Breathing border animation for "Your Text" hero card
   const heroBorderOpacity = useSharedValue(0.25);
   useEffect(() => {
@@ -1331,6 +1353,46 @@ function Home() {
     transform: [{ rotate: `${shuffleRotation.value}deg` }],
   }));
 
+  // ─── Spotlight Targets ──────────────────────────────────────
+  const spotlightTargets: SpotlightTarget[] = useMemo(() => [
+    {
+      key: 'customize',
+      ref: customizeButtonRef,
+      title: 'Customize',
+      description: 'Make it yours. Fonts, colors, themes — all here.',
+      tooltipPosition: 'below',
+      padding: 4,
+      borderRadius: 12,
+    },
+    {
+      key: 'hero',
+      ref: heroCardRef,
+      title: 'Your Text',
+      description: 'Bring your own text. Paste, scan, or import anything you want to read.',
+      tooltipPosition: 'below',
+      padding: 8,
+      borderRadius: 20,
+    },
+    {
+      key: 'categories',
+      ref: categoriesGridRef,
+      title: 'Categories',
+      description: 'Pick something to read. Stories, poetry, speeches, and more.',
+      tooltipPosition: 'below',
+      padding: 8,
+      borderRadius: 16,
+    },
+    {
+      key: 'bookshelf',
+      ref: bookshelfRef,
+      title: 'Your Library',
+      description: 'Your library. Saved words, favorites, and custom texts live here.',
+      tooltipPosition: 'above',
+      padding: 8,
+      borderRadius: 12,
+    },
+  ], []);
+
   // ─── Category Press Handler ─────────────────────────────────
   const handleCategoryPress = useCallback(
     (category: typeof categories[0]) => {
@@ -1441,8 +1503,13 @@ function Home() {
       <View style={styles.homeHeader}>
         {/* Icons row - at top */}
         <View style={styles.headerIconsTop}>
+          <View ref={customizeButtonRef} collapsable={false}>
+            <Pressable onPress={() => router.push('/customize')} style={styles.headerButton} accessibilityLabel="Open customization" accessibilityRole="button">
+              <Feather name="edit-3" size={18} color={colors.primary} />
+            </Pressable>
+          </View>
           <Pressable onPress={() => router.push('/settings')} style={styles.headerButton} accessibilityLabel="Open profile" accessibilityRole="button">
-            <Feather name="user" size={18} color={colors.primary} />
+            <Feather name="settings" size={18} color={colors.primary} />
           </Pressable>
         </View>
 
@@ -1542,9 +1609,12 @@ function Home() {
 
       {/* Main content */}
       <ScrollView
+        ref={homeScrollViewRef}
         style={styles.flex}
         contentContainerStyle={styles.homeScrollContent}
         showsVerticalScrollIndicator={false}
+        onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={16}
       >
         {/* Stats Row */}
         <Animated.View entering={FadeIn.delay(100).duration(400)} style={styles.statsRow}>
@@ -1563,7 +1633,7 @@ function Home() {
         </Animated.View>
 
         {/* Hero: Your Text */}
-        <Animated.View entering={FadeIn.delay(120).duration(400)} style={styles.heroSection}>
+        <Animated.View ref={heroCardRef} collapsable={false} entering={FadeIn.delay(120).duration(400)} style={styles.heroSection}>
           <Pressable
             onPress={() => router.push('/paste')}
             accessibilityRole="button"
@@ -1720,7 +1790,7 @@ function Home() {
         </View>
 
         {/* Categories Grid */}
-        <Animated.View entering={FadeIn.delay(140).duration(400)} style={styles.categoriesGrid}>
+        <Animated.View ref={categoriesGridRef} collapsable={false} entering={FadeIn.delay(140).duration(400)} style={styles.categoriesGrid}>
           {/* Wind-down: show wisdom/poetry/philosophy as main grid */}
           {(windDownMode ? WIND_DOWN_CORE : CORE_CATEGORIES).map((cat, index) => (
             <CategoryTile
@@ -1783,7 +1853,7 @@ function Home() {
         </Animated.View>
 
         {/* Bookshelf Library - Variant Design System */}
-        <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.bookshelfContainer}>
+        <Animated.View ref={bookshelfRef} collapsable={false} entering={FadeIn.delay(200).duration(400)} style={styles.bookshelfContainer}>
           {/* DEV tools */}
           {__DEV__ && (
             <View style={styles.variantSwitcher}>
@@ -1805,6 +1875,17 @@ function Home() {
                 style={[styles.variantBtn, { backgroundColor: 'rgba(34,197,94,0.15)', borderColor: 'rgba(34,197,94,0.3)' }]}
               >
                 <Text style={{ fontSize: 13, letterSpacing: 0.5, color: '#22C55E', fontWeight: '700' }}>QUIZ</Text>
+              </Pressable>
+              <Pressable
+                testID="dev-spotlight"
+                onPress={() => {
+                  setHasSeenSpotlightGuide(false);
+                  setSpotlightReady(false);
+                  setTimeout(() => setSpotlightReady(true), 600);
+                }}
+                style={[styles.variantBtn, { backgroundColor: 'rgba(234,179,8,0.15)', borderColor: 'rgba(234,179,8,0.3)' }]}
+              >
+                <Text style={{ fontSize: 13, letterSpacing: 0.5, color: '#EAB308', fontWeight: '700' }}>SPOT</Text>
               </Pressable>
             </View>
           )}
@@ -1881,6 +1962,17 @@ function Home() {
         onDismiss={() => setPaywallContext(null)}
         context={paywallContext}
       />
+
+      {/* Spotlight Guide — first-time user walkthrough */}
+      {spotlightReady && (
+        <SpotlightGuide
+          visible={shouldShowSpotlight}
+          targets={spotlightTargets}
+          onComplete={() => setHasSeenSpotlightGuide(true)}
+          scrollViewRef={homeScrollViewRef}
+          scrollOffsetRef={scrollOffsetRef}
+        />
+      )}
 
     </SafeAreaView>
   );

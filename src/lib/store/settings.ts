@@ -500,6 +500,10 @@ export interface SettingsState {
   // Computed helper
   trialDaysRemaining: () => number;
 
+  // Spotlight Guide
+  hasSeenSpotlightGuide: boolean;
+  setHasSeenSpotlightGuide: (v: boolean) => void;
+
   // Reset
   resetAll: () => void;
 
@@ -1555,6 +1559,10 @@ export const useSettingsStore = create<SettingsState>()(
       // Device User ID (for server-side rate limiting & analytics)
       deviceUserId: generateDeviceUserId(),
 
+      // Spotlight Guide
+      hasSeenSpotlightGuide: false,
+      setHasSeenSpotlightGuide: (v) => set({ hasSeenSpotlightGuide: v }),
+
       // Computed helper
       trialDaysRemaining: () => {
         const state = get();
@@ -2018,12 +2026,13 @@ export const useSettingsStore = create<SettingsState>()(
         discoveredFeatures: { definition: false, pronunciation: false, wordSave: false, tts: false },
         lastWordReviewDate: null,
         reviewSessions: [],
+        hasSeenSpotlightGuide: false,
         deviceUserId: generateDeviceUserId(),
       }),
     }),
     {
       name: 'articulate-settings',
-      version: 35,
+      version: 36,
       storage: createJSONStorage(() => mmkvStorage),
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
@@ -2360,6 +2369,10 @@ export const useSettingsStore = create<SettingsState>()(
         if (version < 35) {
           // v35: Tap sound effects toggle
           persisted.soundEffects = persisted.soundEffects ?? true;
+        }
+        if (version < 36) {
+          // v36: Spotlight guide — existing users who already read shouldn't see it
+          persisted.hasSeenSpotlightGuide = persisted.hasSeenSpotlightGuide ?? (persisted.textsCompleted > 0);
         }
         return persisted;
       },

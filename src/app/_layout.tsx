@@ -137,6 +137,18 @@ export default function RootLayout() {
               headerTitleStyle: { color: colors.primary },
             }}
           />
+          <Stack.Screen
+            name="customize"
+            options={{
+              animation: 'slide_from_right',
+              headerShown: true,
+              title: 'Customize',
+              headerBackTitle: 'Home',
+              headerStyle: { backgroundColor: colors.bg },
+              headerTintColor: colors.primary,
+              headerTitleStyle: { color: colors.primary },
+            }}
+          />
           <Stack.Screen name="paste" />
           <Stack.Screen
             name="library"
